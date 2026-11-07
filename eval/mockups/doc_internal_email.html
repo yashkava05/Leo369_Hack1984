@@ -1,0 +1,47 @@
+<!doctype html>
+<!-- Synthetic eval mock-up of an internal email. Every name, address, project name and figure is fake. Desktop: 1440x900 -->
+<html><head><meta charset="utf-8"><title>doc_internal_email</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{width:1440px;height:900px;overflow:hidden;font-family:"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:#f3f2f1;color:#252423;display:flex}
+.rail{width:56px;background:#0f6cbd}
+.list{width:360px;background:#fff;border-right:1px solid #e1dfdd}
+.list .h{padding:18px;font-size:18px;font-weight:600;border-bottom:1px solid #e1dfdd}
+.m{padding:14px 18px;border-bottom:1px solid #f3f2f1;font-size:13px}
+.m b{display:block;font-size:14px}.m.on{background:#deecf9;border-left:3px solid #0f6cbd}
+.m .p{color:#605e5c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.read{flex:1;background:#fff;margin:16px;border-radius:6px;padding:28px 36px}
+h1{font-size:22px;font-weight:600;margin-bottom:16px}
+.from{display:flex;gap:12px;align-items:center;margin-bottom:6px}
+.av{width:40px;height:40px;border-radius:50%;background:#8764b8;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600}
+.from .w{font-size:14px}.from .w span{color:#605e5c}
+.to{font-size:13px;color:#605e5c;margin-left:52px;margin-bottom:20px}
+.conf{display:inline-block;background:#fde7e9;color:#a4262c;font-size:12px;font-weight:600;padding:4px 8px;border-radius:3px;margin-bottom:18px}
+.body{font-size:15px;line-height:1.65;max-width:860px}
+.body p{margin-bottom:14px}
+table{border-collapse:collapse;margin:6px 0 16px;font-size:14px}
+td,th{border:1px solid #e1dfdd;padding:6px 14px;text-align:left}
+th{background:#faf9f8}
+</style></head><body>
+<div class="rail"></div>
+<div class="list">
+  <div class="h">Inbox</div>
+  <div class="m on"><b>Jane Doe</b>Project Falcon — Q3 numbers + pricing<div class="p">Ravi, quick summary before Thursday's review…</div></div>
+  <div class="m"><b>IT Service Desk</b>Scheduled maintenance this weekend<div class="p">VPN will be unavailable Saturday 1–3 AM…</div></div>
+  <div class="m"><b>Benefits Team</b>Open enrollment closes Friday<div class="p">Reminder to review your selections…</div></div>
+</div>
+<div class="read">
+  <h1>Project Falcon — Q3 numbers + pricing</h1>
+  <div class="from"><div class="av">JD</div><div class="w"><b>Jane Doe</b> <span>&lt;jane.doe@example.com&gt;</span></div></div>
+  <div class="to">To: Ravi Menon &lt;ravi.menon@example.com&gt; · Tue 11/3/2026 4:12 PM</div>
+  <div class="conf">CONFIDENTIAL — INTERNAL ONLY</div>
+  <div class="body">
+    <p>Ravi, quick summary before Thursday's review.</p>
+    <p>Project Falcon closed Q3 at <b>$4.7M</b> revenue, mostly from the edge AI accelerator modules for warehouse robots. Gross margin held at 41%.</p>
+    <table><tr><th>SKU</th><th>Units</th><th>Proposed price</th></tr><tr><td>Falcon-S</td><td>3,200</td><td>$349</td></tr><tr><td>Falcon-X</td><td>1,150</td><td>$899</td></tr></table>
+    <p>The edge AI accelerator market is getting crowded — NVIDIA Jetson Orin is the main comparison customers bring up. I'd like to hold the Falcon-X price until we see their next refresh.</p>
+    <p>Please keep this inside the pricing group for now.</p>
+    <p>— Jane</p>
+  </div>
+</div>
+</body></html>

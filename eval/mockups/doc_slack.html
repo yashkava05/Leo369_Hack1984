@@ -1,0 +1,43 @@
+<!doctype html>
+<!-- Synthetic eval mock-up of a team chat channel. Names, handles, channel and internal URL are fake. Desktop: 1440x900 -->
+<html><head><meta charset="utf-8"><title>doc_slack</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{width:1440px;height:900px;overflow:hidden;font-family:Lato,"Segoe UI",Helvetica,Arial,sans-serif;background:#fff;color:#1d1c1d;display:flex}
+.ws{width:260px;background:#3f0e40;color:#cfc3cf;padding:16px 0;font-size:15px}
+.ws .t{color:#fff;font-weight:800;font-size:18px;padding:0 18px 16px;border-bottom:1px solid #5d2c5d}
+.ws .sec{padding:16px 18px 6px;font-size:13px}
+.ws .c{padding:5px 26px}.ws .c.on{background:#1164a3;color:#fff}
+.main{flex:1;display:flex;flex-direction:column}
+.hdr{height:58px;border-bottom:1px solid #ddd;display:flex;align-items:center;padding:0 22px;font-weight:800;font-size:18px}
+.hdr span{font-weight:400;color:#616061;font-size:14px;margin-left:14px}
+.msgs{flex:1;padding:18px 22px}
+.msg{display:flex;gap:12px;padding:10px 0}
+.av{width:38px;height:38px;border-radius:6px;flex:none}
+.n{font-weight:800;font-size:15px}.n span{font-weight:400;color:#616061;font-size:12px;margin-left:6px}
+.tx{font-size:15px;line-height:1.5}
+a{color:#1264a3}
+.mention{background:#e8f5fa;color:#1264a3;padding:0 2px;border-radius:3px}
+.box{margin:14px 22px;border:1px solid #bbb;border-radius:8px;height:80px;padding:12px;color:#888;font-size:14px}
+</style></head><body>
+<div class="ws">
+  <div class="t">Northwind Labs ▾</div>
+  <div class="sec">Channels</div>
+  <div class="c"># general</div>
+  <div class="c on"># proj-osprey-pricing</div>
+  <div class="c"># random</div>
+  <div class="sec">Direct messages</div>
+  <div class="c">● Maya Chen</div>
+  <div class="c">● Leo Fischer</div>
+</div>
+<div class="main">
+  <div class="hdr"># proj-osprey-pricing <span>Private · 7 members</span></div>
+  <div class="msgs">
+    <div class="msg"><div class="av" style="background:#e8912d"></div><div><div class="n">Maya Chen <span>@maya.c · 10:02 AM</span></div><div class="tx">Draft Q4 pricing deck is up: <a>https://wiki.internal.example.com/osprey/q4-pricing</a> — please comment before Friday.</div></div></div>
+    <div class="msg"><div class="av" style="background:#2eb67d"></div><div><div class="n">Leo Fischer <span>@leo.f · 10:07 AM</span></div><div class="tx">Benchmarks vs. the Qualcomm Snapdragon X Elite laptops look good. Battery life is where we win.</div></div></div>
+    <div class="msg"><div class="av" style="background:#e8912d"></div><div><div class="n">Maya Chen <span>@maya.c · 10:11 AM</span></div><div class="tx"><span class="mention">@leo.f</span> can you add the Apple M4 MacBook Air numbers too? Sales keeps asking about ARM laptops.</div></div></div>
+    <div class="msg"><div class="av" style="background:#2eb67d"></div><div><div class="n">Leo Fischer <span>@leo.f · 10:14 AM</span></div><div class="tx">On it. I'll drop the sheet in the wiki page above.</div></div></div>
+  </div>
+  <div class="box">Message #proj-osprey-pricing</div>
+</div>
+</body></html>
