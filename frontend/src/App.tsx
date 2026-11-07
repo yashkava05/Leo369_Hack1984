@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { API_URL, getHealth } from './api/client'
 import { DropZone } from './components/DropZone'
 import { StageStrip } from './components/StageStrip'
+import { Terminal } from './components/Terminal'
 import type { HealthResponse } from './types'
 
 function App() {
@@ -19,6 +20,7 @@ function App() {
       <h1>Latent</h1>
       <DropZone />
       <StageStrip />
+      <Terminal />
       <p>
         Backend health from <code>{API_URL}/api/health</code>:
       </p>
