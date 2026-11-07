@@ -16,6 +16,8 @@ dependencies = [
     "sse-starlette",
     "python-multipart",
     "python-dotenv",
+    "presidio-analyzer",
+    "spacy",
     "pillow",
 ]
 
