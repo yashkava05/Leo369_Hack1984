@@ -9,14 +9,14 @@ stripped, a sanitized text query goes to Tavily, and the results render as actio
 
 - Python 3.11+
 - Node 20+ (Vite needs 20.19 or newer)
-- [Ollama](https://ollama.com) (model setup comes in a later issue; not needed to run the scaffold)
+- [Ollama](https://ollama.com/download) 0.7+ (see [Local model setup](#local-model-setup-ollama--qwen25-vl))
 
 ## Quick start
 
 ```bash
 git clone https://github.com/yashkava05/Leo369_Hack1984.git latent
 cd latent
-./scripts/setup.sh          # creates .env, backend/.venv, installs backend + frontend deps
+./scripts/setup.sh          # .env, Ollama model pull + smoke test, backend/.venv, spaCy model, frontend deps
 ```
 
 Then run each server in its own terminal:
@@ -39,6 +39,38 @@ cd backend && python3 -m venv .venv && source .venv/bin/activate && pip install 
 cd ../frontend && npm install
 ```
 </details>
+
+## Local model setup (Ollama + Qwen2.5-VL)
+
+The vision model runs on your own machine through Ollama (0.7 or newer). `./scripts/setup.sh`
+starts `ollama serve` if needed, pulls `qwen2.5vl:3b` (about 3.2 GB), and asks the model to read
+`scripts/smoke.png`. It prints `smoke test passed in Ns`, then installs the backend into
+`backend/.venv` (or your active virtualenv), downloads the spaCy `en_core_web_lg` model for the PII
+scrubber, and runs `npm install` in `frontend/`. Re-running it is safe.
+`LATENT_SKIP_SPACY_MODEL=1` skips the ~600 MB spaCy download; `LATENT_SKIP_NPM=1` skips the
+frontend install.
+
+Check it end to end (from the repo root, with the backend venv active):
+
+```bash
+uvicorn app.main:app --port 8000 --app-dir backend &
+sleep 20 && curl -s localhost:8000/api/health
+# {"status":"ok","ollama":"up","model":"qwen2.5vl:3b","model_loaded":true,"tavily_key":true}
+```
+
+The backend warms the model on startup (`keep_alive: 30m`; skipped when `LATENT_MOCK=1`).
+`status` is `ok` once Ollama is up and the model is pulled; `model_loaded` says whether it is in
+memory right now. If Ollama is not running, `/api/health` still returns 200 with
+`"status": "degraded"` and `"ollama": "down"`. `tavily_key` only says whether a key is set; the
+key itself is never returned or logged.
+
+**Hardware.** The 3B model runs on CPU, but expect roughly 10–40 s per screenshot; on Apple
+Silicon or a GPU it takes a few seconds. With 16 GB+ RAM or a good GPU you can use the 7B model:
+set `LATENT_MODEL=qwen2.5vl:7b` in `.env` and re-run `./scripts/setup.sh`.
+
+**Windows.** `setup.sh` is for macOS and Linux. On Windows, run it inside WSL, or do the steps by
+hand: install Ollama for Windows, `ollama pull qwen2.5vl:3b`, then follow the manual setup above
+and run `python -m spacy download en_core_web_lg` in the backend venv.
 
 ## Configuration
 
