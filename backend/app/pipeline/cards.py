@@ -38,9 +38,27 @@ NOT_A_PRICE_AFTER = re.compile(r"^\s*(?:off|discount|shipping|minimum)\b", re.I)
 TRACKING_PARAMS = {"fbclid", "gclid"}
 
 # Lower rank sorts first; within a rank, higher Tavily score first.
-RANK = {"tickets": 0, "shop": 0, "book": 0, "calendar": 1, "place": 2, "insight": 3, "link": 4}
+RANK = {
+    "tickets": 0,
+    "shop": 0,
+    "book": 0,
+    "calendar": 1,
+    "place": 2,
+    "insight": 3,
+    "link": 4,
+    "related": 5,
+}
 # Per-kind caps so a pile of results cannot crowd the local calendar/Maps cards out.
-KIND_CAP = {"tickets": 3, "shop": 4, "book": 3, "calendar": 1, "place": 1, "insight": 1, "link": 3}
+KIND_CAP = {
+    "tickets": 3,
+    "shop": 4,
+    "book": 3,
+    "calendar": 1,
+    "place": 1,
+    "insight": 1,
+    "link": 3,
+    "related": 2,
+}
 
 
 # --- helpers ----------------------------------------------------------------------
