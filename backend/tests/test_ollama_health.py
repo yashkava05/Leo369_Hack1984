@@ -5,7 +5,7 @@ import httpx
 import pytest
 from fastapi.testclient import TestClient
 
-from app import ollama
+from app import egress, ollama
 from app.config import get_settings
 from app.main import app
 
@@ -45,14 +45,19 @@ def client(monkeypatch):
     monkeypatch.setenv("LATENT_MOCK", "1")  # no real warm-up request during tests
     monkeypatch.setenv("LATENT_MODEL", MODEL)
     monkeypatch.setenv("TAVILY_API_KEY", SECRET)
+    monkeypatch.setattr(egress, "local_client", lambda: _fake["http"])
     get_settings.cache_clear()
     with TestClient(app) as c:
         yield c
     get_settings.cache_clear()
 
 
+_fake: dict[str, httpx.AsyncClient] = {}
+
+
 def use_transport(transport):
-    app.state.http = httpx.AsyncClient(transport=transport)
+    """Point the health endpoint's egress.local_client() at a fake Ollama."""
+    _fake["http"] = httpx.AsyncClient(transport=transport, base_url="http://127.0.0.1:11434")
 
 
 def test_health_ok_when_model_pulled_and_loaded(client):
@@ -100,7 +105,8 @@ def test_health_degraded_when_ollama_down(client, caplog):
 
 
 def test_tavily_key_absent(client, monkeypatch):
-    monkeypatch.setattr(app.state.settings, "tavily_api_key", "")
+    monkeypatch.setenv("TAVILY_API_KEY", "")
+    get_settings.cache_clear()
     use_transport(fake_ollama())
     assert client.get("/api/health").json()["tavily_key"] is False
 
@@ -111,8 +117,10 @@ def test_untagged_model_name_matches_latest():
 
 async def test_warm_up_posts_keep_alive():
     calls = []
-    async with httpx.AsyncClient(transport=fake_ollama(calls=calls)) as http:
-        assert await ollama.warm_up(http, "http://ollama.test", MODEL)
+    async with httpx.AsyncClient(
+        transport=fake_ollama(calls=calls), base_url="http://127.0.0.1:11434"
+    ) as http:
+        assert await ollama.warm_up(http, MODEL)
     body = json.loads(calls[0].content)
     assert calls[0].url.path == "/api/chat"
     assert body["model"] == MODEL
@@ -121,5 +129,7 @@ async def test_warm_up_posts_keep_alive():
 
 
 async def test_warm_up_survives_ollama_down():
-    async with httpx.AsyncClient(transport=ollama_down()) as http:
-        assert await ollama.warm_up(http, "http://ollama.test", MODEL) is False
+    async with httpx.AsyncClient(
+        transport=ollama_down(), base_url="http://127.0.0.1:11434"
+    ) as http:
+        assert await ollama.warm_up(http, MODEL) is False

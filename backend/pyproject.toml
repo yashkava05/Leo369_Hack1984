@@ -18,6 +18,7 @@ dependencies = [
     "python-dotenv",
     "presidio-analyzer",
     "spacy",
+    "pillow",
 ]
 
 [project.optional-dependencies]
@@ -33,6 +34,7 @@ include = ["app*"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+markers = ["ollama: live test that needs a running Ollama with the model pulled"]
 
 [tool.ruff]
 line-length = 100

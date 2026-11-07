@@ -1,4 +1,8 @@
-"""Local Ollama checks: the live /api/health report and the startup warm-up."""
+"""Local Ollama checks: the live /api/health report and the startup warm-up.
+
+Callers pass `egress.local_client()` (base_url = OLLAMA_HOST, loopback only), so every
+request here uses a path relative to that host.
+"""
 
 from __future__ import annotations
 
@@ -30,9 +34,9 @@ def _has_model(payload: dict[str, Any], model: str) -> bool:
     return False
 
 
-async def _get_json(client: httpx.AsyncClient, url: str) -> dict[str, Any] | None:
+async def _get_json(client: httpx.AsyncClient, path: str) -> dict[str, Any] | None:
     try:
-        resp = await client.get(url, timeout=HEALTH_TIMEOUT_S)
+        resp = await client.get(path, timeout=HEALTH_TIMEOUT_S)
         resp.raise_for_status()
         data = resp.json()
     except (httpx.HTTPError, ValueError):
@@ -41,18 +45,17 @@ async def _get_json(client: httpx.AsyncClient, url: str) -> dict[str, Any] | Non
 
 
 async def check_health(
-    client: httpx.AsyncClient, host: str, model: str, tavily_key_present: bool
+    client: httpx.AsyncClient, model: str, tavily_key_present: bool
 ) -> dict[str, Any]:
     """Build the /api/health body. Never raises when Ollama is down or misbehaving.
 
     status is "ok" when Ollama answers and the configured model is pulled;
     model_loaded reports whether it is currently in memory (GET /api/ps).
     """
-    host = host.rstrip("/")
     version, tags, ps = await asyncio.gather(
-        _get_json(client, f"{host}/api/version"),
-        _get_json(client, f"{host}/api/tags"),
-        _get_json(client, f"{host}/api/ps"),
+        _get_json(client, "/api/version"),
+        _get_json(client, "/api/tags"),
+        _get_json(client, "/api/ps"),
     )
     up = version is not None
     pulled = up and tags is not None and _has_model(tags, model)
@@ -66,7 +69,7 @@ async def check_health(
     }
 
 
-async def warm_up(client: httpx.AsyncClient, host: str, model: str) -> bool:
+async def warm_up(client: httpx.AsyncClient, model: str) -> bool:
     """Load the model into memory with a one-word chat so the first screenshot is fast."""
     body = {
         "model": model,
@@ -75,9 +78,7 @@ async def warm_up(client: httpx.AsyncClient, host: str, model: str) -> bool:
         "keep_alive": KEEP_ALIVE,
     }
     try:
-        resp = await client.post(
-            f"{host.rstrip('/')}/api/chat", json=body, timeout=WARMUP_TIMEOUT_S
-        )
+        resp = await client.post("/api/chat", json=body, timeout=WARMUP_TIMEOUT_S)
         resp.raise_for_status()
     except httpx.HTTPError as exc:
         log.warning("model warm-up for %s failed: %s", model, type(exc).__name__)

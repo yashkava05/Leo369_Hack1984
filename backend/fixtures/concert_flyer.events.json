@@ -1,0 +1,330 @@
+[
+  {
+    "job_id": "j_fx_concert",
+    "seq": 0,
+    "ts": 1794000000.4,
+    "stage": "ingest",
+    "status": "start",
+    "message": "ingest: received concert.png (412 KB, image/png)",
+    "local": true,
+    "data": null
+  },
+  {
+    "job_id": "j_fx_concert",
+    "seq": 1,
+    "ts": 1794000000.9,
+    "stage": "ingest",
+    "status": "ok",
+    "message": "ingest: image decoded 1170x2532, EXIF stripped",
+    "local": true,
+    "data": {
+      "width": 1170,
+      "height": 2532
+    }
+  },
+  {
+    "job_id": "j_fx_concert",
+    "seq": 2,
+    "ts": 1794000001.5,
+    "stage": "extract",
+    "status": "start",
+    "message": "extract: running qwen2.5vl:3b on device",
+    "local": true,
+    "data": null
+  },
+  {
+    "job_id": "j_fx_concert",
+    "seq": 3,
+    "ts": 1794000001.9,
+    "stage": "extract",
+    "status": "progress",
+    "message": "extract: model read 38 text spans",
+    "local": true,
+    "data": {
+      "spans": 38
+    }
+  },
+  {
+    "job_id": "j_fx_concert",
+    "seq": 4,
+    "ts": 1794000002.4,
+    "stage": "extract",
+    "status": "ok",
+    "message": "extract: intent=event, found 5 public entities, confidence 0.91",
+    "local": true,
+    "data": {
+      "intent_type": "event",
+      "entities": 5
+    }
+  },
+  {
+    "job_id": "j_fx_concert",
+    "seq": 5,
+    "ts": 1794000003.0,
+    "stage": "scrub",
+    "status": "start",
+    "message": "scrub: checking for personal data",
+    "local": true,
+    "data": null
+  },
+  {
+    "job_id": "j_fx_concert",
+    "seq": 6,
+    "ts": 1794000003.4,
+    "stage": "scrub",
+    "status": "ok",
+    "message": "scrub: redacted 2 handles, 1 message text",
+    "local": true,
+    "data": {
+      "redaction_counts": {
+        "handle": 2,
+        "message_text": 1
+      }
+    }
+  },
+  {
+    "job_id": "j_fx_concert",
+    "seq": 7,
+    "ts": 1794000003.9,
+    "stage": "query",
+    "status": "ok",
+    "message": "query: built 2 sanitized queries (tickets, place)",
+    "local": true,
+    "data": {
+      "queries": [
+        {
+          "text": "Lumen Drift Paradise Rock Club Boston December 5 2026 tickets",
+          "purpose": "tickets",
+          "topic": "general",
+          "include_domains": [
+            "ticketmaster.com",
+            "axs.com",
+            "dice.fm"
+          ]
+        },
+        {
+          "text": "Paradise Rock Club Boston venue",
+          "purpose": "place",
+          "topic": "general",
+          "include_domains": []
+        }
+      ]
+    }
+  },
+  {
+    "job_id": "j_fx_concert",
+    "seq": 8,
+    "ts": 1794000004.5,
+    "stage": "search",
+    "status": "start",
+    "message": "search: POST api.tavily.com/search x2 (text only, no image)",
+    "local": false,
+    "data": null
+  },
+  {
+    "job_id": "j_fx_concert",
+    "seq": 9,
+    "ts": 1794000004.9,
+    "stage": "search",
+    "status": "ok",
+    "message": "search: 9 results from 6 domains in 910 ms",
+    "local": false,
+    "data": {
+      "results": 9
+    }
+  },
+  {
+    "job_id": "j_fx_concert",
+    "seq": 10,
+    "ts": 1794000005.4,
+    "stage": "cards",
+    "status": "ok",
+    "message": "cards: built 4 cards (tickets, calendar, place, insight)",
+    "local": true,
+    "data": {
+      "cards": 4
+    }
+  },
+  {
+    "job_id": "j_fx_concert",
+    "seq": 11,
+    "ts": 1794000005.7,
+    "stage": "done",
+    "status": "ok",
+    "message": "done: 4 cards in 4185 ms, 2 network calls, 0 blocked",
+    "local": true,
+    "data": {
+      "job_id": "j_fx_concert",
+      "status": "done",
+      "intent": {
+        "intent_type": "event",
+        "summary": "Concert flyer: Lumen Drift live at Paradise Rock Club, Boston, Sat Dec 5 2026, 8 PM.",
+        "public_entities": [
+          {
+            "type": "performer",
+            "value": "Lumen Drift"
+          },
+          {
+            "type": "venue",
+            "value": "Paradise Rock Club"
+          },
+          {
+            "type": "city",
+            "value": "Boston"
+          },
+          {
+            "type": "date",
+            "value": "2026-12-05"
+          },
+          {
+            "type": "time",
+            "value": "20:00"
+          }
+        ],
+        "redaction_counts": {
+          "handle": 2,
+          "message_text": 1
+        },
+        "confidence": 0.91
+      },
+      "queries": [
+        {
+          "text": "Lumen Drift Paradise Rock Club Boston December 5 2026 tickets",
+          "purpose": "tickets",
+          "topic": "general",
+          "include_domains": [
+            "ticketmaster.com",
+            "axs.com",
+            "dice.fm"
+          ]
+        },
+        {
+          "text": "Paradise Rock Club Boston venue",
+          "purpose": "place",
+          "topic": "general",
+          "include_domains": []
+        }
+      ],
+      "cards": [
+        {
+          "id": "c_tickets",
+          "kind": "tickets",
+          "title": "Lumen Drift \u2014 Paradise Rock Club",
+          "subtitle": "Sat, Dec 5 2026 \u00b7 8:00 PM \u00b7 Boston, MA",
+          "url": "https://www.ticketmaster.com/event/lumen-drift-paradise-rock-club",
+          "price": "$45",
+          "source": "ticketmaster.com",
+          "snippet": "General admission standing tickets for Lumen Drift at Paradise Rock Club. Doors 7:00 PM, show 8:00 PM. All ages.",
+          "score": 0.94,
+          "actions": [
+            {
+              "label": "Buy tickets",
+              "type": "open_url",
+              "url": "https://www.ticketmaster.com/event/lumen-drift-paradise-rock-club",
+              "ics": null,
+              "text": null
+            }
+          ]
+        },
+        {
+          "id": "c_calendar",
+          "kind": "calendar",
+          "title": "Add to calendar: Lumen Drift",
+          "subtitle": "Sat, Dec 5 2026 \u00b7 8:00 PM",
+          "url": null,
+          "price": null,
+          "source": "flyer",
+          "snippet": "Event details read from the screenshot on this device.",
+          "score": 0.9,
+          "actions": [
+            {
+              "label": "Download .ics",
+              "type": "download_ics",
+              "url": null,
+              "ics": {
+                "title": "Lumen Drift live",
+                "start": "2026-12-05T20:00:00-05:00",
+                "end": "2026-12-05T23:00:00-05:00",
+                "location": "Paradise Rock Club, 967 Commonwealth Ave, Boston, MA",
+                "url": "https://www.ticketmaster.com/event/lumen-drift-paradise-rock-club"
+              },
+              "text": null
+            }
+          ]
+        },
+        {
+          "id": "c_place",
+          "kind": "place",
+          "title": "Paradise Rock Club",
+          "subtitle": "967 Commonwealth Ave, Boston, MA",
+          "url": "https://www.google.com/maps/search/?api=1&query=Paradise+Rock+Club+Boston",
+          "price": null,
+          "source": "google.com",
+          "snippet": "Live music venue near Boston University; capacity around 900. Closest T stop: Babcock Street (Green Line B).",
+          "score": 0.82,
+          "actions": [
+            {
+              "label": "Open in Maps",
+              "type": "open_url",
+              "url": "https://www.google.com/maps/search/?api=1&query=Paradise+Rock+Club+Boston",
+              "ics": null,
+              "text": null
+            },
+            {
+              "label": "Copy address",
+              "type": "copy",
+              "url": null,
+              "ics": null,
+              "text": "967 Commonwealth Ave, Boston, MA 02215"
+            }
+          ]
+        },
+        {
+          "id": "c_insight",
+          "kind": "insight",
+          "title": "Shows like this tend to sell out",
+          "subtitle": "Context from recent listings",
+          "url": null,
+          "price": null,
+          "source": "dice.fm",
+          "snippet": "Lumen Drift's last two Boston dates sold out about a week ahead; resale prices ran roughly 2x face value.",
+          "score": 0.61,
+          "actions": []
+        }
+      ],
+      "egress": [
+        {
+          "id": "eg_1",
+          "ts": 1794000003.2,
+          "method": "POST",
+          "host": "api.tavily.com",
+          "path": "/search",
+          "bytes_out": 200,
+          "payload_preview": "{\"query\": \"Lumen Drift Paradise Rock Club Boston December 5 2026 tickets\", \"topic\": \"general\", \"search_depth\": \"basic\", \"max_results\": 5, \"include_domains\": [\"ticketmaster.com\", \"axs.com\", \"dice.fm\"]}",
+          "blocked": false,
+          "reason": null
+        },
+        {
+          "id": "eg_2",
+          "ts": 1794000003.3,
+          "method": "POST",
+          "host": "api.tavily.com",
+          "path": "/search",
+          "bytes_out": 107,
+          "payload_preview": "{\"query\": \"Paradise Rock Club Boston venue\", \"topic\": \"general\", \"search_depth\": \"basic\", \"max_results\": 5}",
+          "blocked": false,
+          "reason": null
+        }
+      ],
+      "timings_ms": {
+        "ingest": 42,
+        "extract": 3180,
+        "scrub": 12,
+        "query": 6,
+        "search": 910,
+        "cards": 35
+      },
+      "error": null
+    }
+  }
+]
