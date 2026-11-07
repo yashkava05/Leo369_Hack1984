@@ -1,0 +1,75 @@
+.stage-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 1rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.stage {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.625rem;
+  border: 1px solid #8886;
+  border-radius: 999px;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 0.875rem;
+}
+
+.stage-future {
+  opacity: 0.4;
+}
+
+.stage-current {
+  border-color: #3b82f6;
+  animation: stage-pulse 1.2s ease-in-out infinite;
+}
+
+.stage-complete .stage-mark {
+  color: #16a34a;
+}
+
+.stage-failed {
+  border-color: #dc2626;
+}
+
+.stage-failed .stage-mark {
+  color: #dc2626;
+}
+
+.stage-mark:empty {
+  display: none;
+}
+
+.stage-badge {
+  padding: 0 0.375rem;
+  border-radius: 4px;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.badge-local {
+  color: #fff;
+  background: #16a34a;
+}
+
+.badge-net {
+  color: #1c1917;
+  background: #f59e0b;
+}
+
+@keyframes stage-pulse {
+  50% {
+    box-shadow: 0 0 0 4px #3b82f633;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stage-current {
+    animation: none;
+    box-shadow: 0 0 0 3px #3b82f633;
+  }
+}
