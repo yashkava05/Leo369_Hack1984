@@ -1,0 +1,46 @@
+{
+  "intent": {
+    "intent_type": "book",
+    "summary": "Book cover: The Glass Orchard by Mira Calloway.",
+    "public_entities": [
+      {
+        "type": "book_title",
+        "value": "The Glass Orchard"
+      },
+      {
+        "type": "author",
+        "value": "Mira Calloway"
+      }
+    ],
+    "redaction_counts": {},
+    "confidence": 0.88
+  },
+  "queries": [
+    {
+      "text": "The Glass Orchard Mira Calloway book",
+      "purpose": "book",
+      "topic": "general",
+      "include_domains": []
+    }
+  ],
+  "responses": {
+    "The Glass Orchard Mira Calloway book": {
+      "query": "The Glass Orchard Mira Calloway book",
+      "answer": "The Glass Orchard is a 2025 novel by Mira Calloway about three sisters running a failing orchard.",
+      "results": [
+        {
+          "title": "The Glass Orchard by Mira Calloway | Paperback",
+          "url": "https://www.bookbarn.test/books/the-glass-orchard?utm_medium=search",
+          "content": "Paperback $17.99. A novel about three sisters.",
+          "score": 0.91
+        },
+        {
+          "title": "The Glass Orchard - Mira Calloway",
+          "url": "https://openshelf.test/works/glass-orchard",
+          "content": "Published 2025, 352 pages.",
+          "score": 0.8
+        }
+      ]
+    }
+  }
+}

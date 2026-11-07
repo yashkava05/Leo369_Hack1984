@@ -17,6 +17,7 @@ dependencies = [
     "python-multipart",
     "python-dotenv",
     "pillow",
+    "python-dateutil",
 ]
 
 [project.optional-dependencies]
@@ -32,7 +33,10 @@ include = ["app*"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
-markers = ["ollama: live test that needs a running Ollama with the model pulled"]
+markers = [
+    "ollama: live test that needs a running Ollama with the model pulled",
+    "live: live test that calls the real Tavily API (needs TAVILY_API_KEY)",
+]
 
 [tool.ruff]
 line-length = 100

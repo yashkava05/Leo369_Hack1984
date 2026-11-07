@@ -1,0 +1,54 @@
+{
+  "intent": {
+    "intent_type": "document",
+    "summary": "Article about Northwind Robotics quarterly results.",
+    "public_entities": [
+      {
+        "type": "public_org",
+        "value": "Northwind Robotics"
+      },
+      {
+        "type": "topic",
+        "value": "quarterly results"
+      }
+    ],
+    "redaction_counts": {
+      "email": 1
+    },
+    "confidence": 0.8
+  },
+  "queries": [
+    {
+      "text": "Northwind Robotics quarterly results",
+      "purpose": "context",
+      "topic": "news",
+      "include_domains": []
+    }
+  ],
+  "responses": {
+    "Northwind Robotics quarterly results": {
+      "query": "Northwind Robotics quarterly results",
+      "answer": "Northwind Robotics reported revenue growth of 12% in its latest quarter, driven by warehouse automation orders. Northwind Robotics reported revenue growth of 12% in its latest quarter, driven by warehouse automation orders. Northwind Robotics reported revenue growth of 12% in its latest quarter, driven by warehouse automation orders. ",
+      "results": [
+        {
+          "title": "Northwind Robotics beats estimates",
+          "url": "https://news.test/northwind-q3?utm_source=tavily&ref=home",
+          "content": "Northwind Robotics posted quarterly revenue of $412 million.",
+          "score": 0.88
+        },
+        {
+          "title": "Northwind Robotics investor relations",
+          "url": "https://northwind-robotics.test/ir",
+          "content": "Quarterly reports and filings.",
+          "score": 0.75
+        },
+        {
+          "title": "Analysts react to Northwind results",
+          "url": "https://markets.test/northwind-analysts",
+          "content": "Shares rose after the report.",
+          "score": 0.7
+        }
+      ]
+    }
+  }
+}
