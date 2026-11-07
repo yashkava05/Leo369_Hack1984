@@ -7,6 +7,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app import jobs
+from app.config import Settings, get_settings
 from app.main import app
 from app.models import JobResult, StageEvent
 
@@ -16,9 +17,11 @@ PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 64
 @pytest.fixture
 def client(monkeypatch):
     monkeypatch.setenv("LATENT_MOCK", "1")
+    get_settings.cache_clear()
     monkeypatch.setattr(jobs, "MOCK_DELAY_RANGE", (0.01, 0.02))
     with TestClient(app) as c:
         yield c
+    get_settings.cache_clear()
 
 
 def read_stage_events(client, job_id):
@@ -101,7 +104,19 @@ def test_too_large_413(client):
 
 def test_without_mock_job_ends_in_error(client, monkeypatch):
     monkeypatch.setenv("LATENT_MOCK", "0")
+    get_settings.cache_clear()
     job_id = upload(client).json()["job_id"]
     events = read_stage_events(client, job_id)
     assert [e.stage for e in events] == ["error"]
     assert client.get(f"/api/jobs/{job_id}").json()["status"] == "error"
+
+
+def test_mock_flag_read_from_env_file(monkeypatch, tmp_path):
+    # LATENT_MOCK set only in .env (not exported) must still turn mock mode on.
+    monkeypatch.delenv("LATENT_MOCK", raising=False)
+    env_file = tmp_path / ".env"
+    env_file.write_text("LATENT_MOCK=1\n")
+    monkeypatch.setattr(jobs, "get_settings", lambda: Settings(_env_file=env_file))
+    assert jobs.mock_enabled() is True
+    env_file.write_text("LATENT_MOCK=0\n")
+    assert jobs.mock_enabled() is False

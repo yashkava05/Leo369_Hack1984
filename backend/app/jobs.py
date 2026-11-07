@@ -2,7 +2,6 @@
 
 import asyncio
 import json
-import os
 import random
 import time
 import uuid
@@ -21,11 +20,7 @@ MOCK_DELAY_RANGE: tuple[float, float] = (0.3, 0.7)
 
 
 def mock_enabled() -> bool:
-    # A live LATENT_MOCK env var wins so it can be toggled per process (and in tests);
-    # otherwise fall back to the value loaded from .env.
-    raw = os.getenv("LATENT_MOCK")
-    if raw is not None:
-        return raw.strip().lower() in ("1", "true", "yes", "on")
+    # pydantic-settings reads LATENT_MOCK from the process env first, then from .env.
     return get_settings().latent_mock
 
 
