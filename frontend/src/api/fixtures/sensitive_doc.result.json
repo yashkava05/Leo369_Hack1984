@@ -1,0 +1,160 @@
+{
+  "job_id": "j_fx_doc",
+  "status": "done",
+  "intent": {
+    "intent_type": "document",
+    "summary": "Brokerage statement screenshot with holdings in NVIDIA and an S&P 500 index fund; personal details removed.",
+    "public_entities": [
+      {
+        "type": "public_org",
+        "value": "NVIDIA"
+      },
+      {
+        "type": "topic",
+        "value": "S&P 500 index fund"
+      },
+      {
+        "type": "metric",
+        "value": "quarterly performance"
+      }
+    ],
+    "redaction_counts": {
+      "person_name": 3,
+      "account_number": 2,
+      "email": 1,
+      "address": 1,
+      "phone": 1,
+      "dollar_amount": 7
+    },
+    "confidence": 0.84
+  },
+  "queries": [
+    {
+      "text": "NVIDIA stock outlook Q4 2026",
+      "purpose": "context",
+      "topic": "finance",
+      "include_domains": []
+    },
+    {
+      "text": "S&P 500 index fund performance 2026",
+      "purpose": "related",
+      "topic": "news",
+      "include_domains": []
+    }
+  ],
+  "cards": [
+    {
+      "id": "s_insight_nvda",
+      "kind": "insight",
+      "title": "NVIDIA: what analysts are watching",
+      "subtitle": "Market context",
+      "url": "https://www.reuters.com/markets/companies/NVDA.O",
+      "price": null,
+      "source": "reuters.com",
+      "snippet": "Coverage focuses on data-center demand and next-quarter guidance. General market context only, not advice about your holdings.",
+      "score": 0.88,
+      "actions": [
+        {
+          "label": "Read on Reuters",
+          "type": "open_url",
+          "url": "https://www.reuters.com/markets/companies/NVDA.O",
+          "ics": null,
+          "text": null
+        }
+      ]
+    },
+    {
+      "id": "s_insight_index",
+      "kind": "insight",
+      "title": "S&P 500 year-to-date",
+      "subtitle": "Market context",
+      "url": "https://www.cnbc.com/quotes/.SPX",
+      "price": null,
+      "source": "cnbc.com",
+      "snippet": "Broad-market index performance and recent drivers. Nothing from your statement was sent; only the fund category was searched.",
+      "score": 0.8,
+      "actions": [
+        {
+          "label": "Open quote",
+          "type": "open_url",
+          "url": "https://www.cnbc.com/quotes/.SPX",
+          "ics": null,
+          "text": null
+        }
+      ]
+    },
+    {
+      "id": "s_link_investor",
+      "kind": "link",
+      "title": "How to read a brokerage statement",
+      "subtitle": null,
+      "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins/how-read",
+      "price": null,
+      "source": "investor.gov",
+      "snippet": "SEC investor guide explaining the sections of a typical account statement.",
+      "score": 0.66,
+      "actions": [
+        {
+          "label": "Open guide",
+          "type": "open_url",
+          "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins/how-read",
+          "ics": null,
+          "text": null
+        }
+      ]
+    },
+    {
+      "id": "s_link_news",
+      "kind": "link",
+      "title": "Index funds in the news this week",
+      "subtitle": null,
+      "url": "https://apnews.com/hub/stock-markets",
+      "price": null,
+      "source": "apnews.com",
+      "snippet": "Recent headlines about index funds and broad-market moves.",
+      "score": 0.58,
+      "actions": [
+        {
+          "label": "Open",
+          "type": "open_url",
+          "url": "https://apnews.com/hub/stock-markets",
+          "ics": null,
+          "text": null
+        }
+      ]
+    }
+  ],
+  "egress": [
+    {
+      "id": "eg_3",
+      "ts": 1794000003.6,
+      "method": "POST",
+      "host": "api.tavily.com",
+      "path": "/search",
+      "bytes_out": 104,
+      "payload_preview": "{\"query\": \"NVIDIA stock outlook Q4 2026\", \"topic\": \"finance\", \"search_depth\": \"basic\", \"max_results\": 5}",
+      "blocked": false,
+      "reason": null
+    },
+    {
+      "id": "eg_4",
+      "ts": 1794000003.7,
+      "method": "POST",
+      "host": "api.tavily.com",
+      "path": "/search",
+      "bytes_out": 108,
+      "payload_preview": "{\"query\": \"S&P 500 index fund performance 2026\", \"topic\": \"news\", \"search_depth\": \"basic\", \"max_results\": 5}",
+      "blocked": false,
+      "reason": null
+    }
+  ],
+  "timings_ms": {
+    "ingest": 51,
+    "extract": 3920,
+    "scrub": 28,
+    "query": 5,
+    "search": 1040,
+    "cards": 31
+  },
+  "error": null
+}

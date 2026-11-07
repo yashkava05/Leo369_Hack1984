@@ -80,3 +80,16 @@ scripts/setup.sh        one-shot local setup
 - One branch per issue, named `<number>-<slug>` (for example `1-repo-scaffold`).
 - Every PR body includes `Closes #<number>`.
 - Never push directly to `main`.
+
+## Mock mode
+
+The pipeline contract lives in `backend/app/models.py` and is mirrored in `frontend/src/types.ts`.
+Fixture runs (`concert_flyer`, `sensitive_doc`) let the UI be built without Ollama or Tavily:
+
+- Backend: `LATENT_MOCK=1 uvicorn app.main:app --port 8000` replays a fixture for every upload
+  (`sensitive_doc` when the filename contains "doc", otherwise `concert_flyer`).
+- Frontend: `VITE_MOCK=1` makes `analyze()` and `subscribe()` in `src/api/events.ts` replay the
+  same fixtures with no backend running.
+
+Fixtures live in `backend/fixtures/` and are copied to `frontend/src/api/fixtures/`;
+`pytest tests/test_contract.py` checks both copies against the models.
