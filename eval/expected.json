@@ -1,1 +1,52 @@
-[]
+{
+  "concert_ig.png": {
+    "intent_type": "event",
+    "must_include": ["tame impala", "boston", "td garden"],
+    "must_not_appear": ["@harbor_gig_guide", "harbor_gig_guide", "@lena.okafor99", "lena.okafor99", "Priya Raman", "already asked for the night off", "we need floor seats"]
+  },
+  "concert_poster.png": {
+    "intent_type": "event",
+    "must_include": ["khruangbin", "boston"],
+    "must_not_appear": []
+  },
+  "product_amazon.png": {
+    "intent_type": "product",
+    "must_include": ["sony", "wh-1000xm5"],
+    "must_not_appear": ["Marcus Delgado", "112-4839201-7765310", "4839201", "7765310", "42 Fernwood Ln", "Fernwood", "62704", "0148"]
+  },
+  "product_ig_shop.png": {
+    "intent_type": "product",
+    "must_include": ["stanley", "tumbler"],
+    "must_not_appear": ["@cozy.corner.finds", "cozy.corner.finds", "@jaybird_writes", "jaybird_writes", "did you order the green one yet", "meet at 6 by the fountain"]
+  },
+  "book_goodreads.png": {
+    "intent_type": "book",
+    "must_include": ["project hail mary", "andy weir"],
+    "must_not_appear": ["Tomas Lindqvist", "Aisha Bello", "could not put it down"]
+  },
+  "place_maps.png": {
+    "intent_type": "place",
+    "must_include": ["tatte", "cambridge"],
+    "must_not_appear": ["17 Willow Brook Rd", "Willow Brook", "02155", "Acme Robotics", "300 Innovation Dr"]
+  },
+  "chart_stock.png": {
+    "intent_type": "chart",
+    "must_include": ["nvidia"],
+    "must_not_appear": ["$84,213.57", "84,213", "84213", "ACCT-7730194", "7730194", "+$1,902.33", "1,902.33", "$39,358.20", "$25,180.70", "$19,674.67"]
+  },
+  "doc_internal_email.png": {
+    "intent_type": "document",
+    "must_include": ["edge ai"],
+    "must_not_appear": ["Jane Doe", "jane.doe@example.com", "Ravi Menon", "ravi.menon@example.com", "Project Falcon", "Falcon-S", "Falcon-X", "$4.7M", "4.7M", "41%", "$349", "$899"]
+  },
+  "doc_slack.png": {
+    "intent_type": "document",
+    "must_include": ["qualcomm"],
+    "must_not_appear": ["Maya Chen", "Leo Fischer", "@maya.c", "@leo.f", "#proj-osprey-pricing", "proj-osprey-pricing", "osprey", "wiki.internal.example.com", "https://wiki.internal.example.com/osprey/q4-pricing", "Northwind Labs"]
+  },
+  "other_homescreen.png": {
+    "intent_type": "other",
+    "must_include": [],
+    "must_not_appear": ["Sam Ortiz", "running 10 min late", "save me a seat", "Dr. Kowalski", "Kowalski", "9:41", "87%"]
+  }
+}

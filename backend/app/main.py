@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app import egress
 from app.api import router as pipeline_router
 from app.config import get_settings
 from app.pipeline import scrub
@@ -14,11 +15,15 @@ settings = get_settings()
 
 
 @asynccontextmanager
-async def lifespan(_: FastAPI):
+async def lifespan(app: FastAPI):
+    egress.local_host()  # refuse to start if OLLAMA_HOST is not loopback
     # The PII analyzer loads a spaCy model (a few seconds); mock mode never scrubs.
     if not settings.latent_mock:
         await asyncio.to_thread(scrub.warm_up)
-    yield
+    try:
+        yield
+    finally:
+        await egress.aclose()
 
 
 app = FastAPI(title="Latent", version="0.1.0", lifespan=lifespan)

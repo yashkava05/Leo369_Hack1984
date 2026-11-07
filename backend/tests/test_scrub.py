@@ -227,6 +227,15 @@ def test_contains_pii_allow_list() -> None:
     assert contains_pii("Theo Vance tickets Boston", allow={"theo vance"}) == []
     assert contains_pii("Theo Vance and Jane Smith", allow={"Theo Vance"}) == ["PERSON"]
     assert contains_pii("Theo Vance Farewell tickets", allow={"Theo Vance"}) == []
+    # spaCy tags "Hail Mary Theo Vance" as one name; the title word left over is not a name.
+    assert contains_pii("Hail Mary Theo Vance book", allow={"Theo Vance"}) == []
+    assert contains_pii("Theo Vance with Jane Smith", allow={"Theo Vance"}) == ["PERSON"]
+
+
+def test_lone_word_not_a_person() -> None:
+    cleaned, _ = scrub_intent(make_intent("product", [("product", "Kindle")]))
+    assert values(cleaned) == ["Kindle"]
+    assert contains_pii("Kindle") == []
 
 
 def test_analyzer_built_once() -> None:

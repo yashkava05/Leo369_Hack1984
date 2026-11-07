@@ -114,8 +114,9 @@ def _norm(text: str) -> str:
 def _is_allowed(finding: RecognizerResult, span: str, allow: set[str]) -> bool:
     """True if the span is an allowed value, or a PERSON span that names nobody else.
 
-    spaCy often tags a performer's name together with the words around it ("Taylor Swift Eras
-    Tour"), so allowed names are cut out of a PERSON span and the rest is checked again.
+    spaCy often tags a performer's name together with the words around it ("Theo Vance
+    Farewell", "Mary Andy Weir" from a book title), so allowed names are cut out of a PERSON
+    span and the rest is checked again; only a full name (two or more words) left over blocks.
     """
     if _norm(span) in {_norm(a) for a in allow}:
         return True
@@ -126,9 +127,15 @@ def _is_allowed(finding: RecognizerResult, span: str, allow: set[str]) -> bool:
         rest = re.sub(r"\s+".join(map(re.escape, value.split())), " ", rest, flags=re.IGNORECASE)
     if rest == span:
         return False
-    return not _get_analyzer().analyze(
+    leftover = _get_analyzer().analyze(
         text=rest, language="en", entities=[PERSON], score_threshold=SCORE_THRESHOLD
     )
+    return not any(len(rest[r.start : r.end].split()) > 1 for r in leftover)
+
+
+def _lone_word_person(finding: RecognizerResult, text: str) -> bool:
+    """A PERSON tag on a text that is a single word ("Kindle"): spaCy has no context to go on."""
+    return finding.entity_type == PERSON and len(text.split()) == 1
 
 
 def _findings(text: str, allow: set[str] | None = None) -> list[RecognizerResult]:
@@ -138,6 +145,7 @@ def _findings(text: str, allow: set[str] | None = None) -> list[RecognizerResult
     results = _get_analyzer().analyze(
         text=text, language="en", entities=list(DETECTED), score_threshold=SCORE_THRESHOLD
     )
+    results = [r for r in results if not _lone_word_person(r, text)]
     if allow:
         results = [r for r in results if not _is_allowed(r, text[r.start : r.end], allow)]
     # On overlap keep the stronger finding, preferring hard-block categories over PERSON.
@@ -154,7 +162,8 @@ def contains_pii(text: str, allow: set[str] | None = None) -> list[str]:
 
     `allow` holds values that may appear (the kept performer/author names): a finding whose text
     equals one of them, ignoring case and spacing, is skipped, and so is a PERSON finding that
-    names no one else once those values are cut out of it.
+    leaves no full name once those values are cut out of it. A PERSON tag on a one-word text is
+    ignored.
     """
     found: list[str] = []
     for r in _findings(text, allow):

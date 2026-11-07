@@ -1,0 +1,50 @@
+<!doctype html>
+<!-- Synthetic eval mock-up of a brokerage dashboard. The portfolio balance and account number are fake; the chart is illustrative. Desktop: 1440x900 -->
+<html><head><meta charset="utf-8"><title>chart_stock</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{width:1440px;height:900px;overflow:hidden;font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:#0e1116;color:#e6edf3}
+.top{height:60px;display:flex;align-items:center;justify-content:space-between;padding:0 32px;border-bottom:1px solid #222a35}
+.top b{font-size:20px;color:#3fb950}
+.acct{font-size:14px;color:#9aa4b2;text-align:right}
+.acct .bal{font-size:20px;color:#e6edf3;font-weight:600}
+.main{display:flex}
+.chart{flex:1;padding:28px 36px}
+.sym{font-size:15px;color:#9aa4b2}
+h1{font-size:30px;font-weight:600;margin:4px 0}
+.px{font-size:44px;font-weight:600}.chg{color:#3fb950;font-size:18px;margin:4px 0 18px}
+.tabs{display:flex;gap:18px;font-size:14px;color:#9aa4b2;margin-top:12px}.tabs .on{color:#3fb950;border-bottom:2px solid #3fb950}
+.side{width:380px;border-left:1px solid #222a35;padding:28px}
+.side h3{font-size:15px;color:#9aa4b2;margin-bottom:12px}
+.row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #1b222c;font-size:15px}
+.g{color:#3fb950}.r{color:#f85149}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:18px;font-size:13px;color:#9aa4b2}
+.stats b{display:block;color:#e6edf3;font-size:16px;margin-top:2px}
+</style></head><body>
+<div class="top"><b>▲ tradeline</b><div class="acct">Individual · ACCT-7730194<div class="bal">Portfolio $84,213.57</div></div></div>
+<div class="main">
+  <div class="chart">
+    <div class="sym">NASDAQ: NVDA</div>
+    <h1>NVIDIA Corporation</h1>
+    <div class="px">$187.42</div>
+    <div class="chg">+$4.18 (+2.28%) today</div>
+    <svg width="960" height="420" viewBox="0 0 960 420">
+      <defs><linearGradient id="f" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#3fb950" stop-opacity=".35"/><stop offset="1" stop-color="#3fb950" stop-opacity="0"/></linearGradient></defs>
+      <g stroke="#1b222c"><line x1="0" y1="80" x2="960" y2="80"/><line x1="0" y1="180" x2="960" y2="180"/><line x1="0" y1="280" x2="960" y2="280"/><line x1="0" y1="380" x2="960" y2="380"/></g>
+      <path d="M0 340 L60 320 L120 330 L180 290 L240 300 L300 260 L360 270 L420 230 L480 250 L540 200 L600 210 L660 170 L720 185 L780 140 L840 150 L900 110 L960 90 L960 420 L0 420Z" fill="url(#f)"/>
+      <path d="M0 340 L60 320 L120 330 L180 290 L240 300 L300 260 L360 270 L420 230 L480 250 L540 200 L600 210 L660 170 L720 185 L780 140 L840 150 L900 110 L960 90" fill="none" stroke="#3fb950" stroke-width="3"/>
+      <g fill="#6e7681" font-size="12"><text x="0" y="410">Nov 2025</text><text x="300" y="410">Mar 2026</text><text x="600" y="410">Jul 2026</text><text x="880" y="410">Nov 2026</text></g>
+    </svg>
+    <div class="tabs"><span>1D</span><span>1W</span><span>1M</span><span>3M</span><span class="on">1Y</span><span>5Y</span></div>
+    <div class="stats"><div>Market cap<b>$4.57T</b></div><div>P/E ratio<b>52.8</b></div><div>52-wk high<b>$191.05</b></div><div>Volume<b>182.4M</b></div></div>
+  </div>
+  <div class="side">
+    <h3>Your positions</h3>
+    <div class="row"><span>NVDA · 210 sh</span><span class="g">$39,358.20</span></div>
+    <div class="row"><span>AAPL · 95 sh</span><span class="g">$25,180.70</span></div>
+    <div class="row"><span>VTI · 61 sh</span><span class="r">$19,674.67</span></div>
+    <h3 style="margin-top:24px">Today's change</h3>
+    <div class="row"><span>Total</span><span class="g">+$1,902.33</span></div>
+  </div>
+</div>
+</body></html>
