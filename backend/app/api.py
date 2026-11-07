@@ -3,7 +3,7 @@
 from fastapi import APIRouter, HTTPException, UploadFile
 from sse_starlette import EventSourceResponse
 
-from app import jobs
+from app import egress, jobs
 from app.models import EgressRecord, JobResult
 
 MAX_IMAGE_BYTES = 10 * 1024 * 1024
@@ -55,4 +55,6 @@ async def get_job(job_id: str) -> JobResult:
 
 @router.get("/egress")
 async def get_egress() -> list[EgressRecord]:
-    return jobs.egress_newest_first()
+    # Real attempts from the egress guard plus replayed mock-mode records.
+    merged = [*egress.records(), *jobs.EGRESS_LOG]
+    return sorted(merged, key=lambda r: r.ts, reverse=True)
