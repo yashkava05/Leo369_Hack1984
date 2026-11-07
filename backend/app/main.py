@@ -1,14 +1,27 @@
 """FastAPI entrypoint: `uvicorn app.main:app --reload --port 8000` from `backend/`."""
 
+import asyncio
+from contextlib import asynccontextmanager
+
 from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import router as pipeline_router
 from app.config import get_settings
+from app.pipeline import scrub
 
 settings = get_settings()
 
-app = FastAPI(title="Latent", version="0.1.0")
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    # The PII analyzer loads a spaCy model (a few seconds); mock mode never scrubs.
+    if not settings.latent_mock:
+        await asyncio.to_thread(scrub.warm_up)
+    yield
+
+
+app = FastAPI(title="Latent", version="0.1.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,

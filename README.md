@@ -10,6 +10,7 @@ stripped, a sanitized text query goes to Tavily, and the results render as actio
 - Python 3.11+
 - Node 20+ (Vite needs 20.19 or newer)
 - [Ollama](https://ollama.com) (model setup comes in a later issue; not needed to run the scaffold)
+- About 600 MB of disk for the spaCy `en_core_web_lg` model the local PII scrubber uses (setup installs it)
 
 ## Quick start
 
