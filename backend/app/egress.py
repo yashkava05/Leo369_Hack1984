@@ -149,7 +149,7 @@ def _has_api_key_field(value: Any) -> bool:
 
 # --- PII --------------------------------------------------------------------------
 
-# Used only until app.pipeline.scrub provides `contains_pii`; deliberately conservative.
+# Used only if app.pipeline.scrub (Presidio) cannot be imported; deliberately conservative.
 _FALLBACK_PII = {
     "EMAIL_ADDRESS": re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+"),
     "PHONE_NUMBER": re.compile(r"(?:\+?1[\s.-]?)?\(?\b\d{3}\)?[\s.-]\d{3}[\s.-]\d{4}\b"),

@@ -1,8 +1,8 @@
 """Screenshot -> Intent with the local vision model (qwen2.5vl via Ollama).
 
 Nothing here touches the internet: the image is preprocessed in memory and sent only to
-OLLAMA_HOST. Private content is reported by the model as counts only; `scrub.py` re-checks
-the result afterwards.
+OLLAMA_HOST through egress.local_client(). Private content is reported by the model as counts
+only; `scrub.py` re-checks the result afterwards.
 """
 
 from __future__ import annotations
@@ -17,6 +17,7 @@ import httpx
 from PIL import Image, ImageOps, UnidentifiedImageError
 from pydantic import ValidationError
 
+from app import egress
 from app.config import get_settings
 from app.models import Entity, Intent
 from app.pipeline.prompts import (
@@ -36,6 +37,7 @@ MAX_SIDE_PX = 1280  # text stays legible, latency drops a lot
 MIN_SIDE_PX = 64
 OLLAMA_TIMEOUT_S = 90.0
 KEEP_ALIVE = "30m"
+CHAT_PATH = "/api/chat"  # relative to egress.local_client().base_url (loopback-validated)
 MAX_ENTITIES = 12
 MAX_ENTITY_CHARS = 80
 MAX_SUMMARY_CHARS = 140
@@ -76,15 +78,6 @@ def preprocess(image_bytes: bytes) -> tuple[bytes, tuple[int, int]]:
     return out.getvalue(), img.size
 
 
-def _make_client() -> httpx.AsyncClient:
-    """Client for OLLAMA_HOST only. Switches to the egress guard's local client once it exists."""
-    try:
-        from app.egress import local_client  # type: ignore[attr-defined]
-    except ImportError:
-        return httpx.AsyncClient(timeout=OLLAMA_TIMEOUT_S)
-    return local_client()
-
-
 def _chat_body(model: str, png_b64: str, user_text: str) -> dict:
     return {
         "model": model,
@@ -99,8 +92,8 @@ def _chat_body(model: str, png_b64: str, user_text: str) -> dict:
     }
 
 
-async def _ask(client: httpx.AsyncClient, url: str, body: dict) -> Intent:
-    resp = await client.post(url, json=body, timeout=OLLAMA_TIMEOUT_S)
+async def _ask(client: httpx.AsyncClient, body: dict) -> Intent:
+    resp = await client.post(CHAT_PATH, json=body, timeout=OLLAMA_TIMEOUT_S)
     resp.raise_for_status()
     try:
         content = resp.json()["message"]["content"]
@@ -170,35 +163,31 @@ async def extract_intent(image_bytes: bytes, emit: Emit) -> Intent:
         raise
     await emit(STAGE, "start", f"Reading image on-device ({width}×{height}, metadata stripped)")
 
-    url = f"{settings.ollama_host.rstrip('/')}/api/chat"
     png_b64 = base64.b64encode(png).decode("ascii")
     await emit(STAGE, "progress", f"Running {settings.latent_model} locally…")
 
     intent: Intent | None = None
-    async with _make_client() as client:
-        user_text = USER_PROMPT
-        for attempt in (1, 2):
-            try:
-                intent = await _ask(
-                    client, url, _chat_body(settings.latent_model, png_b64, user_text)
-                )
+    # Shared client owned by egress (closed by egress.aclose() at shutdown); never close it here.
+    client = egress.local_client()
+    user_text = USER_PROMPT
+    for attempt in (1, 2):
+        try:
+            intent = await _ask(client, _chat_body(settings.latent_model, png_b64, user_text))
+            break
+        except ModelOutputInvalid as exc:
+            log.warning("extract attempt %d: invalid model output: %s", attempt, exc)
+            if attempt == 2:
                 break
-            except ModelOutputInvalid as exc:
-                log.warning("extract attempt %d: invalid model output: %s", attempt, exc)
-                if attempt == 2:
-                    break
-                await emit(
-                    STAGE, "progress", "Model output did not match the schema; retrying once…"
-                )
-                user_text = f"{USER_PROMPT}\n\n" + RETRY_PROMPT.format(
-                    error=str(exc)[:MAX_RETRY_ERROR_CHARS]
-                )
-            except httpx.TimeoutException:
-                await emit(STAGE, "error", f"Local model timed out after {OLLAMA_TIMEOUT_S:.0f} s")
-                raise
-            except httpx.HTTPError as exc:
-                await emit(STAGE, "error", f"Local model unavailable ({type(exc).__name__})")
-                raise
+            await emit(STAGE, "progress", "Model output did not match the schema; retrying once…")
+            user_text = f"{USER_PROMPT}\n\n" + RETRY_PROMPT.format(
+                error=str(exc)[:MAX_RETRY_ERROR_CHARS]
+            )
+        except httpx.TimeoutException:
+            await emit(STAGE, "error", f"Local model timed out after {OLLAMA_TIMEOUT_S:.0f} s")
+            raise
+        except httpx.HTTPError as exc:
+            await emit(STAGE, "error", f"Local model unavailable ({type(exc).__name__})")
+            raise
 
     elapsed = time.perf_counter() - started
     if intent is None:
