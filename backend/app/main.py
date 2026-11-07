@@ -3,6 +3,7 @@
 from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api import router as pipeline_router
 from app.config import get_settings
 
 settings = get_settings()
@@ -27,3 +28,4 @@ def health() -> dict:
 
 
 app.include_router(api)
+app.include_router(pipeline_router, prefix="/api")
