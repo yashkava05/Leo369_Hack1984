@@ -128,9 +128,8 @@ def settings(monkeypatch):
 def ollama(monkeypatch):
     def install(*replies) -> FakeOllama:
         fake = FakeOllama(*replies)
-        monkeypatch.setattr(
-            extract, "_make_client", lambda: httpx.AsyncClient(transport=httpx.MockTransport(fake))
-        )
+        client = httpx.AsyncClient(base_url=OLLAMA, transport=httpx.MockTransport(fake))
+        monkeypatch.setattr(extract.egress, "local_client", lambda: client)
         return fake
 
     return install
