@@ -120,6 +120,24 @@ describe('line format', () => {
     expect(counters(events, result)).toEqual({ requests: 0, bytes: 0, imageBytes: 0, blocked: 1 })
   })
 
+  it('appends only blocked records that no live event matched', () => {
+    const events = [
+      ...(concertEvents as StageEvent[]),
+      netEvent({ host: 'api.tavily.com', path: '/search', bytes_out: 90, blocked: true, reason: 'air-gap enabled' }, { seq: 50 }),
+    ]
+    const rec = { ts: 1, method: 'POST', path: '/search', bytes_out: 90, payload_preview: '', blocked: true, reason: 'air-gap enabled' }
+    const result: JobResult = {
+      ...(concertResult as JobResult),
+      egress: [
+        { ...rec, id: 'eg_1', host: 'api.tavily.com' },
+        { ...rec, id: 'eg_2', host: 'api.exa.ai' },
+      ],
+    }
+    const lines = buildLines(events, result)
+    expect(lines).toHaveLength(events.length + 1)
+    expect(lines.at(-1)!.text).toContain('api.exa.ai')
+  })
+
   it('counts live network events before done', () => {
     const events = [
       netEvent({ host: 'api.tavily.com', path: '/search', bytes_out: 214, blocked: false }),

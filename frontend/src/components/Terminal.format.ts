@@ -94,27 +94,31 @@ export function eventLine(event: StageEvent, t0: number): TerminalLine {
 }
 
 /**
- * One line per event, in arrival order. After `done`, blocked egress records that never showed
- * up as a live network event are appended so a blocked request is always visible with its reason.
+ * One line per event, in arrival order. After `done`, blocked egress records without a matching
+ * live network event are appended so a blocked request is always visible with its reason.
  */
 export function buildLines(events: StageEvent[], result?: JobResult): TerminalLine[] {
   if (events.length === 0) return []
   const t0 = events[0].ts
   const lines = events.map((e) => eventLine(e, t0))
   if (result) {
-    const seenBlocked = events.some((e) => netData(e)?.blocked)
-    if (!seenBlocked) {
-      const doneTs = events[events.length - 1].ts
-      for (const rec of result.egress.filter((r) => r.blocked)) {
-        lines.push({
-          key: `${result.job_id}:egress:${rec.id}`,
-          time: formatElapsed(doneTs - t0),
-          tag: 'NET',
-          stage: 'egress',
-          text: blockedText(requestText(rec), rec.reason),
-          tone: 'blocked',
-        })
+    // Each live blocked event accounts for one matching record; any record left over is appended.
+    const unmatched = events.map(netData).filter((n): n is NetData => n?.blocked === true)
+    const doneTs = events[events.length - 1].ts
+    for (const rec of result.egress.filter((r) => r.blocked)) {
+      const i = unmatched.findIndex((n) => n.host === rec.host && n.path === rec.path)
+      if (i >= 0) {
+        unmatched.splice(i, 1)
+        continue
       }
+      lines.push({
+        key: `${result.job_id}:egress:${rec.id}`,
+        time: formatElapsed(doneTs - t0),
+        tag: 'NET',
+        stage: 'egress',
+        text: blockedText(requestText(rec), rec.reason),
+        tone: 'blocked',
+      })
     }
   }
   return lines
@@ -133,8 +137,18 @@ export function countersFromEgress(egress: EgressRecord[]): EgressCounters {
 /** Live counters from the guard's network events; `result.egress` is the source of truth once done. */
 export function counters(events: StageEvent[], result?: JobResult): EgressCounters {
   if (result) return countersFromEgress(result.egress)
-  const nets = events.map(netData).filter((n): n is NetData => n !== null)
-  return countersFromEgress(nets.map((n, i) => ({ ...n, id: String(i), ts: 0, method: n.method ?? 'POST', payload_preview: '', reason: n.reason ?? null })))
+  const records = events
+    .map(netData)
+    .filter((n): n is NetData => n !== null)
+    .map((n, i): EgressRecord => ({
+      ...n,
+      id: String(i),
+      ts: 0,
+      method: n.method ?? 'POST',
+      payload_preview: '',
+      reason: n.reason ?? null,
+    }))
+  return countersFromEgress(records)
 }
 
 export function formatCounters(c: EgressCounters): string {
