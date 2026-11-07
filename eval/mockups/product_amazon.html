@@ -1,0 +1,53 @@
+<!doctype html>
+<!-- Synthetic eval mock-up of a generic online-store order page. Customer, address and order number are fake. Desktop: 1440x900 -->
+<html><head><meta charset="utf-8"><title>product_amazon</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{width:1440px;height:900px;overflow:hidden;font-family:Arial,Helvetica,sans-serif;background:#eaeded;color:#0f1111}
+.bar{height:60px;background:#131921;color:#fff;display:flex;align-items:center;gap:28px;padding:0 24px}
+.bar .logo{font-size:24px;font-weight:700}.bar .logo span{color:#ff9900}
+.bar .search{flex:1;height:40px;background:#fff;border-radius:4px}
+.sub{height:38px;background:#232f3e;color:#fff;font-size:14px;display:flex;align-items:center;gap:22px;padding:0 24px}
+.wrap{display:flex;gap:28px;padding:28px 40px}
+.img{width:460px;height:460px;background:#fff;border-radius:6px;display:flex;align-items:center;justify-content:center}
+.hp{width:260px;height:260px;border:34px solid #2b2b2b;border-bottom-color:transparent;border-radius:50%;position:relative}
+.hp:before,.hp:after{content:"";position:absolute;bottom:-60px;width:80px;height:120px;background:#2b2b2b;border-radius:30px}
+.hp:before{left:-60px}.hp:after{right:-60px}
+.info{flex:1}
+.info h1{font-size:26px;font-weight:400;line-height:1.3}
+.brand{color:#007185;font-size:15px;margin:8px 0}
+.stars{color:#de7921;font-size:16px}
+.price{font-size:30px;margin:16px 0}
+.info ul{margin-left:20px;font-size:15px;line-height:1.7}
+.box{width:330px;background:#fff;border:1px solid #d5d9d9;border-radius:8px;padding:20px;font-size:14px;line-height:1.6}
+.box h3{font-size:16px;margin-bottom:8px}
+.ok{color:#007600;font-size:18px;font-weight:700;margin-bottom:8px}
+.btn{margin-top:14px;background:#ffd814;border-radius:20px;text-align:center;padding:10px;font-weight:600}
+hr{border:none;border-top:1px solid #ddd;margin:12px 0}
+</style></head><body>
+<div class="bar"><div class="logo">shop<span>wise</span></div><div class="search"></div><div>Returns &amp; Orders</div><div>🛒 Cart</div></div>
+<div class="sub"><span>☰ All</span><span>Today's Deals</span><span>Electronics</span><span>Headphones</span></div>
+<div class="wrap">
+  <div class="img"><div class="hp"></div></div>
+  <div class="info">
+    <h1>Sony WH-1000XM5 Wireless Industry Leading Noise Canceling Headphones, Black</h1>
+    <div class="brand">Visit the Sony Store</div>
+    <div class="stars">★★★★☆ 4.4 · 12,904 ratings</div>
+    <div class="price">$398.00</div>
+    <ul><li>Industry-leading noise canceling with eight microphones</li><li>Up to 30-hour battery life with quick charging</li><li>Multipoint connection and speak-to-chat</li><li>Lightweight design, soft fit leather</li></ul>
+  </div>
+  <div class="box">
+    <div class="ok">✓ Order placed, thanks!</div>
+    <h3>Order # 112-4839201-7765310</h3>
+    <div>Arriving Tuesday, Nov 10</div>
+    <hr>
+    <b>Shipping to</b>
+    <div>Marcus Delgado</div>
+    <div>42 Fernwood Ln, Apt 3B</div>
+    <div>Springfield, IL 62704</div>
+    <hr>
+    <div>Paid with card ending 0148</div>
+    <div class="btn">Track package</div>
+  </div>
+</div>
+</body></html>
