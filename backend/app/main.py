@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app import egress, ollama
 from app.api import router as pipeline_router
 from app.config import get_settings
+from app.pipeline import scrub
 
 settings = get_settings()
 
@@ -21,6 +22,8 @@ async def lifespan(app: FastAPI):
     if not current.latent_mock:
         # Load the vision model in the background so the first screenshot isn't slow.
         warmup = asyncio.create_task(ollama.warm_up(egress.local_client(), current.latent_model))
+        # The PII analyzer loads a spaCy model (a few seconds); mock mode never scrubs.
+        await asyncio.to_thread(scrub.warm_up)
     try:
         yield
     finally:

@@ -223,7 +223,9 @@ def _random_value(rng: random.Random) -> str:
     return "".join(rng.choice(_ALPHABET) for _ in range(rng.randint(0, 90)))
 
 
-def test_property_every_built_query_passes_provenance():
+def test_property_every_built_query_passes_provenance(monkeypatch):
+    # Provenance only: spaCy tags some random strings as names, which would skew the count.
+    monkeypatch.setattr(qmod, "_pii_categories", lambda text, allow: [])
     rng = random.Random(1984)
     built = 0
     for _ in range(3000):
