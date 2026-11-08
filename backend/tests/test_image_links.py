@@ -187,3 +187,15 @@ def test_model_only_transcriptions_require_review_even_if_syntactically_valid():
     assert card.subtitle == "folio.example"
     assert card.actions == []
     assert card.score == 0
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://folio.example/?access_token=SYNTHETIC%3Fref=profile",
+        "https://folio.example/#access_token=SYNTHETIC%3Fref=profile",
+        "https://folio.example/#/auth?access_token=SYNTHETIC%3Fref=profile",
+    ],
+)
+def test_question_marks_in_credential_values_never_hide_the_parameter(url):
+    assert visible_url(url) is None

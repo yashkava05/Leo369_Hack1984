@@ -201,3 +201,8 @@ it.each(['http://localhost:8080/private', 'https://user:pass@folio.example/a', '
 it('accepts a reviewed public URL and preserves path case', () => {
   expect(safeImageLinkUrl('go.example/FakeIGReel2')).toBe('https://go.example/FakeIGReel2')
 })
+
+
+it.each(['https://folio.example/?access_token=SYNTHETIC%3Fref=profile', 'https://folio.example/#access_token=SYNTHETIC%3Fref=profile', 'https://folio.example/#/auth?access_token=SYNTHETIC%3Fref=profile'])('never discards auth keys before a question mark in a value: %s', (url) => {
+  expect(safeImageLinkUrl(url)).toBeNull()
+})

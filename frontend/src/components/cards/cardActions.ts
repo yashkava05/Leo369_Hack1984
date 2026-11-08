@@ -27,10 +27,9 @@ export function safeImageLinkUrl(value: string): string | null {
   if (parts.username || parts.password || !/^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z][a-z0-9-]{1,62}$/i.test(host) || /\.(localhost|local|internal|lan)$/i.test(host)) return null
   const forbidden = new Set(['token', 'access_token', 'auth', 'api_key', 'apikey', 'password', 'secret', 'signature', 'sig', 'code', 'id_token', 'refresh_token', 'auth_token', 'session', 'sessionid'])
   for (const raw of [parts.search.slice(1), parts.hash.slice(1)]) {
-    let decoded: string
-    try { decoded = decodeURIComponent(raw).split('?').at(-1)! } catch { return null }
-    for (const key of new URLSearchParams(decoded).keys()) {
-      const normalized = key.toLowerCase().replaceAll('-', '_')
+    for (const key of new URLSearchParams(raw).keys()) {
+      let normalized: string
+      try { normalized = decodeURIComponent(key).split('?').at(-1)!.toLowerCase().replaceAll('-', '_') } catch { return null }
       if (forbidden.has(normalized) || /(?:^|_)(?:token|password|secret|session|signature|credential)(?:$|_)/.test(normalized)) return null
     }
   }

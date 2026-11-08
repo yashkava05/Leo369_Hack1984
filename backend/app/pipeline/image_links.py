@@ -67,9 +67,9 @@ def visible_url(value: str) -> str | None:
         ):
             return None
         for parameters in (parts.query, parts.fragment):
-            decoded = unquote(parameters).split("?", 1)[-1]
-            for key, _ in parse_qsl(decoded, keep_blank_values=True):
-                key = key.lower().replace("-", "_")
+            # Parse parameters before decoding values: a '?' inside a token is not a delimiter.
+            for key, _ in parse_qsl(parameters, keep_blank_values=True):
+                key = unquote(key).rsplit("?", 1)[-1].lower().replace("-", "_")
                 if key in _PRIVATE_QUERY_KEYS or re.search(
                     r"(?:^|_)(?:token|password|secret|session|signature|credential)(?:$|_)", key
                 ):
