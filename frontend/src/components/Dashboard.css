@@ -1,0 +1,65 @@
+.dashboard {
+  position: relative;
+  isolation: isolate; /* keeps the 3D cards' z-index inside the dashboard */
+  box-sizing: border-box;
+  width: 100%;
+  margin-top: 1.5rem;
+}
+
+.dashboard--3d {
+  height: clamp(520px, 72vh, 760px);
+  overflow: hidden;
+  border-radius: 16px;
+  background: #06070c;
+}
+
+.dashboard-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none; /* the cards themselves re-enable pointer events */
+}
+
+.dashboard-card-slot {
+  width: max-content;
+}
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr));
+  gap: 1rem;
+  justify-items: center;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dashboard-grid-item {
+  max-width: 100%;
+  animation: dashboard-fade-in 320ms ease-out both;
+  animation-delay: calc(var(--i, 0) * 60ms);
+}
+
+.dashboard-grid-item > .action-card {
+  max-width: 100%;
+}
+
+.dashboard-empty {
+  margin: 0;
+  padding: 1rem 0;
+  color: #8a90a0;
+}
+
+.dashboard--3d > .dashboard-empty {
+  padding: 1rem;
+}
+
+/* Opacity only: a fade is fine under prefers-reduced-motion, nothing moves. */
+@keyframes dashboard-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
