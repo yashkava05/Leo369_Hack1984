@@ -88,8 +88,26 @@ def pick_fixture(filename: str | None) -> str:
     return "sensitive_doc" if "doc" in (filename or "").lower() else "concert_flyer"
 
 
-def start_job(job: JobState, filename: str | None) -> None:
-    runner = run_mock(job, pick_fixture(filename)) if mock_enabled() else run_unimplemented(job)
+# Finished jobs are dropped once their last event is older than this.
+JOB_TTL_SECONDS = 30 * 60
+
+
+def cleanup_finished(max_age_s: float = JOB_TTL_SECONDS) -> None:
+    """Drop finished jobs whose last event is older than max_age_s."""
+    now = time.time()
+    for job_id, job in list(JOBS.items()):
+        if job.finished and job.events and now - job.events[-1].ts > max_age_s:
+            del JOBS[job_id]
+
+
+def start_job(job: JobState, filename: str | None, image_bytes: bytes | None = None) -> None:
+    if mock_enabled():
+        runner = run_mock(job, pick_fixture(filename))
+    else:
+        # Real mode: run the full pipeline in the background and return 202 immediately.
+        from app.pipeline.runner import run_job
+
+        runner = run_job(job.job_id, image_bytes or b"", filename or "")
     job.task = asyncio.create_task(runner)
 
 
