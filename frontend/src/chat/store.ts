@@ -9,7 +9,7 @@ import { askFor, keptLabel, replyFor } from './format'
 import { readKept, writeKept } from './kept'
 import type { ChatMessage, KeptItem } from './messages'
 
-export const WELCOME = "Hi, I'm Latent. Send me a screenshot of something you meant to come back to and I'll turn it into something you can act on. I read it on this device; your screenshot never leaves it."
+export const WELCOME = "Hi, I'm Latent. Tap the microphone and tell me what you're looking for. I'll transcribe it on this device, let you review it, then search the live web when you choose Search. You can also attach your own screenshot."
 interface ChatState {
   messages: ChatMessage[]
   kept: KeptItem[]

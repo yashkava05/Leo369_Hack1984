@@ -150,10 +150,10 @@ export function ChatApp() {
         <div className="chat-scroll" ref={scroller} onScroll={() => { const el = scroller.current; if (el) following.current = el.scrollHeight - el.scrollTop - el.clientHeight < 100 }}>
           <main className="chat-thread" aria-label="Conversation with Latent">
             <div className="chat-day"><span />Today<span /></div>
-            {welcomeOnly && <div className="chat-intro"><span className="chat-intro-mark"><Sparkles size={18} strokeWidth={1.5} aria-hidden="true" /></span><h2>Saved it. Now what?</h2><p>Turn your screenshots into your next move.</p></div>}
+            {welcomeOnly && <div className="chat-intro"><span className="chat-intro-mark"><Sparkles size={18} strokeWidth={1.5} aria-hidden="true" /></span><h2>What are you looking for?</h2><p>Speak a request. Review it. Get live results.</p></div>}
             <div className="chat-messages" role="log" aria-label="Messages" aria-live="polite" aria-relevant="additions">
               {chat.messages.map((message, index) => <div key={message.id} className={`chat-message type-${message.type}`}>{messageView(message)}
-                {index === 0 && <div className="chat-samples"><p>A little inspiration to get started</p><div>{SAMPLES.map((item) => <button key={item.name} type="button" onClick={() => { void sample(item.name) }} aria-busy={sampleLoading === item.name}>
+                {MOCK && index === 0 && <div className="chat-samples"><p>A little inspiration to get started</p><div>{SAMPLES.map((item) => <button key={item.name} type="button" onClick={() => { void sample(item.name) }} aria-busy={sampleLoading === item.name}>
                   <span className="chat-sample-art"><img src={`/samples/${item.name}`} alt="" /><span>{item.icon}</span></span><span className="chat-sample-label">{item.title}<small>{sampleLoading === item.name ? 'Opening sample…' : item.hint}</small></span><Plus size={14} aria-hidden="true" /></button>)}</div></div>}
               </div>)}
             </div>
@@ -168,10 +168,10 @@ export function ChatApp() {
             <button type="button" className="chat-attach" aria-label="Attach a screenshot" onClick={() => attach.current?.click()}><Plus size={21} aria-hidden="true" /></button>
             <button type="button" className={`chat-attach chat-mic${voiceOpen ? ' is-active' : ''}`} aria-label={voiceOpen ? 'Close voice input' : 'Speak a thought'} aria-expanded={voiceOpen} aria-controls="chat-voice-controls" title={voiceOpen ? 'Close voice input' : 'Speak a thought'} disabled={chat.busy && !voiceOpen} onClick={() => setVoiceOpen(!voiceOpen)}><Mic size={18} aria-hidden="true" /></button>
             <input type="file" ref={attach} accept="image/png,image/jpeg,image/webp" hidden onChange={(event) => { const file = event.currentTarget.files?.[0]; event.currentTarget.value = ''; if (file) { following.current = true; void sendImage(file) } }} />
-            <input ref={composer} value={text} onChange={(event) => setText(event.target.value)} aria-label="Message Latent" placeholder="Message Latent, or paste a screenshot" />
+            <input ref={composer} value={text} onChange={(event) => setText(event.target.value)} aria-label="Message Latent" placeholder="Message Latent, or speak with the microphone" />
             <button type="submit" className="chat-send" aria-label="Send message" disabled={!text.trim()}><ArrowUp size={18} aria-hidden="true" /><span>Send</span></button>
           </form>
-          <p className="chat-composer-hint"><LockKeyhole size={11} aria-hidden="true" /> Your screenshots stay yours. Always.</p>
+          <p className="chat-composer-hint"><LockKeyhole size={11} aria-hidden="true" /> Your audio and screenshots stay on this device.</p>
         </div>
       </div>
       <ReceiptsDrawer open={drawer} onClose={() => setDrawer(false)} mockRecords={receipts} selectedRecords={selectedReceipt} />
