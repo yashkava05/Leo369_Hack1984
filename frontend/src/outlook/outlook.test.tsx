@@ -7,6 +7,7 @@ import { OutlookView } from './OutlookPanel'
 import { outlookRecovery } from './recovery'
 import { mentionsMail, scopeFromRequest } from './scope'
 import { createOutlookSession } from './session'
+import { TranscriptReview } from '../components/voice/TranscriptReview'
 import type { BrowserJobView } from './types'
 
 const instant = () => Promise.resolve()
@@ -43,7 +44,8 @@ describe('demo session', () => {
     expect(html).toContain('“Please review the Northwind Fabrics contract by Friday.”')
     expect(html).toContain('Email 1 of 4')
     expect(html).toContain('did not act on them')
-    expect(html).toContain('sent to Tavily/Exa: nothing')
+    expect(html).toContain('requests from Latent to Tavily/Exa: 0')
+    expect(html).toContain('demo analysis')
   })
 
   it('reports partial coverage when the list is shorter than the request', async () => {
@@ -167,6 +169,61 @@ describe('cancel and failures', () => {
     expect(session.getSnapshot()).toMatchObject({ phase: 'setup', error: 'permission_denied' })
     await session.confirm()
     expect(session.getSnapshot().phase).toBe('setup')
+  })
+})
+
+describe('review follow-ups', () => {
+  it('deletes the backend copy as soon as the result is displayed', async () => {
+    const cancel = vi.fn(async () => {})
+    const result = { emails: [], tasks: [], dropped_claims: 0 }
+    const session = createOutlookSession(fakeDriver({ poll: async () => view('done', { result }), cancel }), 'check', { sleep: instant })
+    await session.check()
+    await session.confirm()
+    expect(session.getSnapshot().phase).toBe('done')
+    expect(session.getSnapshot().job?.result).toEqual(result) // still shown in the panel
+    expect(cancel).toHaveBeenCalledWith('b_1', 't')
+  })
+
+  it('a poll error stops the backend job and the extension read', async () => {
+    const cancel = vi.fn(async () => {})
+    const session = createOutlookSession(fakeDriver({ poll: async () => { throw new OutlookError('backend_error') }, cancel }), 'check', { sleep: instant })
+    await session.check()
+    await session.confirm()
+    expect(session.getSnapshot().phase).toBe('error')
+    expect(cancel).toHaveBeenCalledWith('b_1', 't')
+  })
+
+  it('turning air-gap on during a read stops it', async () => {
+    const cancel = vi.fn(async () => {})
+    const session = createOutlookSession(fakeDriver({ poll: async () => view('reading'), cancel }), 'check', { sleep: () => new Promise(() => {}) })
+    await session.check()
+    void session.confirm()
+    await vi.waitFor(() => expect(session.getSnapshot().job?.status).toBe('reading'))
+    session.setOffline(true)
+    expect(session.getSnapshot()).toMatchObject({ phase: 'error', error: 'airgap_on', job: null })
+    await vi.waitFor(() => expect(cancel).toHaveBeenCalledWith('b_1', 't'))
+  })
+
+  it('scope edits after a finished read apply to "Read again"', async () => {
+    const starts: unknown[] = []
+    const driver = createDemoDriver()
+    const start = driver.start.bind(driver)
+    driver.start = async (request, scope) => { starts.push(scope); return start(request, scope) }
+    const session = createOutlookSession(driver, 'check my latest 4 emails', { sleep: instant })
+    await session.check()
+    await session.confirm()
+    session.setScope({ mode: 'latest', count: 2 })
+    expect(session.getSnapshot().scope.count).toBe(2)
+    await session.confirm()
+    expect(starts).toEqual([{ mode: 'latest', count: 4 }, { mode: 'latest', count: 2 }])
+  })
+
+  it('keeps the Outlook action out of the review button row (fits a 390 px phone)', () => {
+    const html = renderToStaticMarkup(<TranscriptReview text="check my email" busy={false} items={[]} context={null} loading={false} libraryError={null}
+      onText={() => {}} onSelect={() => {}} onRemove={() => {}} onLoad={() => {}} onAction={() => {}} onRerecord={() => {}} onDiscard={() => {}} onOutlook={() => {}} />)
+    const row = html.slice(html.indexOf('voice-actions'), html.indexOf('</div>', html.indexOf('voice-actions')))
+    expect(row).not.toContain('Outlook')
+    expect(html).toContain('Check Outlook instead')
   })
 })
 

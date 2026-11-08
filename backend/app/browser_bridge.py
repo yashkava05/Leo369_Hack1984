@@ -20,12 +20,14 @@ from __future__ import annotations
 
 import asyncio
 import hmac
+import os
 import secrets
 import time
 import uuid
 from collections import deque
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -34,6 +36,7 @@ from app.config import get_settings
 
 MAX_JOBS = 4
 JOB_TTL_S = 15 * 60
+RESULT_TTL_S = 5 * 60  # a finished result is dropped soon after, even if the UI never asks
 # Field limits are in characters; 20 full list items of non-ASCII text stay under this.
 MAX_CONTENT_BYTES = 160 * 1024
 MAX_ITEMS = 20
@@ -92,6 +95,8 @@ class SourceItem(_Strict):
 class Coverage(_Strict):
     requested: int = Field(ge=1, le=MAX_ITEMS)
     inspected: int = Field(ge=0, le=MAX_ITEMS)
+    # Rows looked at (differs from `inspected` in unread mode, which keeps only unread rows).
+    examined: int = Field(0, ge=0, le=1000)
     scrolls: int = Field(0, ge=0, le=100)
     partial: bool
     reason: Literal["count_reached", "list_end", "budget", "timeout", "selected_message"]
@@ -182,6 +187,21 @@ def audit_log() -> list[dict[str, Any]]:
     return list(reversed(_audit))
 
 
+def _expire(job_id: str) -> None:
+    job = _jobs.pop(job_id, None)
+    if job is not None:
+        job.wipe()
+
+
+def _schedule_expiry(job: BrowserJob, delay: float) -> None:
+    """Expire on a timer too, so private results do not wait for the next request to vanish."""
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        return  # no loop (sync tests): _sweep on the next access still applies the TTL
+    loop.call_later(delay, _expire, job.job_id)
+
+
 def _sweep(now: float | None = None) -> None:
     now = time.time() if now is None else now
     for job_id, job in list(_jobs.items()):
@@ -200,10 +220,15 @@ def reset() -> None:
 
 def create_job(provider: str, scope: Scope, request: str) -> BrowserJob:
     _sweep()
-    # One active read at a time: a new confirmed request replaces (and wipes) older ones.
+    # One request at a time: a new confirmed request cancels a running read and wipes every
+    # earlier job, finished results included. (The cancelled job stays only as a content-free
+    # tombstone so its stale view token reads "cancelled" until it expires.)
     for old in list(_jobs.values()):
         if old.status not in TERMINAL:
             cancel(old, reason="replaced")
+        else:
+            old.wipe()
+            del _jobs[old.job_id]
     while len(_jobs) >= MAX_JOBS:
         oldest = min(_jobs.values(), key=lambda j: j.created)
         oldest.wipe()
@@ -218,6 +243,7 @@ def create_job(provider: str, scope: Scope, request: str) -> BrowserJob:
         created=time.time(),
     )
     _jobs[job.job_id] = job
+    _schedule_expiry(job, JOB_TTL_S)
     audit(job, "job_created", "local", count=scope.count)
     return job
 
@@ -275,12 +301,61 @@ def require_viewer(job: BrowserJob | None, token: str | None) -> BrowserJob:
     return job
 
 
-def require_ui_origin(origin: str | None) -> None:
-    """Job creation and results are for the Latent UI only (the Vite proxy keeps its Origin)."""
-    if origin is None:
-        return  # same-origin requests without an Origin header (e.g. curl, tests)
-    if origin not in set(get_settings().cors_origins):
+# Per-launch secret for the UI routes. The backend writes it to a 0600 file; the Vite dev proxy
+# reads that file and adds it as a header, so page JavaScript never sees it. A page that is not
+# served through Latent's own proxy (another dev server on :5173, a cross-origin page) cannot
+# create jobs or read results, even though its Origin header looks right.
+_UI_SECRET = secrets.token_urlsafe(32)
+UI_SECRET_HEADER = "x-latent-ui-secret"
+
+
+def ui_secret() -> str:
+    return _UI_SECRET
+
+
+def ui_secret_path() -> Path:
+    settings = get_settings()
+    if settings.latent_ui_secret_path.strip():
+        return Path(settings.latent_ui_secret_path.strip()).expanduser()
+    db = settings.latent_db_path.strip()
+    return (Path(db).expanduser().parent if db else Path.home() / ".latent") / "ui-secret"
+
+
+def publish_ui_secret() -> None:
+    """Write this launch's secret (0600). If it cannot be written the browser agent stays off."""
+    path = ui_secret_path()
+    try:
+        if not path.parent.exists():
+            path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+        fd = os.open(path, os.O_CREAT | os.O_WRONLY | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(_UI_SECRET)
+        path.chmod(0o600)
+    except OSError:
+        pass
+
+
+def unpublish_ui_secret() -> None:
+    path = ui_secret_path()
+    try:
+        if path.read_text(encoding="utf-8") == _UI_SECRET:  # a newer launch may own it now
+            path.unlink()
+    except OSError:
+        pass
+
+
+def require_ui(origin: str | None, secret: str | None, *, need_origin: bool) -> None:
+    """UI routes: the launch secret (added by Latent's proxy) plus a UI Origin when present.
+
+    Browsers always send Origin on POST, so job creation requires it; same-origin GET/DELETE
+    through the proxy carry none and rely on the secret plus the per-job view token.
+    """
+    if origin is None and need_origin:
         raise BridgeError("untrusted_origin", 403)
+    if origin is not None and origin not in set(get_settings().cors_origins):
+        raise BridgeError("untrusted_origin", 403)
+    if not secret or not hmac.compare_digest(secret.encode(), _UI_SECRET.encode()):
+        raise BridgeError("bad_ui_secret", 403)
 
 
 # --- state machine ------------------------------------------------------------------------
@@ -340,4 +415,5 @@ async def run_analysis(job: BrowserJob, analyze: Analyzer) -> None:
     job.request = ""
     job.result = result
     job.status = "done"
+    _schedule_expiry(job, RESULT_TTL_S)
     audit(job, "analyzed_locally", "local", count=len(result.get("emails", [])), ms=ms)

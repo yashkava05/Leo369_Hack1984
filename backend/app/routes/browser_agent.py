@@ -1,6 +1,7 @@
 """Browser-session agent routes (#67): the Latent UI and the Latent extension meet here.
 
-UI (same-origin, view token):      POST /browser/jobs · GET/DELETE /browser/jobs/{id}
+UI (Latent's proxy adds the launch secret; view token per job): POST /browser/jobs ·
+    GET/DELETE /browser/jobs/{id}
 Extension (extension origin+nonce): POST /browser/jobs/{id}/claim|progress|content|fail
 
 Errors are constant codes only; responses never echo page content back to the extension.
@@ -130,12 +131,20 @@ def _view(job: bridge.BrowserJob) -> dict[str, Any]:
 # --- UI side ------------------------------------------------------------------------------
 
 
-@router.post("/jobs", status_code=201)
-async def create_job(request: Request) -> dict[str, Any]:
+def _ui(request: Request, *, need_origin: bool) -> None:
     try:
-        bridge.require_ui_origin(request.headers.get("origin"))
+        bridge.require_ui(
+            request.headers.get("origin"),
+            request.headers.get(bridge.UI_SECRET_HEADER),
+            need_origin=need_origin,
+        )
     except bridge.BridgeError as exc:
         _raise(exc)
+
+
+@router.post("/jobs", status_code=201)
+async def create_job(request: Request) -> dict[str, Any]:
+    _ui(request, need_origin=True)
     _airgap()
     item = _parse(CreateJob, await _json(request, 4096))
     try:
@@ -156,7 +165,10 @@ async def create_job(request: Request) -> dict[str, Any]:
 
 
 @router.get("/jobs/{job_id}")
-async def get_job(job_id: str, x_latent_view: str | None = Header(None)) -> dict[str, Any]:
+async def get_job(
+    job_id: str, request: Request, x_latent_view: str | None = Header(None)
+) -> dict[str, Any]:
+    _ui(request, need_origin=False)
     try:
         job = bridge.require_viewer(bridge.get(job_id), x_latent_view)
     except bridge.BridgeError as exc:
@@ -165,8 +177,11 @@ async def get_job(job_id: str, x_latent_view: str | None = Header(None)) -> dict
 
 
 @router.delete("/jobs/{job_id}", status_code=204)
-async def delete_job(job_id: str, x_latent_view: str | None = Header(None)) -> Response:
+async def delete_job(
+    job_id: str, request: Request, x_latent_view: str | None = Header(None)
+) -> Response:
     """Cancel/close: aborts analysis and wipes every private value for this job."""
+    _ui(request, need_origin=False)
     try:
         job = bridge.require_viewer(bridge.get(job_id), x_latent_view)
     except bridge.BridgeError as exc:

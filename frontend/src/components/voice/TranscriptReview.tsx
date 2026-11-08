@@ -58,12 +58,13 @@ export function TranscriptReview(props: Props) {
         ? <button type="button" className="voice-primary" disabled={locked || props.loading || empty} onClick={() => props.onAction('related')}><Sparkles size={16} aria-hidden="true" />Find related</button>
         : <button type="button" className="voice-primary" disabled={locked || empty} onClick={() => props.onAction('explore')}><Search size={16} aria-hidden="true" />Search</button>}
       <button type="button" className="voice-secondary" disabled={locked || empty} onClick={() => props.onAction('save')}><Bookmark size={16} aria-hidden="true" />Save for later</button>
-      {props.onOutlook && !props.context && <button type="button" className="voice-secondary" disabled={locked || empty} onClick={props.onOutlook}><Mail size={16} aria-hidden="true" />Check Outlook</button>}
       <span className="voice-spacer" />
       <button type="button" className="voice-icon" disabled={locked} onClick={props.onRerecord} aria-label="Record again" title="Record again"><Mic size={16} aria-hidden="true" /></button>
       <button type="button" className="voice-icon" onClick={props.onDiscard} aria-label="Discard" title="Discard"><X size={16} aria-hidden="true" /></button>
     </div>
 
+    {/* Outside the action row so the row still fits a 390 px phone (#67 review). */}
+    {props.onOutlook && !props.context && <button type="button" className="voice-link" disabled={locked || empty} onClick={props.onOutlook}><Mail size={14} aria-hidden="true" />Check Outlook instead…</button>}
     {!props.context && !showPicker && <button type="button" className="voice-link" disabled={locked} onClick={() => { setPickRelated(true); props.onLoad() }}>More like a saved item…</button>}
     {!props.context && showPicker && <div className="voice-related">
       {props.loading && <p role="status" className="voice-hint">Loading your saved items…</p>}

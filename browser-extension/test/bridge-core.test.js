@@ -90,6 +90,7 @@ test('lazy loading waits explicitly and the scroll budget stops the read', async
   assert.equal(state.waits, 4)
   assert.equal(out.coverage.partial, true)
   assert.ok(out.items.every((item) => item.unread))
+  assert.ok(out.coverage.examined > out.coverage.inspected, 'unread mode reports rows examined')
 })
 
 test('time budget stops the read', async () => {
@@ -132,6 +133,7 @@ test('page messages are schema-checked', () => {
   assert.equal(core.validateUiMessage(null), null)
   assert.equal(core.validateUiMessage([]), null)
   assert.equal(core.isUiOrigin('http://localhost:5173'), true)
+  assert.equal(core.isUiOrigin('http://127.0.0.1:5173'), false) // backend refuses it too
   assert.equal(core.isUiOrigin('https://evil.example'), false)
 })
 
@@ -144,7 +146,7 @@ test('manifest never requests all sites, cookies, tabs or history', () => {
   assert.deepEqual(manifest.host_permissions, ['http://127.0.0.1:8000/*'])
   assert.ok(manifest.optional_host_permissions.every((p) => core.providerForUrl(p.replace('/*', '/'))))
   assert.ok(!('content_scripts' in manifest), 'nothing is injected until a confirmed read')
-  assert.ok(manifest.externally_connectable.matches.every((m) => /^http:\/\/(localhost|127\.0\.0\.1):5173\/\*$/.test(m)))
+  assert.ok(manifest.externally_connectable.matches.every((m) => /^http:\/\/localhost:5173\/\*$/.test(m)))
 })
 
 test('extension code has no write, navigation, link or credential actions', () => {
@@ -167,4 +169,22 @@ test('extension code has no write, navigation, link or credential actions', () =
   for (const file of ['bridge-core.js', 'providers/outlook.js', 'popup.js']) {
     assert.ok(!/fetch\(/.test(fs.readFileSync(path.join(ROOT, file), 'utf8')), file)
   }
+})
+
+test('Outlook row parser: day-name senders are not times, real dates are', () => {
+  globalThis.LatentBridge = core
+  require('../providers/outlook.js')
+  const outlook = globalThis.__latentOutlook
+  for (const time of ['9:41 AM', '14:05', 'Yesterday', 'Today', 'Mon', 'Fri 11/7', 'Friday', 'Tue 9:15 AM', '11/7/2026', 'Nov 7', 'Nov 7, 2026', 'Wed.']) {
+    assert.ok(outlook.isTime(time), time)
+  }
+  for (const name of ['Monica Reyes', 'Monica', 'Satish', 'Sundar Rao', 'Wednesday Addams Fan Club', 'Friday Harbor Labs', 'Mayfield Corp', 'Sun Valley Ski Club']) {
+    assert.ok(!outlook.isTime(name), name)
+  }
+  const row = outlook.parseRowText(['Monica Reyes', 'Fabrikam offsite', 'Fri 11/7', 'Please confirm by Friday.'], 'Unread Monica Reyes Fabrikam offsite', 'c1')
+  assert.deepEqual(row, { key: 'c1', sender: 'Monica Reyes', subject: 'Fabrikam offsite', time: 'Fri 11/7', preview: 'Please confirm by Friday.', unread: true })
+  const read = outlook.parseRowText(['Satish Kumar', 'Lunch', 'Sun', 'No rush.'], 'Satish Kumar Lunch', 'c2')
+  assert.equal(read.sender, 'Satish Kumar')
+  assert.equal(read.time, 'Sun')
+  assert.equal(read.unread, false)
 })
