@@ -38,6 +38,12 @@ TEMPLATE_WORDS: set[str] = {
     "market",
     "trends",
     "news",
+    "similar",
+    "events",
+    "products",
+    "books",
+    "places",
+    "near",
     *_MONTHS,
     *(str(y) for y in range(2000, 2100)),
 }
@@ -241,6 +247,17 @@ def build_queries(intent: Intent, now: date | None = None) -> list[SearchQuery]:
 
 RELATED_INTENTS = ("book", "chart", "document")
 
+_DISCOVERY_TEMPLATES: tuple[_Template, ...] = (
+    _Template(
+        "event",
+        "related",
+        (_s("performer", "event_name"), "similar", "events", "near", _s("city")),
+    ),
+    _Template("product", "related", (_s("brand", "product"), "similar", "products")),
+    _Template("book", "related", (_s("book_title", "author"), "similar", "books")),
+    _Template("place", "related", (_s("place"), "similar", "places", "near", _s("city"))),
+)
+
 
 def related_query(intent: Intent, now: date | None = None) -> SearchQuery | None:
     """The Exa "related" query for book/chart/document intents, or None.
@@ -265,3 +282,21 @@ def related_query(intent: Intent, now: date | None = None) -> SearchQuery | None
     if not provenance_ok(q, intent) or _pii_categories(q.text, allow):
         return None
     return q.model_copy(update={"purpose": "related"})
+
+
+def feed_discovery_query(intent: Intent, now: date | None = None) -> SearchQuery | None:
+    """One privacy-proven discovery query for the Muse feed.
+
+    Nearby event/place discovery uses only the public city already extracted from the saved
+    screenshot. No device or profile location is consulted.
+    """
+    tpl = next((t for t in _DISCOVERY_TEMPLATES if t.intent_type == intent.intent_type), None)
+    if tpl is None:
+        return None
+    q = _build_one(tpl, _first_values(intent), (now or date.today()).year)
+    if q is None:
+        return None
+    allow = allow_terms(intent)
+    if not provenance_ok(q, intent) or _pii_categories(q.text, allow):
+        return None
+    return q
