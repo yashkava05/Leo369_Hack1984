@@ -794,3 +794,18 @@ def test_error_responses_never_echo_chat_content(client):
     bad = content_body([{**CHAT[0], "author": SECRET_PHRASE * 20}])
     resp = client.post(f"/api/browser/jobs/{job['job_id']}/content", headers=ext(job), json=bad)
     assert resp.status_code == 422 and SECRET_PHRASE not in resp.text
+
+
+def test_owner_must_be_written_as_a_name_and_deadline_must_be_a_time_phrase():
+    src = sources(
+        {**CHAT[0], "text": "The client should please send the signed contract to Riley."}
+    )
+    quote = "The client should please send the signed contract to Riley."
+    output = teams._ModelOutput(
+        tasks=[
+            task("m1", "Send the signed contract", quote, "contract", "signed"),
+            task("m1", "Send the signed contract", quote, "client"),
+        ]
+    )
+    tasks = teams.ground(src, output)["tasks"]
+    assert [(t["owner"], t["deadline"]) for t in tasks] == [(None, None), (None, None)]

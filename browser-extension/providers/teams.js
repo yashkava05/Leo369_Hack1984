@@ -77,7 +77,7 @@
    *                             afterDivider (true|false|null when no divider is rendered),
    *                             collapsedReplies}]
    *   adapter.getScroll() / setScroll(top) / toNewest() / viewport() / atStart()
-   *   adapter.wait(ms), adapter.aborted(), adapter.progress(n)
+   *   adapter.wait(ms), adapter.aborted() (cancel, or the conversation changed), adapter.progress(n)
    * opts: {mode: latest|unread|today, count, replies, since (ms, local midnight for "today")}
    * Reads newest first, stops at the confirmed count, the window/unread boundary, the top of the
    * history, the scroll budget or the time budget; restores the scroll position; reports honest
@@ -232,6 +232,8 @@
     var label = core.clip(el.textContent || el.getAttribute('aria-label') || '', 160)
     if (!label) return null
     var kind = channel ? 'channel' : 'chat'
+    // Without a thread id in the URL (common in Teams v2) two chats with the same title share a
+    // fingerprint; the account/tenant check and the visible label are then the only guard.
     var thread = (String(href || '').match(THREAD) || [''])[0]
     return { kind: kind, label: label, fp: core.fingerprint(kind + '|' + label + '|' + thread) }
   }
@@ -291,6 +293,13 @@
     var el = scroller(box)
     var midnight = new Date()
     midnight.setHours(0, 0, 0, 0)
+    var account = accountHint(doc)
+    // Re-checked on every step: if the user switches chat, account or tenant mid-read, stop and
+    // discard everything rather than mix in another conversation's messages.
+    var switched = function () {
+      var now = conversation(doc, root.location.href)
+      return !now || now.fp !== scope.source || accountHint(doc) !== account
+    }
     var result = await collectTimeline({
       items: function () { return readItems(box, doc) },
       getScroll: function () { return el.scrollTop },
@@ -299,10 +308,11 @@
       viewport: function () { return el.clientHeight || 400 },
       atStart: function () { return el.scrollTop <= 2 },
       wait: function (ms) { return new Promise(function (r) { setTimeout(r, ms) }) },
-      aborted: function () { return state.aborted },
+      aborted: function () { return state.aborted || switched() },
       progress: progress,
     }, { mode: scope.mode, count: scope.count, replies: scope.replies, since: midnight.getTime() })
     if (state.aborted) return { error: 'cancelled' }
+    if (switched()) return { error: 'conversation_changed' }
     if (!result.items.length && scope.mode === 'latest') return { error: 'empty_conversation' }
     return { result: result }
   }

@@ -30,7 +30,7 @@ class CreateJob(BaseModel):
     provider: Literal["outlook", "teams"]
     request: str = Field(min_length=1, max_length=1000)
     mode: Literal["latest", "unread", "selected", "today"]
-    count: int = Field(ge=1, le=outlook.MAX_COUNT)
+    count: int = Field(ge=1, le=max(outlook.MAX_COUNT, teams.MAX_COUNT))
     # Teams only (#68): the chat/channel fingerprint the user explicitly confirmed, and whether
     # thread replies are in scope. Outlook requests must leave these unset.
     source: str | None = Field(None, max_length=16)

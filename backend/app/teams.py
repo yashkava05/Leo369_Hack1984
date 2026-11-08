@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import json
 import re
-import unicodedata
 from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 from urllib.parse import urlsplit
@@ -324,7 +323,13 @@ def _owner(owner: str | None, quote: str, item: TeamsMessage) -> tuple[str | Non
     mentioned = {_norm(m.lstrip("@")) for m in item.mentions}
     if _norm(name) in mentioned:
         return name, "mentioned"
-    if re.search(rf"(?<!\w)@?{re.escape(_norm(name))}(?!\w)", _norm(quote)):
+    # Named in the quote: the exact words must appear there written as a name (each word
+    # capitalised in the message's own text), not as an ordinary word like "contract".
+    words = name.split()
+    if len(words) > 3 or any(_norm(w) in _STOP or not w[:1].isupper() for w in words):
+        return None, None
+    pattern = r"(?<![\w@])@?" + r"\s+".join(re.escape(w) for w in words) + r"(?!\w)"
+    if re.search(pattern, quote):  # case-sensitive on purpose
         return name, "named_in_quote"
     return None, None
 
@@ -356,11 +361,8 @@ def _exact_span(quote: str, text: str) -> str | None:
     if not words:
         return None
     pattern = r"\s+".join(re.escape(w) for w in words)
-    for haystack in (text, unicodedata.normalize("NFKC", text)):
-        match = re.search(pattern, haystack, re.I)
-        if match:
-            return match.group(0)
-    return None
+    match = re.search(pattern, text, re.I)
+    return match.group(0) if match else None
 
 
 def _whole_sentence(span: str, text: str) -> bool:
@@ -427,8 +429,9 @@ def ground(sources: dict[str, TeamsMessage], output: _ModelOutput) -> dict[str, 
             dropped += 1
             continue
         deadline = " ".join((task.deadline or "").split()) or None
-        if deadline and _norm(deadline) not in _norm(span):
-            deadline = None  # unsupported deadlines are dropped, not guessed
+        is_time = deadline and (_DEADLINE.fullmatch(deadline) or _RELATIVE.fullmatch(deadline))
+        if not is_time or _norm(deadline) not in _norm(span):
+            deadline = None  # only a literal date/time phrase from the quote; never guessed
         owner, owner_basis = _owner(task.owner, span, item)
         per_source[task.source_id] = per_source.get(task.source_id, 0) + 1
         tasks.append(
