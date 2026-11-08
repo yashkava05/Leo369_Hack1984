@@ -240,9 +240,9 @@ result: the intent summary, the public entities and the cards, with the egress r
 Screenshot thumbnails (256 px JPEG) are stored only when `LATENT_KEEP_THUMBS=1`. The file is not
 encrypted; it relies on your user account's file permissions.
 
-The **Library** drawer in the classic view (`?view=classic`) searches saved intents by performer, product, place or any
-other public entity (SQLite FTS5), filters by type, reopens a result's cards in the dashboard,
-and deletes one entry or everything ("Delete everything" also runs `VACUUM`). The same data is
+The **Library** drawer in the classic view (`?view=classic`) searches saved intents by
+performer, product, place or any other public entity (SQLite FTS5), filters by type, reopens a
+result's cards in the dashboard, and deletes one entry or everything ("Delete everything" also runs `VACUUM`). The same data is
 under `GET /api/library?q=&type=&limit=50`, `GET /api/library/{id}`, `DELETE /api/library/{id}`
 and `DELETE /api/library`. To inspect it directly:
 

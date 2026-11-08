@@ -137,8 +137,10 @@ Five minutes before:
       credits: [TBD: available or not; the script works without them].
 - [ ] Recorded fallbacks are fresh: `ls backend/fixtures/tavily_recorded/` lists a `.json` for
       every demo query (see "Fallback plan").
-- [ ] Reload http://localhost:5173 after the throwaway run so the chat starts fresh (the
-      conversation is not saved). **Air-gap** is off, the Receipts drawer is closed, and no
+- [ ] After the throwaway run, restart `./scripts/dev.sh` (Ollama keeps the model loaded) and
+      reload http://localhost:5173. The reload clears the chat, but only the restart clears
+      **Receipts**, which lists every request the backend has seen since it started, warm-up and
+      rehearsals included. **Air-gap** is off, the Receipts drawer is closed, and no
       "Demo mode" line shows above the message box (that line means `VITE_MOCK=1`).
 - [ ] Optional: empty **Kept for later** so the calendar result is the only entry (it lives in this
       browser's `localStorage` under `latent:kept`).
