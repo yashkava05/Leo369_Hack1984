@@ -4,6 +4,7 @@ The DB lives in a per-test tmp file (see conftest.py), never the real ~/.latent.
 """
 
 import io
+import os
 import sqlite3
 
 import httpx
@@ -171,6 +172,105 @@ def test_delete_one_removes_row_and_fts():
     assert library.get("j_concert01") is None
     assert rows("SELECT id FROM intents_fts") == [("j_product01",)]
     assert not library.delete("j_concert01")
+
+
+MARKER = "Qzxvmarkerqzxv"
+
+
+def stored_bytes() -> bytes:
+    """Every byte the library keeps on disk: the DB file and any WAL/SHM sidecars."""
+    path = library.db_path()
+    return b"".join(f.read_bytes() for f in path.parent.glob(path.name + "*"))
+
+
+def marked(job_id: str) -> JobResult:
+    result = concert(job_id)
+    intent = result.intent.model_copy(update={"summary": f"{MARKER} live at The Echo Lounge"})
+    return result.model_copy(update={"intent": intent})
+
+
+def assert_marker_gone():
+    data = stored_bytes()
+    # FTS5 stores tokens lowercased; the content row keeps the original casing.
+    assert MARKER.encode() not in data
+    assert MARKER.lower().encode() not in data
+
+
+def disable_fts_secure_delete():
+    """Act like SQLite < 3.42, where FTS5 only marks deleted terms and the index is rebuilt."""
+    library.init_db()
+    conn = sqlite3.connect(library.db_path())
+    conn.execute("INSERT INTO intents_fts (intents_fts, rank) VALUES ('secure-delete', 0)")
+    conn.commit()
+    conn.close()
+
+
+def test_delete_leaves_no_text_in_stored_bytes():
+    library.save(marked("j_marked01"))
+    library.save(product())
+    assert MARKER.lower().encode() in stored_bytes()  # the check below can see it
+    assert library.delete("j_marked01")
+    assert library.search(MARKER) == []
+    assert_marker_gone()
+    assert [i.id for i in library.search("Sonora")] == ["j_product01"]
+
+
+def test_delete_without_fts_secure_delete_rebuilds_index():
+    disable_fts_secure_delete()
+    library.save(marked("j_marked01"))
+    library.save(product())
+    assert library.delete("j_marked01")
+    assert_marker_gone()
+    assert [i.id for i in library.search("Sonora")] == ["j_product01"]
+
+
+@pytest.mark.parametrize("fts_secure_delete", [True, False])
+def test_resave_leaves_no_old_text_in_stored_bytes(fts_secure_delete):
+    if not fts_secure_delete:
+        disable_fts_secure_delete()
+    library.save(marked("j_marked01"))
+    library.save(concert("j_marked01"))
+    assert library.search(MARKER) == []
+    assert_marker_gone()
+
+
+def mode(p) -> int:
+    return p.stat().st_mode & 0o777
+
+
+def test_library_files_are_private(tmp_path_factory, monkeypatch):
+    old = os.umask(0o022)
+    try:
+        path = tmp_path_factory.mktemp("private") / "nested" / "lib" / "latent.db"
+        monkeypatch.setenv("LATENT_DB_PATH", str(path))
+        get_settings.cache_clear()
+        conn = None
+        library.save(concert())
+        conn = sqlite3.connect(path)  # hold a connection so the WAL/SHM sidecars stay on disk
+        conn.execute("INSERT INTO intents_fts (intents_fts) VALUES ('optimize')")
+        conn.commit()
+        assert mode(path.parent) == 0o700
+        assert mode(path.parent.parent) == 0o700
+        sidecars = [path.with_name("latent.db-wal"), path.with_name("latent.db-shm")]
+        assert all(p.exists() for p in sidecars)
+        for p in (path, *sidecars):
+            assert mode(p) == 0o600, p
+    finally:
+        if conn is not None:
+            conn.close()
+        os.umask(old)
+
+
+def test_existing_world_readable_db_is_tightened(tmp_path_factory, monkeypatch):
+    path = tmp_path_factory.mktemp("legacy") / "latent.db"
+    sqlite3.connect(path).close()
+    path.chmod(0o644)
+    parent_mode = mode(path.parent)
+    monkeypatch.setenv("LATENT_DB_PATH", str(path))
+    get_settings.cache_clear()
+    library.init_db()
+    assert mode(path) == 0o600
+    assert mode(path.parent) == parent_mode  # a parent the user chose is not changed
 
 
 def test_wipe_removes_everything():
