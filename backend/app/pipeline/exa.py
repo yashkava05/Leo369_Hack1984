@@ -143,6 +143,9 @@ async def _post(
     if resp.status_code in (401, 403):
         await errors.report("Exa key rejected")
         return []
+    if resp.status_code == 402:
+        await errors.report("Exa credits exhausted (HTTP 402)")
+        return []
     if resp.status_code == 429:
         await errors.report("Exa rate limit reached (HTTP 429)")
         return []

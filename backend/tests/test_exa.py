@@ -237,6 +237,16 @@ async def test_http_errors_degrade_to_nothing(monkeypatch, status):
     assert EXA_KEY not in errors[0].model_dump_json()
 
 
+async def test_http_402_reports_credits_exhausted(monkeypatch):
+    # Live check: an account out of credits answered 402 NO_MORE_CREDITS on every call.
+    use(monkeypatch, Server(exa_status=402))
+    job = jobs.create_job()
+    assert await exa.related([RELATED_Q], TOP_URL, job.job_id, ALLOW) == []
+    errors = [e for e in job.events if e.status == "error" and e.stage == "search"]
+    assert len(errors) == 1
+    assert "credits exhausted (HTTP 402)" in errors[0].message
+
+
 async def test_offline_blocks_and_records(monkeypatch):
     server = Server()
     use(monkeypatch, server)
