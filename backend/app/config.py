@@ -32,6 +32,9 @@ class Settings(BaseSettings):
     latent_stt_device: str = "cpu"
     latent_stt_compute_type: str = "int8"
     cors_origins: list[str] = ["http://localhost:5173"]
+    # Browser-session agent (issue #67): extension IDs allowed to use the local bridge. The
+    # default is the stable ID of the unpacked extension in browser-extension/ (manifest key).
+    latent_extension_ids: list[str] = ["kemjkilbmidnkohlldbohmgjaljbkdcc"]
 
 
 @lru_cache
