@@ -95,7 +95,8 @@ All settings live in one repo-root `.env` (copy `.env.example`). The backend rea
 Every finished job is saved on this machine in a SQLite database at **`~/.latent/latent.db`**
 (override with `LATENT_DB_PATH`). Nothing is stored remotely. A row holds only the scrubbed
 result: the intent summary, the public entities and the cards, with the egress records removed.
-Screenshot thumbnails (256 px JPEG) are stored only when `LATENT_KEEP_THUMBS=1`.
+Screenshot thumbnails (256 px JPEG) are stored only when `LATENT_KEEP_THUMBS=1`. The file is not
+encrypted; it relies on your user account's file permissions.
 
 The **Library** drawer in the UI searches saved intents by performer, product, place or any
 other public entity (SQLite FTS5), filters by type, reopens a result's cards in the dashboard,
