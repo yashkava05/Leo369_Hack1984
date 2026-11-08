@@ -1,5 +1,6 @@
-import type { AnalyzeResponse, StageEvent } from '../types'
+import type { AnalyzeResponse, JobResult, StageEvent } from '../types'
 import { API_URL, MOCK } from './client'
+import { recordMockResult } from './library'
 import { offlineReplay } from './offlineReplay'
 import { isMockOffline } from './privacy'
 import concertEvents from './fixtures/concert_flyer.events.json'
@@ -70,7 +71,10 @@ function subscribeMock(jobId: string, onEvent: (event: StageEvent) => void): () 
     timers.push(
       setTimeout(() => {
         const event: StageEvent = { ...fixture, job_id: jobId, ts: Date.now() / 1000 }
-        if (event.stage === 'done' && event.data) event.data = { ...event.data, job_id: jobId }
+        if (event.stage === 'done' && event.data) {
+          event.data = { ...event.data, job_id: jobId }
+          recordMockResult(event.data as unknown as JobResult) // local intent library (#21)
+        }
         onEvent(event)
       }, at),
     )
