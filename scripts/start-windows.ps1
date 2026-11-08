@@ -38,7 +38,7 @@
   reachable from the local network: do not use it on venue Wi-Fi unless you need it.
 
 .PARAMETER Reinstall
-  Re-run pip install and npm install even when nothing changed.
+  Re-run pip install and npm ci even when nothing changed.
 
 .PARAMETER NoBrowser
   Do not open the chat page in the browser.
@@ -126,13 +126,13 @@ function RunOrDie([string]$exe, [string[]]$argv, [string]$what) {
   if ($LASTEXITCODE -ne 0) { Die "$what failed (exit $LASTEXITCODE); see the output above" }
 }
 
-# Read KEY the way the backend does: .env, then .env.local (later wins); the process environment
-# wins over both. Values are only returned, never printed.
+# Read KEY the way the backend does (backend/app/config.py): .env, backend\.env, .env.local,
+# backend\.env.local (later wins); the process environment wins over all of them. Values are only returned, never printed.
 function Get-Setting([string]$key, [string]$default = '') {
   $fromEnv = [Environment]::GetEnvironmentVariable($key)
   if ($fromEnv) { return $fromEnv }
   $value = ''
-  foreach ($name in '.env', '.env.local') {
+  foreach ($name in '.env', 'backend\.env', '.env.local', 'backend\.env.local') {
     $file = Join-Path $Root $name
     if (-not (Test-Path -LiteralPath $file)) { continue }
     foreach ($line in Get-Content -LiteralPath $file) {
@@ -342,7 +342,7 @@ if (Test-Path -LiteralPath $ViteJs) {
   Ok 'frontend\node_modules is installed'
   if ((Read-Stamp $NpmStampFile) -ne $NpmStamp) { Info 'package-lock.json changed since the last install here (or it was installed outside this script); it will be refreshed' }
 } elseif ($Check) {
-  Fail 'frontend dependencies are not installed' 'run this script without -Check (or: cd frontend; npm install)'
+  Fail 'frontend dependencies are not installed' 'run this script without -Check (or: cd frontend; npm ci)'
 } else {
   Info 'frontend dependencies are missing; they will be installed below'
 }
@@ -352,7 +352,7 @@ $SttPath = Get-Setting 'LATENT_STT_MODEL_PATH' '~/.latent/models/faster-whisper-
 $SttPath = $SttPath -replace '^~', $HOME
 if (Test-Path -LiteralPath $SttPath) {
   if ($VenvState -eq 'present' -and (Run $VenvPy @('-c', 'import faster_whisper')).Code -eq 0) { Ok "optional voice model found ($SttPath)" }
-  else { Warn 'optional voice model is downloaded but faster-whisper is not installed in backend\.venv' 'only needed for voice input: install the backend voice extra (see the README voice section)' }
+  else { Warn 'optional voice model is downloaded but faster-whisper is not installed in backend\.venv' 'only needed for voice input: install the backend voice extra (pip install -e ".[voice]" in backend, see scripts/setup_voice.sh once local voice lands)' }
 } else {
   Info "optional voice model not found ($SttPath); voice input will offer typed text instead"
 }
@@ -443,11 +443,12 @@ if ($Reinstall -or (Read-Stamp $PyStampFile) -ne $PyStamp -or -not (Test-Backend
 }
 
 if ($Reinstall -or -not (Test-Path -LiteralPath $ViteJs) -or (Read-Stamp $NpmStampFile) -ne $NpmStamp) {
-  Info 'installing frontend dependencies (npm install)'
+  # npm ci installs exactly what package-lock.json pins and never rewrites it.
+  $npmCmd = if (Test-Path -LiteralPath (Join-Path $Frontend 'package-lock.json')) { 'ci' } else { 'install' }
+  Info "installing frontend dependencies (npm $npmCmd)"
   Push-Location $Frontend
-  try { RunOrDie $Npm.Source @('install', '--no-fund', '--no-audit') 'npm install' } finally { Pop-Location }
-  if (-not (Test-Path -LiteralPath $ViteJs)) { Die 'vite is missing after npm install; check the npm output above' }
-  # npm install can rewrite package-lock.json, so stamp what is there now.
+  try { RunOrDie $Npm.Source @($npmCmd, '--no-fund', '--no-audit') "npm $npmCmd" } finally { Pop-Location }
+  if (-not (Test-Path -LiteralPath $ViteJs)) { Die 'vite is missing after the npm install; check the npm output above' }
   Set-Content -LiteralPath $NpmStampFile -Value (Get-FileSha (Join-Path $Frontend 'package-lock.json')) -Encoding ASCII
   Ok 'frontend dependencies installed'
 } else {
