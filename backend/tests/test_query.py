@@ -48,7 +48,9 @@ def test_event_concert_fixture():
         ("Paradise Rock Club Boston", "place", "general"),
         ("Lumen Drift Paradise Rock Club Dec 5", "context", "news"),
     ]
-    assert all(q.include_domains == [] for q in qs)
+    # Only the tickets query is restricted to ticketing sites.
+    assert qs[0].include_domains == list(qmod.TICKET_DOMAINS)
+    assert all(q.include_domains == [] for q in qs[1:])
 
 
 def test_event_uses_event_name_when_no_performer():
@@ -100,6 +102,90 @@ def test_chart_topic(metric, topic):
     assert texts(build_queries(intent, now=NOW)) == [
         (f"Tesla {metric} latest data 2026", "context", topic),
     ]
+
+
+def test_chart_uses_public_org_when_no_topic():
+    # Issue #50: the model labels the company as public_org, not topic.
+    intent = make_intent("chart", ("public_org", "NVIDIA"), ("metric", "NVDA share price"))
+    assert texts(build_queries(intent, now=NOW)) == [
+        ("NVIDIA NVDA share price latest data 2026", "context", "finance"),
+    ]
+    related = qmod.related_query(intent, now=NOW)
+    assert related is not None and related.purpose == "related"
+    # topic still wins when both are present.
+    intent = make_intent(
+        "chart", ("public_org", "NVIDIA"), ("topic", "GPU market"), ("metric", "share")
+    )
+    assert [q.text for q in build_queries(intent, now=NOW)] == ["GPU market share latest data 2026"]
+
+
+def test_tickets_query_restricted_to_ticket_sites():
+    intent = make_intent(
+        "event", ("performer", "Lumen Drift"), ("city", "Boston"), ("date", "2026-12-05")
+    )
+    (q,) = build_queries(intent, now=NOW)
+    assert q.purpose == "tickets"
+    assert "ticketmaster.com" in q.include_domains
+    assert 0 < len(q.include_domains) <= 8
+    assert all("/" not in d and "." in d for d in q.include_domains)
+
+
+def _scrubbed_test_data(name: str) -> Intent:
+    from app.pipeline.scrub import scrub_intent
+
+    data = json.loads((Path(__file__).resolve().parent / "data" / f"{name}.json").read_text())
+    cleaned, _ = scrub_intent(Intent.model_validate(data["intent"]))
+    return cleaned
+
+
+@pytest.mark.parametrize(
+    ("name", "expected"),
+    [
+        # The repo's own fake book and product: spaCy tags both names as PERSON.
+        (
+            "tavily_book",
+            [
+                "The Glass Orchard Mira Calloway book buy",
+                "The Glass Orchard Mira Calloway summary review",
+            ],
+        ),
+        (
+            "tavily_product",
+            ["Aurelo Pulse X2 headphones price", "Aurelo Pulse X2 headphones review"],
+        ),
+    ],
+)
+def test_public_names_survive_scrub_and_pii_check(name, expected):
+    from app import egress
+
+    intent = _scrubbed_test_data(name)
+    qs = build_queries(intent, now=NOW)
+    assert [q.text for q in qs] == expected
+    # The egress guard gets the same allow-list from the runner and must not block them.
+    assert all(egress._find_pii({"query": q.text}, qmod.allow_terms(intent)) == [] for q in qs)
+
+
+def test_product_ig_shop_builds_queries():
+    # Issue #49.
+    from app.pipeline.scrub import scrub_intent
+
+    raw = make_intent(
+        "product", ("brand", "Stanley"), ("product", "Quencher H2.0 tumbler"), ("price", "$45")
+    )
+    intent, _ = scrub_intent(raw)
+    assert [q.text for q in build_queries(intent, now=NOW)] == [
+        "Stanley Quencher H2.0 tumbler price",
+        "Stanley Quencher H2.0 tumbler review",
+    ]
+
+
+def test_allow_terms_never_admit_a_private_name():
+    intent = make_intent("product", ("brand", "Stanley"), ("product", "tumbler"), ("price", "$45"))
+    allow = qmod.allow_terms(intent)
+    assert qmod._pii_categories("Stanley tumbler Jane Smith price", allow) == ["PERSON"]
+    # Document intents only allow performers/authors, which the document policy drops.
+    doc = make_intent("document", ("public_org", "Northwind Labs"), ("topic", "edge AI"))
+    assert qmod.allow_terms(doc) == set()
 
 
 def test_other_falls_back_through_topic_product_place():

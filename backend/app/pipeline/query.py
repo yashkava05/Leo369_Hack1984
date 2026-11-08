@@ -42,6 +42,16 @@ TEMPLATE_WORDS: set[str] = {
     *(str(y) for y in range(2000, 2100)),
 }
 
+# Ticketing sites the tickets query is restricted to, so real searches return ticket pages.
+TICKET_DOMAINS: tuple[str, ...] = (
+    "ticketmaster.com",
+    "livenation.com",
+    "axs.com",
+    "seatgeek.com",
+    "dice.fm",
+    "eventbrite.com",
+)
+
 # A slot is a tuple of entity types (the first type present wins) or the year marker.
 _YEAR = "year"
 Slot = tuple[EntityType, ...] | str
@@ -53,6 +63,7 @@ class _Template:
     purpose: str
     parts: tuple[Slot, ...]  # entity slots, `_YEAR`, or literal template words
     topic: str = "general"
+    include_domains: tuple[str, ...] = ()
 
 
 def _s(*types: EntityType) -> tuple[EntityType, ...]:
@@ -61,7 +72,10 @@ def _s(*types: EntityType) -> tuple[EntityType, ...]:
 
 _TEMPLATES: tuple[_Template, ...] = (
     _Template(
-        "event", "tickets", (_s("performer", "event_name"), _s("city"), _s("date"), "tickets")
+        "event",
+        "tickets",
+        (_s("performer", "event_name"), _s("city"), _s("date"), "tickets"),
+        include_domains=TICKET_DOMAINS,
     ),
     _Template("event", "place", (_s("venue"), _s("city"))),
     _Template("event", "context", (_s("performer", "event_name"), _s("venue"), _s("date")), "news"),
@@ -70,7 +84,9 @@ _TEMPLATES: tuple[_Template, ...] = (
     _Template("book", "book", (_s("book_title"), _s("author"), "book", "buy")),
     _Template("book", "context", (_s("book_title"), _s("author"), "summary", "review")),
     _Template("place", "place", (_s("place"), _s("city"))),
-    _Template("chart", "context", (_s("topic"), _s("metric"), "latest", "data", _YEAR)),
+    _Template(
+        "chart", "context", (_s("topic", "public_org"), _s("metric"), "latest", "data", _YEAR)
+    ),
     _Template("document", "context", (_s("topic"), "market", "trends", _YEAR)),
     _Template("document", "context", (_s("public_org"), _s("topic"), "news"), "news"),
     _Template("other", "context", (_s("topic", "product", "place"),)),
@@ -146,7 +162,12 @@ def _build_one(tpl: _Template, values: dict[str, str], year: int) -> SearchQuery
     text = _fit(pieces, entity_idx)
     if not text:
         return None
-    return SearchQuery(text=text, purpose=tpl.purpose, topic=_topic_for(tpl, values))
+    return SearchQuery(
+        text=text,
+        purpose=tpl.purpose,
+        topic=_topic_for(tpl, values),
+        include_domains=list(tpl.include_domains),
+    )
 
 
 def _entity_tokens(intent: Intent) -> set[str]:
@@ -179,21 +200,27 @@ def _pii_categories(text: str, allow: set[str]) -> list[str]:
         return list(contains_pii(text))
 
 
-def _allow_terms(intent: Intent) -> set[str]:
-    """Kept performer/author values, which the PII check may let through."""
-    return {
-        v
-        for ent in intent.public_entities
-        if ent.type in ("performer", "author")
-        for v in (ent.value, normalize(ent.value))
-    }
+def allow_terms(intent: Intent) -> set[str]:
+    """Scrubbed values the PII check may let through, raw and normalized.
+
+    Kept performer/author names and, outside document intents, kept public names (titles,
+    products, brands, companies); see ``scrub.allow_terms``. The runner passes the same set to
+    the egress guard so a query built here is not blocked there.
+    """
+    try:
+        from app.pipeline.scrub import allow_terms as scrub_allow_terms
+    except ImportError:
+        values = {e.value for e in intent.public_entities if e.type in ("performer", "author")}
+    else:
+        values = scrub_allow_terms(intent)
+    return {v for value in values for v in (value, normalize(value))}
 
 
 def build_queries(intent: Intent, now: date | None = None) -> list[SearchQuery]:
     """Build 0-3 sanitized queries for an intent, in template order."""
     year = (now or date.today()).year
     values = _first_values(intent)
-    allow = _allow_terms(intent)
+    allow = allow_terms(intent)
 
     out: list[SearchQuery] = []
     seen: set[str] = set()
@@ -234,7 +261,7 @@ def related_query(intent: Intent, now: date | None = None) -> SearchQuery | None
     q = _build_one(tpl, _first_values(intent), year)
     if q is None:
         return None
-    allow = _allow_terms(intent)
+    allow = allow_terms(intent)
     if not provenance_ok(q, intent) or _pii_categories(q.text, allow):
         return None
     return q.model_copy(update={"purpose": "related"})

@@ -5,7 +5,8 @@ import concertResult from '../api/fixtures/concert_flyer.result.json'
 import docEvents from '../api/fixtures/sensitive_doc.events.json'
 import docResult from '../api/fixtures/sensitive_doc.result.json'
 import type { JobResult, StageEvent } from '../types'
-import { TerminalView } from './Terminal'
+import { openResult, reset } from '../state/useJob'
+import { AUDIT_UNAVAILABLE, Terminal, TerminalView } from './Terminal'
 import { buildLines, counters, eventLine, formatCounters, formatElapsed, lineToText, terminalModel, typingMs } from './Terminal.format'
 
 const FIXTURES = [
@@ -155,5 +156,28 @@ describe('line format', () => {
   it('caps the typewriter at 400 ms per line', () => {
     expect(typingMs('abcde')).toBe(40)
     expect(typingMs('x'.repeat(500))).toBe(400)
+  })
+})
+
+describe('reopened from the library', () => {
+  it('marks the audit unavailable instead of showing zero network counters', () => {
+    // The library strips egress records, so a reopened job that did search arrives with egress: [].
+    const saved: JobResult = { ...(concertResult as JobResult), egress: [] }
+    openResult(saved)
+    try {
+      const html = renderToStaticMarkup(<Terminal />)
+      expect(html).toContain(AUDIT_UNAVAILABLE)
+      expect(html).not.toContain('Outbound requests')
+      expect(html).not.toContain('Bytes sent')
+    } finally {
+      reset()
+    }
+  })
+
+  it('still shows counters for a live job', () => {
+    const model = terminalModel(concertEvents as StageEvent[], concertResult as JobResult)
+    const html = renderToStaticMarkup(<TerminalView lines={model.lines} counters={model.counters} instant />)
+    expect(html).toContain('Outbound requests: <b>2</b>')
+    expect(html).not.toContain(AUDIT_UNAVAILABLE)
   })
 })

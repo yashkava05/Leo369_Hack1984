@@ -13,6 +13,8 @@ venv/
 .ruff_cache/
 build/
 backend/egress.log
+# Recorded live Tavily responses (DEMO_FALLBACK): real web data, kept on the demo laptop only
+backend/fixtures/tavily_recorded/*.json
 dist/
 
 # Node
