@@ -179,16 +179,21 @@ def _pii_categories(text: str, allow: set[str]) -> list[str]:
         return list(contains_pii(text))
 
 
-def build_queries(intent: Intent, now: date | None = None) -> list[SearchQuery]:
-    """Build 0-3 sanitized queries for an intent, in template order."""
-    year = (now or date.today()).year
-    values = _first_values(intent)
-    allow = {
+def _allow_terms(intent: Intent) -> set[str]:
+    """Kept performer/author values, which the PII check may let through."""
+    return {
         v
         for ent in intent.public_entities
         if ent.type in ("performer", "author")
         for v in (ent.value, normalize(ent.value))
     }
+
+
+def build_queries(intent: Intent, now: date | None = None) -> list[SearchQuery]:
+    """Build 0-3 sanitized queries for an intent, in template order."""
+    year = (now or date.today()).year
+    values = _first_values(intent)
+    allow = _allow_terms(intent)
 
     out: list[SearchQuery] = []
     seen: set[str] = set()
@@ -205,3 +210,31 @@ def build_queries(intent: Intent, now: date | None = None) -> list[SearchQuery]:
         if len(out) == MAX_QUERIES:
             break
     return out
+
+
+RELATED_INTENTS = ("book", "chart", "document")
+
+
+def related_query(intent: Intent, now: date | None = None) -> SearchQuery | None:
+    """The Exa "related" query for book/chart/document intents, or None.
+
+    Uses the same template as the intent's first context query (so it passes the same
+    provenance and PII checks) with ``purpose="related"``. It is kept apart from
+    ``build_queries`` so Tavily never receives it.
+    """
+    if intent.intent_type not in RELATED_INTENTS:
+        return None
+    tpl = next(
+        (t for t in _TEMPLATES if t.intent_type == intent.intent_type and t.purpose == "context"),
+        None,
+    )
+    if tpl is None:
+        return None
+    year = (now or date.today()).year
+    q = _build_one(tpl, _first_values(intent), year)
+    if q is None:
+        return None
+    allow = _allow_terms(intent)
+    if not provenance_ok(q, intent) or _pii_categories(q.text, allow):
+        return None
+    return q.model_copy(update={"purpose": "related"})
