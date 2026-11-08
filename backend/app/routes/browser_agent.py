@@ -33,11 +33,6 @@ class CreateJob(BaseModel):
     count: int = Field(ge=1, le=outlook.MAX_COUNT)
 
 
-class ScopeSuggestion(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    request: str = Field(min_length=1, max_length=1000)
-
-
 def _raise(exc: bridge.BridgeError) -> None:
     raise HTTPException(exc.status, exc.code) from None
 
@@ -131,18 +126,6 @@ def _view(job: bridge.BrowserJob) -> dict[str, Any]:
 
 
 # --- UI side ------------------------------------------------------------------------------
-
-
-@router.post("/scope")
-async def suggest_scope(request: Request) -> dict[str, Any]:
-    """Local, deterministic scope suggestion from the reviewed text; nothing is stored."""
-    try:
-        bridge.require_ui_origin(request.headers.get("origin"))
-    except bridge.BridgeError as exc:
-        _raise(exc)
-    item = _parse(ScopeSuggestion, await _json(request, 4096))
-    scope = outlook.scope_from_request(item.request)
-    return {"mode": scope.mode, "count": scope.count, "max": outlook.MAX_COUNT}
 
 
 @router.post("/jobs", status_code=201)

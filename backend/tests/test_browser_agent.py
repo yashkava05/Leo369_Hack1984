@@ -291,16 +291,6 @@ def test_content_from_another_origin_than_claimed_is_refused(client):
 # --- scope, bounds and dedup --------------------------------------------------------------
 
 
-def test_scope_from_request():
-    assert outlook.scope_from_request("Check my latest ten Outlook emails") == Scope("latest", 10)
-    assert outlook.scope_from_request("Summarize unread emails in this inbox").mode == "unread"
-    assert outlook.scope_from_request("summarize my last 50 emails").count == 20
-    assert outlook.scope_from_request("Open this selected email and tell me") == Scope(
-        "selected", 1
-    )
-    assert outlook.scope_from_request("what needs my attention").count == outlook.DEFAULT_COUNT
-
-
 def test_create_rejects_out_of_bounds_scope(client):
     for count in (0, 21, 500):
         resp = client.post(

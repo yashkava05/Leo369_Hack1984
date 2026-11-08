@@ -32,28 +32,11 @@ ALLOWED_ORIGINS = frozenset(
         "https://outlook.cloud.microsoft",
     }
 )
-DEFAULT_COUNT = 10
 MAX_COUNT = 20
 MAX_TASKS_PER_EMAIL = 3
 MIN_QUOTE_CHARS = 8
 ANALYZE_TIMEOUT_S = 180.0
 
-_NUMBERS = {
-    "one": 1,
-    "two": 2,
-    "three": 3,
-    "four": 4,
-    "five": 5,
-    "six": 6,
-    "seven": 7,
-    "eight": 8,
-    "nine": 9,
-    "ten": 10,
-    "eleven": 11,
-    "twelve": 12,
-    "fifteen": 15,
-    "twenty": 20,
-}
 _URL = re.compile(r"(?:https?://|www\.)\S+", re.I)
 # Text aimed at an AI assistant rather than at the reader. Such sentences never become tasks.
 _INJECTION = re.compile(
@@ -132,25 +115,6 @@ def origin_allowed(origin: str) -> bool:
     if parts.path not in ("", "/") or parts.query or parts.fragment:
         return False
     return f"https://{(parts.hostname or '').lower()}" in ALLOWED_ORIGINS
-
-
-def scope_from_request(text: str) -> Scope:
-    """Deterministic, local reading of the reviewed request; the UI lets the user change it."""
-    lowered = text.casefold()
-    if re.search(r"\b(selected|this|open|opened|current)\s+(email|message|mail)\b", lowered):
-        return Scope(mode="selected", count=1)
-    count = DEFAULT_COUNT
-    match = re.search(
-        r"\b(\d{1,3}|" + "|".join(_NUMBERS) + r")\b\s+(?:\w+\s+){0,3}?"
-        r"(?:emails?|messages?|mails?)",
-        lowered,
-    )
-    if match:
-        raw = match.group(1)
-        count = int(raw) if raw.isdigit() else _NUMBERS[raw]
-    count = max(1, min(MAX_COUNT, count))
-    mode = "unread" if re.search(r"\bunread\b", lowered) else "latest"
-    return Scope(mode=mode, count=count)
 
 
 def validate_scope(mode: str, count: int) -> Scope:

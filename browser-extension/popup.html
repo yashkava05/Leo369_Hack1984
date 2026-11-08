@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Latent</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <h1>Latent</h1>
+  <p id="status" role="status">Checking this tab…</p>
+  <p id="detail" class="muted"></p>
+  <button id="share" type="button" hidden>Allow this Outlook tab</button>
+  <button id="stop" type="button" class="secondary" hidden>Stop sharing</button>
+  <ul class="muted small">
+    <li>Read-only: Latent never sends, replies, deletes, archives, opens links or attachments.</li>
+    <li>Reads only after you confirm a request in Latent, up to 20 recent messages.</li>
+    <li>Email text goes only to Latent on this computer. Your sign-in stays in the browser.</li>
+  </ul>
+  <script src="bridge-core.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>
