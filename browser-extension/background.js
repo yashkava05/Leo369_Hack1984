@@ -69,6 +69,9 @@ async function verifySource(source) {
   var tab
   try { tab = await chrome.tabs.get(source.tabId) } catch (e) { return { error: 'tab_closed' } }
   if (!tab) return { error: 'tab_closed' }
+  // Check where the tab is before injecting anything. Without a grant for its current site Chrome
+  // hides tab.url, which also counts as "not the shared tab any more".
+  if (!tab.url || core.originOf(tab.url) !== source.origin) return { error: 'wrong_origin' }
   var granted = await chrome.permissions.contains({ origins: [source.origin + '/*'] })
   if (!granted) return { error: 'permission_denied' }
   try { await inject(source.tabId, source.provider) } catch (e) { return { error: 'permission_denied' } }
@@ -92,6 +95,7 @@ async function read(jobId, nonce) {
   // The nonce stays in worker memory only while this read runs (for progress reports).
   var job = running[jobId] = { tabId: source.tabId, provider: source.provider, cancelled: false, nonce: nonce }
   try {
+    await showReading(true)
     var claim
     try {
       claim = await backend('/claim', jobId, nonce, { provider: source.provider, origin: source.origin })
@@ -132,8 +136,29 @@ async function read(jobId, nonce) {
   } catch (e) {
     if (!job.cancelled) await report(jobId, nonce, 'read_failed')
   } finally {
-    delete running[jobId]
+    if (running[jobId] === job) delete running[jobId]
+    await showReading(false)
   }
+}
+
+/**
+ * Visible signal in Chrome itself (not only in Latent's page) whenever the extension reads mail or chat,
+ * so a read started by anything else is noticed. The badge stays until the read ends.
+ */
+async function showReading(on) {
+  var reading = on || Object.keys(running).length > 0
+  try {
+    await chrome.action.setBadgeBackgroundColor({ color: '#b8701a' })
+    await chrome.action.setBadgeText({ text: reading ? 'READ' : '' })
+    await chrome.action.setTitle({ title: reading ? 'Latent is reading your shared tab' : 'Share an Outlook tab or Teams chat with Latent' })
+  } catch (e) { /* badge is best effort; the read itself is unaffected */ }
+}
+
+/** Forget the shared tab and give back its site permission. */
+async function forget() {
+  var source = await getSource()
+  await setSource(null)
+  if (source) { try { await chrome.permissions.remove({ origins: [source.origin + '/*'] }) } catch (e) { /* already gone */ } }
 }
 
 async function cancel(jobId) {
@@ -161,9 +186,14 @@ chrome.runtime.onMessageExternal.addListener(function (message, sender, sendResp
   var msg = core.validateUiMessage(message)
   if (!msg) { sendResponse({ ok: false, error: 'invalid_message' }); return false }
   if (msg.type === 'latent.hello') { hello().then(sendResponse, function () { sendResponse({ ok: false }) }); return true }
-  if (msg.type === 'latent.forget') { setSource(null).then(function () { sendResponse({ ok: true }) }); return true }
+  if (msg.type === 'latent.forget') { forget().then(function () { sendResponse({ ok: true }) }); return true }
   if (msg.type === 'latent.cancel') { cancel(msg.jobId).then(function () { sendResponse({ ok: true }) }); return true }
-  if (msg.type === 'latent.read') { void read(msg.jobId, msg.nonce); sendResponse({ ok: true, accepted: true }); return false }
+  if (msg.type === 'latent.read') {
+    if (running[msg.jobId]) { sendResponse({ ok: false, error: 'already_reading' }); return false }
+    void read(msg.jobId, msg.nonce)
+    sendResponse({ ok: true, accepted: true })
+    return false
+  }
   return false
 })
 
@@ -225,6 +255,17 @@ async function selectTab(tabId) {
   await setSource(source)
   return { ok: true, origin: match.origin, accountLabel: probe.account, conversation: source.conversation || null }
 }
+
+// The shared tab navigated: if it left the shared Outlook/Teams site, forget it (fail closed early).
+chrome.tabs.onUpdated.addListener(function (tabId, change) {
+  if (!change.url && change.status !== 'loading') return
+  getSource().then(function (source) {
+    if (!source || source.tabId !== tabId) return
+    return chrome.tabs.get(tabId).then(function (tab) {
+      if (!tab.url || core.originOf(tab.url) !== source.origin) return setSource(null)
+    })
+  }).catch(function () {})
+})
 
 chrome.tabs.onRemoved.addListener(function (tabId) {
   getSource().then(function (source) { if (source && source.tabId === tabId) return setSource(null) })

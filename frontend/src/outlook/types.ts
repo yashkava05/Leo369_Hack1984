@@ -13,6 +13,8 @@ export interface JobStep { key: string; label: string; boundary: Boundary; state
 export interface Coverage {
   requested: number
   inspected: number
+  /** Rows looked at; larger than `inspected` in unread mode. */
+  examined?: number
   scrolls: number
   partial: boolean
   reason: 'count_reached' | 'list_end' | 'budget' | 'timeout' | 'selected_message'

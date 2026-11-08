@@ -1,5 +1,11 @@
 /* Outlook browser-session panel (#67). Reuses the chat tokens so light/dark both work. */
-.outlook-panel { display: grid; gap: 10px; padding: 14px 16px; border: 1px solid var(--chat-line, #d6dce4); border-radius: 14px; background: var(--chat-surface, #fff); color: var(--chat-ink, #18202c); max-width: 680px; }
+/* The voice-* button classes read --v-* variables, which .voice-capture defines; define them here too. */
+.outlook-panel { --v-text: var(--chat-ink, #18202c); --v-muted: var(--chat-muted, #5d6877); --v-surface: var(--chat-surface, #fff); --v-field: var(--chat-sunk, #f4f6f9); --v-border: var(--chat-line, #d6dce4); --v-accent: var(--chat-me, #3a3fd0); --v-on-accent: #fff; }
+.outlook-panel :is(button, select, input) { font: inherit; }
+.outlook-panel button { cursor: pointer; }
+.outlook-panel :is(button, select, input):focus-visible, .outlook-panel h3:focus-visible { outline: 2px solid var(--v-accent); outline-offset: 2px; }
+.outlook-panel h3:focus:not(:focus-visible) { outline: none; }
+.outlook-panel { box-sizing: border-box; min-width: 0; width: 100%; display: grid; gap: 10px; padding: 14px 16px; border: 1px solid var(--chat-line, #d6dce4); border-radius: 14px; background: var(--chat-surface, #fff); color: var(--chat-ink, #18202c); max-width: 680px; }
 .outlook-panel header { display: flex; align-items: center; gap: 10px; }
 .outlook-panel header > div { flex: 1; min-width: 0; }
 .outlook-panel h3 { margin: 0; font-size: 0.98rem; }
@@ -41,3 +47,8 @@
 .outlook-flag { display: flex; gap: 4px; align-items: center; font-size: 0.76rem; color: var(--chat-block, #c23b2b); }
 .outlook-receipt { margin: 0; font-size: 0.76rem; color: var(--chat-muted, #5d6877); }
 .outlook-actions { flex-wrap: wrap; }
+@media (max-width: 480px) {
+  .outlook-panel { padding: 12px; }
+  .outlook-scope { grid-template-columns: 1fr; }
+  .outlook-actions .voice-primary { flex: 1 1 100%; justify-content: center; }
+}

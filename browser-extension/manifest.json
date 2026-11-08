@@ -18,5 +18,5 @@
   "host_permissions": ["http://127.0.0.1:8000/*"],
   "background": { "service_worker": "background.js" },
   "action": { "default_title": "Share an Outlook tab or Teams chat with Latent", "default_popup": "popup.html" },
-  "externally_connectable": { "matches": ["http://localhost:5173/*", "http://127.0.0.1:5173/*"] }
+  "externally_connectable": { "matches": ["http://localhost:5173/*"] }
 }

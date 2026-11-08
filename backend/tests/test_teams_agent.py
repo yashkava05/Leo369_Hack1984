@@ -107,7 +107,11 @@ def create_body(mode="latest", count=10, replies=False, source=SOURCE, confirmed
 
 
 def create(client, **kw):
-    resp = client.post("/api/browser/jobs", headers={"origin": UI}, json=create_body(**kw))
+    resp = client.post(
+        "/api/browser/jobs",
+        headers={"origin": UI, "x-latent-ui-secret": bridge.ui_secret()},
+        json=create_body(**kw),
+    )
     assert resp.status_code == 201, resp.text
     return resp.json()
 
@@ -155,10 +159,12 @@ def submit(client, job, items, **kw):
     )
 
 
+def ui_view(job):
+    return {"x-latent-view": job["view_token"], "x-latent-ui-secret": bridge.ui_secret()}
+
+
 def view(client, job):
-    return client.get(
-        f"/api/browser/jobs/{job['job_id']}", headers={"x-latent-view": job["view_token"]}
-    )
+    return client.get(f"/api/browser/jobs/{job['job_id']}", headers=ui_view(job))
 
 
 def wait(client, job, timeout=5.0):
@@ -257,7 +263,7 @@ def test_outlook_tab_cannot_claim_a_teams_job(client):
 def test_teams_tab_cannot_claim_an_outlook_job(client):
     resp = client.post(
         "/api/browser/jobs",
-        headers={"origin": UI},
+        headers={"origin": UI, "x-latent-ui-secret": bridge.ui_secret()},
         json={"provider": "outlook", "request": "check mail", "mode": "latest", "count": 5},
     )
     job = resp.json()
@@ -269,7 +275,7 @@ def test_outlook_requests_cannot_carry_teams_fields(client):
     for extra in ({"source": SOURCE}, {"replies": True}, {"source_confirmed": True}):
         resp = client.post(
             "/api/browser/jobs",
-            headers={"origin": UI},
+            headers={"origin": UI, "x-latent-ui-secret": bridge.ui_secret()},
             json={"provider": "outlook", "request": "x", "mode": "latest", "count": 5, **extra},
         )
         assert resp.status_code == 422
@@ -288,7 +294,11 @@ def test_outlook_requests_cannot_carry_teams_fields(client):
     ],
 )
 def test_a_confirmed_source_is_required_before_reading(client, kw):
-    resp = client.post("/api/browser/jobs", headers={"origin": UI}, json=create_body(**kw))
+    resp = client.post(
+        "/api/browser/jobs",
+        headers={"origin": UI, "x-latent-ui-secret": bridge.ui_secret()},
+        json=create_body(**kw),
+    )
     assert resp.status_code == 422
     assert resp.json()["detail"] in ("source_selection_required", "invalid_payload")
     assert bridge._jobs == {}
@@ -320,7 +330,11 @@ def test_teams_failure_codes_are_constant(client, code):
 
 def test_create_rejects_out_of_bounds_and_unknown_modes(client):
     for kw in ({"count": 0}, {"count": 21}, {"mode": "selected"}, {"mode": "all"}):
-        resp = client.post("/api/browser/jobs", headers={"origin": UI}, json=create_body(**kw))
+        resp = client.post(
+            "/api/browser/jobs",
+            headers={"origin": UI, "x-latent-ui-secret": bridge.ui_secret()},
+            json=create_body(**kw),
+        )
         assert resp.status_code == 422, kw
 
 
@@ -679,9 +693,7 @@ def test_mock_analyzer_ignores_injected_instructions(client):
 def test_cancel_clears_state_and_drops_late_content(client):
     job = create(client)
     claim(client, job)
-    resp = client.delete(
-        f"/api/browser/jobs/{job['job_id']}", headers={"x-latent-view": job["view_token"]}
-    )
+    resp = client.delete(f"/api/browser/jobs/{job['job_id']}", headers=ui_view(job))
     assert resp.status_code == 204
     assert submit(client, job, CHAT).status_code == 404
     assert view(client, job).status_code == 404
@@ -706,7 +718,7 @@ async def test_cancel_during_analysis_drops_late_model_result():
 def test_a_teams_request_replaces_an_outlook_read(client):
     first = client.post(
         "/api/browser/jobs",
-        headers={"origin": UI},
+        headers={"origin": UI, "x-latent-ui-secret": bridge.ui_secret()},
         json={"provider": "outlook", "request": "mail", "mode": "latest", "count": 5},
     ).json()
     second = create(client)
@@ -719,7 +731,11 @@ def test_a_teams_request_replaces_an_outlook_read(client):
 
 def test_airgap_blocks_teams_jobs_and_reads(client):
     egress.set_offline(True)
-    resp = client.post("/api/browser/jobs", headers={"origin": UI}, json=create_body())
+    resp = client.post(
+        "/api/browser/jobs",
+        headers={"origin": UI, "x-latent-ui-secret": bridge.ui_secret()},
+        json=create_body(),
+    )
     assert resp.status_code == 423 and resp.json()["detail"] == "airgap_on"
     egress.set_offline(False)
     job = create(client)
@@ -782,9 +798,7 @@ def test_no_chat_content_in_logs_disk_audit_or_public_storage(client, caplog):
     db = Path(get_settings().latent_db_path)
     if db.exists():
         assert SECRET_PHRASE.encode() not in db.read_bytes()
-    client.delete(
-        f"/api/browser/jobs/{job['job_id']}", headers={"x-latent-view": job["view_token"]}
-    )
+    client.delete(f"/api/browser/jobs/{job['job_id']}", headers=ui_view(job))
     assert bridge.get(job["job_id"]) is None
 
 
@@ -809,3 +823,14 @@ def test_owner_must_be_written_as_a_name_and_deadline_must_be_a_time_phrase():
     )
     tasks = teams.ground(src, output)["tasks"]
     assert [(t["owner"], t["deadline"]) for t in tasks] == [(None, None), (None, None)]
+
+
+def test_teams_jobs_need_the_launch_secret(client):
+    for headers in ({"origin": UI}, {"origin": UI, "x-latent-ui-secret": "guess"}):
+        resp = client.post("/api/browser/jobs", headers=headers, json=create_body())
+        assert resp.status_code == 403
+    job = create(client)
+    resp = client.get(
+        f"/api/browser/jobs/{job['job_id']}", headers={"x-latent-view": job["view_token"]}
+    )
+    assert resp.status_code == 403

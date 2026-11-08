@@ -69,7 +69,7 @@ export function createDemoDriver(options: { offline?: () => boolean } = {}): Out
         coverage: done ? { requested: job.scope.count, inspected: total, scrolls: 2, partial: job.scope.mode !== 'selected' && total < job.scope.count, reason: job.scope.mode === 'selected' ? 'selected_message' : total < job.scope.count ? 'list_end' : 'count_reached', elapsed_ms: 900 } : null,
         steps: steps(stage, job.scope, inspected), result: done ? result : null, demo: true,
         timings_ms: done ? { read: 900, analyze: 400 } : {},
-        receipt: { browser_reads: done ? total : 0, backend_internet_requests: 0, local_model_calls: done ? 1 : 0 },
+        receipt: { browser_reads: done ? total : 0, backend_internet_requests: 0, local_model_calls: 0 },
       }
       return view
     },

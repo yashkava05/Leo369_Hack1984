@@ -9,7 +9,8 @@
   'use strict'
 
   var BACKEND = 'http://127.0.0.1:8000'
-  var UI_ORIGINS = ['http://localhost:5173', 'http://127.0.0.1:5173']
+  // Must match the backend's cors_origins; the backend refuses job creation from anything else.
+  var UI_ORIGINS = ['http://localhost:5173']
   var PROVIDERS = {
     outlook: {
       label: 'Outlook on the web',
@@ -121,6 +122,7 @@
     var now = opts.now || Date.now
     var started = now()
     var start = adapter.getScroll()
+    var examined = 0
     var seenKeys = Object.create(null)
     var seenPrints = Object.create(null)
     var items = []
@@ -140,6 +142,7 @@
           seenKeys[key] = true
           seenPrints[print] = true
           fresh++
+          examined++
           if (unreadOnly && !row.unread) continue
           items.push({
             id: 'o_' + fingerprint(key),
@@ -169,6 +172,7 @@
       coverage: {
         requested: count,
         inspected: items.length,
+        examined: examined,
         scrolls: scrolls,
         partial: items.length < count,
         reason: reason,

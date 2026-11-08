@@ -38,6 +38,7 @@ function fakeTab(url, overrides = {}) {
 function sandbox({ tabs, granted, claim }) {
   const session = {}
   const fetches = []
+  const badges = []
   const listeners = {}
   const on = (name) => ({ addListener: (fn) => { listeners[name] = fn } })
   const ctx = {
@@ -65,7 +66,9 @@ function sandbox({ tabs, granted, claim }) {
       tabs: {
         get: async (id) => { if (!tabs[id]) throw new Error('no tab'); return { id, url: tabs[id].url } },
         onRemoved: on('tabRemoved'),
+        onUpdated: on('tabUpdated'),
       },
+      action: { setBadgeText: async (o) => { badges.push(o.text) }, setBadgeBackgroundColor: async () => {}, setTitle: async () => {} },
       scripting: {
         executeScript: async ({ target, func, args, files }) => {
           const tab = tabs[target.tabId]
@@ -87,7 +90,7 @@ function sandbox({ tabs, granted, claim }) {
     if (!async) setImmediate(() => resolve(undefined))
   })
   return {
-    session, fetches,
+    session, fetches, badges,
     popup: (message) => ask('message', message, { id: EXT_ID }),
     page: (message) => ask('external', message, { origin: 'http://localhost:5173' }),
     settle: async () => { for (let i = 0; i < 50; i++) await new Promise((r) => setImmediate(r)) },
@@ -139,6 +142,7 @@ test('a confirmed read passes the backend scope (source, replies) and posts the 
   assert.equal(content.body.source, CONV.fp)
   assert.equal(content.headers['X-Latent-Nonce'], NONCE)
   assert.deepEqual(failCode(sb), [])
+  assert.deepEqual([sb.badges[0], sb.badges[sb.badges.length - 1]], ['READ', ''])  // visible in Chrome while reading
 })
 
 test('a request confirmed for another chat/channel is refused before reading', async () => {
@@ -164,6 +168,15 @@ test('an account or tenant switch fails closed', async () => {
   await read(sb)
   await sb.settle()
   assert.deepEqual(failCode(sb), ['account_changed'])
+})
+
+test('a Teams tab that navigated away fails closed before anything is injected', async () => {
+  const { sb, tab } = await shared()
+  tab.url = 'https://teams.microsoft.com.evil.example/'
+  await read(sb)
+  await sb.settle()
+  assert.deepEqual(failCode(sb), ['wrong_origin'])
+  assert.equal(tab.calls.read.length, 0)
 })
 
 test('a revoked Teams grant fails closed', async () => {

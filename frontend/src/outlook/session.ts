@@ -51,14 +51,22 @@ export function createOutlookSession(driver: OutlookDriver, request: string, opt
   }
 
   const setScope = (scope: ReadScope) => {
-    if (state.phase !== 'review' && state.phase !== 'error' && state.phase !== 'cancelled') return
+    if (!['review', 'error', 'cancelled', 'done'].includes(state.phase)) return
     update({ scope: scope.mode === 'selected' ? { mode: 'selected', count: 1 } : { mode: scope.mode, count: clampCount(scope.count) } })
+  }
+
+  /** Stop tracking the backend job and delete it there (also tells the extension to stop). */
+  const release = async () => {
+    const current = active
+    active = null
+    if (current) await driver.cancel(current.jobId, current.viewToken).catch(() => {})
   }
 
   const confirm = async () => {
     if (!['review', 'error', 'cancelled', 'done'].includes(state.phase) || !state.source) return
     if (isOffline()) { update({ phase: 'error', error: 'airgap_on', job: null }); return }
     const gen = ++generation
+    void release() // a previous job (finished or not) never outlives a new request
     update({ phase: 'running', error: null, job: null })
     try {
       const started = await driver.start(state.request, state.scope)
@@ -74,6 +82,8 @@ export function createOutlookSession(driver: OutlookDriver, request: string, opt
         if (gen !== generation) return
         update({ job: view })
         if (TERMINAL.has(view.status)) {
+          // The panel now holds what it needs; delete the backend's copy right away.
+          void release()
           if (view.status === 'done') update({ phase: 'done' })
           else update({ phase: view.status === 'cancelled' ? 'cancelled' : 'error', error: view.error ?? 'read_failed', job: { ...view, result: null } })
           return
@@ -82,16 +92,16 @@ export function createOutlookSession(driver: OutlookDriver, request: string, opt
       }
       if (gen === generation) { await cancel(); update({ phase: 'error', error: 'read_failed' }) }
     } catch (error) {
-      if (gen === generation) update({ phase: 'error', error: codeOf(error), job: null })
+      if (gen !== generation) return
+      await release() // a failed poll must not leave the backend job or the extension read running
+      update({ phase: 'error', error: codeOf(error), job: null })
     }
   }
 
   const cancel = async () => {
     generation++
-    const current = active
-    active = null
     update({ phase: 'cancelled', job: null, error: null })
-    if (current) await driver.cancel(current.jobId, current.viewToken).catch(() => {})
+    await release()
   }
 
   /**
@@ -111,7 +121,15 @@ export function createOutlookSession(driver: OutlookDriver, request: string, opt
     subscribe: (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener) } },
     check, setScope, confirm, cancel, dispose,
     /** Air-gap state from the chat header; the backend enforces it again for real reads. */
-    setOffline: (value: boolean) => { offline = value },
+    setOffline: (value: boolean) => {
+      offline = value
+      if (value && state.phase === 'running') {
+        // Air-gap disables browser retrieval: stop the read in progress, not just the next one.
+        generation++
+        update({ phase: 'error', error: 'airgap_on', job: null })
+        void release()
+      }
+    },
     forget: async () => { await driver.forget(); await check() },
   }
 }
