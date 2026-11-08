@@ -21,6 +21,7 @@ dependencies = [
     "pillow",
     "presidio-analyzer",
     "en_core_web_lg @ https://github.com/explosion/spacy-models/releases/download/en_core_web_lg-3.8.0/en_core_web_lg-3.8.0-py3-none-any.whl",
+    "python-dateutil",
 ]
 
 [project.optional-dependencies]
@@ -36,7 +37,10 @@ include = ["app*"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
-markers = ["ollama: live test that needs a running Ollama with the model pulled"]
+markers = [
+    "ollama: live test that needs a running Ollama with the model pulled",
+    "live: live test that calls the real Tavily API (needs TAVILY_API_KEY)",
+]
 
 [tool.ruff]
 line-length = 100

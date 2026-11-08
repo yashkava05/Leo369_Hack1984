@@ -1,0 +1,108 @@
+{
+  "intent": {
+    "intent_type": "event",
+    "summary": "Concert flyer: Lumen Drift live at Paradise Rock Club, Boston, Sat Dec 5, 8 PM.",
+    "public_entities": [
+      {
+        "type": "performer",
+        "value": "Lumen Drift"
+      },
+      {
+        "type": "venue",
+        "value": "Paradise Rock Club"
+      },
+      {
+        "type": "city",
+        "value": "Boston"
+      },
+      {
+        "type": "date",
+        "value": "Sat Dec 5"
+      },
+      {
+        "type": "time",
+        "value": "8 PM"
+      }
+    ],
+    "redaction_counts": {
+      "handle": 2
+    },
+    "confidence": 0.91
+  },
+  "queries": [
+    {
+      "text": "Lumen Drift Paradise Rock Club Boston December 5 2026 tickets",
+      "purpose": "tickets",
+      "topic": "general",
+      "include_domains": [
+        "ticketmaster.com",
+        "axs.com",
+        "dice.fm"
+      ]
+    },
+    {
+      "text": "Paradise Rock Club Boston venue",
+      "purpose": "place",
+      "topic": "general",
+      "include_domains": []
+    }
+  ],
+  "responses": {
+    "Lumen Drift Paradise Rock Club Boston December 5 2026 tickets": {
+      "query": "Lumen Drift Paradise Rock Club Boston December 5 2026 tickets",
+      "follow_up_questions": null,
+      "answer": "Lumen Drift play Paradise Rock Club in Boston on Saturday, December 5, 2026; general admission tickets start around $45.",
+      "images": [],
+      "response_time": 1.12,
+      "results": [
+        {
+          "title": "Lumen Drift Tickets | Paradise Rock Club | Ticketmaster",
+          "url": "https://www.ticketmaster.com/event/lumen-drift-paradise-rock-club?utm_source=tavily&utm_medium=search&fbclid=abc123",
+          "content": "Lumen Drift at Paradise Rock Club, Boston, MA. Sat Dec 05 2026 8:00 PM. Standard tickets $55.00, General Admission $45. Fees may apply.",
+          "score": 0.94,
+          "raw_content": null
+        },
+        {
+          "title": "Lumen Drift — Boston | AXS",
+          "url": "https://www.axs.com/events/551234/lumen-drift-tickets?gclid=xyz",
+          "content": "Lumen Drift live in Boston. Tickets from $49.50 plus fees.",
+          "score": 0.81,
+          "raw_content": null
+        },
+        {
+          "title": "Lumen Drift Tickets | Paradise Rock Club | Ticketmaster (duplicate)",
+          "url": "https://www.ticketmaster.com/event/lumen-drift-paradise-rock-club?utm_campaign=x",
+          "content": "Duplicate listing of the same event.",
+          "score": 0.7,
+          "raw_content": null
+        },
+        {
+          "title": "Lumen Drift Boston | DICE",
+          "url": "https://dice.fm/event/lumen-drift-boston",
+          "content": "Get tickets for Lumen Drift. Doors 7pm.",
+          "score": 0.66,
+          "raw_content": null
+        }
+      ]
+    },
+    "Paradise Rock Club Boston venue": {
+      "query": "Paradise Rock Club Boston venue",
+      "answer": null,
+      "response_time": 0.8,
+      "results": [
+        {
+          "title": "Paradise Rock Club - Venue info",
+          "url": "https://www.examplevenues.test/paradise-rock-club?utm_source=tavily",
+          "content": "Live music venue in Boston with a capacity of around 900.",
+          "score": 0.77
+        },
+        {
+          "title": "Upcoming shows at Paradise Rock Club",
+          "url": "https://www.livenation.com/venue/paradise-rock-club",
+          "content": "See all upcoming events at Paradise Rock Club. Tickets from $25.",
+          "score": 0.62
+        }
+      ]
+    }
+  }
+}
