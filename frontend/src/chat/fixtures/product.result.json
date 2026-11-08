@@ -1,0 +1,169 @@
+{
+  "job_id": "j_fx_product",
+  "status": "done",
+  "intent": {
+    "intent_type": "product",
+    "summary": "Product page for Aurelo Pulse X2 wireless headphones.",
+    "public_entities": [
+      {
+        "type": "brand",
+        "value": "Aurelo"
+      },
+      {
+        "type": "product",
+        "value": "Pulse X2 headphones"
+      }
+    ],
+    "redaction_counts": {},
+    "confidence": 0.85
+  },
+  "queries": [
+    {
+      "text": "Aurelo Pulse X2 headphones price",
+      "purpose": "shopping",
+      "topic": "general",
+      "include_domains": []
+    },
+    {
+      "text": "Aurelo Pulse X2 headphones review",
+      "purpose": "context",
+      "topic": "general",
+      "include_domains": []
+    }
+  ],
+  "cards": [
+    {
+      "id": "c_c7bc873ffe",
+      "kind": "shop",
+      "title": "Aurelo Pulse X2 Wireless Headphones - Shopmart",
+      "subtitle": null,
+      "url": "https://www.shopmart.test/p/aurelo-pulse-x2",
+      "price": "$199.99",
+      "source": "shopmart.test",
+      "snippet": "Aurelo Pulse X2 Wireless Noise Cancelling Headphones. Was $229.99, now $199.99. Free shipping over $35.",
+      "score": 0.9,
+      "actions": [
+        {
+          "label": "View price",
+          "type": "open_url",
+          "url": "https://www.shopmart.test/p/aurelo-pulse-x2",
+          "ics": null,
+          "text": null
+        }
+      ]
+    },
+    {
+      "id": "c_df8780eca1",
+      "kind": "shop",
+      "title": "Aurelo Pulse X2 | Gadget Depot",
+      "subtitle": null,
+      "url": "https://gadgetdepot.test/aurelo-pulse-x2",
+      "price": "$189.00",
+      "source": "gadgetdepot.test",
+      "snippet": "Pulse X2 by Aurelo - $1,149.00 bundle or $189.00 headphones only.",
+      "score": 0.84,
+      "actions": [
+        {
+          "label": "View price",
+          "type": "open_url",
+          "url": "https://gadgetdepot.test/aurelo-pulse-x2",
+          "ics": null,
+          "text": null
+        }
+      ]
+    },
+    {
+      "id": "c_46aba68972",
+      "kind": "insight",
+      "title": "Quick answer",
+      "subtitle": "Aurelo Pulse X2 headphones price",
+      "url": null,
+      "price": null,
+      "source": "shopmart.test",
+      "snippet": "The Aurelo Pulse X2 usually sells for about $199, with sales as low as $169.",
+      "score": 0.9,
+      "actions": [
+        {
+          "label": "Copy",
+          "type": "copy",
+          "url": null,
+          "ics": null,
+          "text": "The Aurelo Pulse X2 usually sells for about $199, with sales as low as $169."
+        }
+      ]
+    },
+    {
+      "id": "c_20585e6dc2",
+      "kind": "link",
+      "title": "Aurelo Pulse X2 product page",
+      "subtitle": null,
+      "url": "https://aurelo.test/pulse-x2",
+      "price": null,
+      "source": "aurelo.test",
+      "snippet": "Meet Pulse X2. Forty hours of battery life.",
+      "score": 0.8,
+      "actions": [
+        {
+          "label": "Open",
+          "type": "open_url",
+          "url": "https://aurelo.test/pulse-x2",
+          "ics": null,
+          "text": null
+        }
+      ]
+    },
+    {
+      "id": "c_8fcfc1398f",
+      "kind": "link",
+      "title": "Aurelo Pulse X2 review: great battery, so-so mic",
+      "subtitle": null,
+      "url": "https://reviews.test/aurelo-pulse-x2",
+      "price": null,
+      "source": "reviews.test",
+      "snippet": "We tested the Pulse X2 for two weeks. Battery life is excellent.",
+      "score": 0.72,
+      "actions": [
+        {
+          "label": "Open",
+          "type": "open_url",
+          "url": "https://reviews.test/aurelo-pulse-x2",
+          "ics": null,
+          "text": null
+        }
+      ]
+    }
+  ],
+  "egress": [
+    {
+      "id": "eg_chat_product_0",
+      "ts": 1794000003.0,
+      "method": "POST",
+      "host": "api.tavily.com",
+      "path": "/search",
+      "bytes_out": 83,
+      "payload_preview": "{\"query\": \"Aurelo Pulse X2 headphones price\", \"topic\": \"general\", \"max_results\": 5}",
+      "blocked": false,
+      "reason": null
+    },
+    {
+      "id": "eg_chat_product_1",
+      "ts": 1794000003.1,
+      "method": "POST",
+      "host": "api.tavily.com",
+      "path": "/search",
+      "bytes_out": 84,
+      "payload_preview": "{\"query\": \"Aurelo Pulse X2 headphones review\", \"topic\": \"general\", \"max_results\": 5}",
+      "blocked": false,
+      "reason": null
+    }
+  ],
+  "timings_ms": {
+    "ingest": 30,
+    "extract": 2100,
+    "scrub": 12,
+    "query": 4,
+    "search": 500,
+    "cards": 20
+  },
+  "error": null
+}

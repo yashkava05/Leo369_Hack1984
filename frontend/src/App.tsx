@@ -11,11 +11,11 @@ import { Terminal } from './components/Terminal'
 import { WatchPill } from './components/WatchPill'
 import { dropDisabledReason, healthBanners, useHealth } from './state/useHealth'
 import { useJob } from './state/useJob'
+import { ChatApp } from './chat/ChatApp'
 import './App.css'
 
-// Final layout (issue #15): input, progress and the live terminal on the left; the WebGL
-// dashboard on the right. Stacks into one column on narrow screens.
-function App() {
+// The integrated dashboard remains available at ?view=classic.
+function ClassicApp() {
   const health = useHealth()
   const job = useJob()
 
@@ -59,4 +59,7 @@ function App() {
   )
 }
 
-export default App
+export default function App() {
+  const classic = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('view') === 'classic'
+  return classic ? <ClassicApp /> : <ChatApp />
+}

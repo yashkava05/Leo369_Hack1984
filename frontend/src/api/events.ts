@@ -5,16 +5,20 @@ import { offlineReplay } from './offlineReplay'
 import { isMockOffline } from './privacy'
 import concertEvents from './fixtures/concert_flyer.events.json'
 import docEvents from './fixtures/sensitive_doc.events.json'
+import { CHAT_FIXTURES } from '../chat/mockFixtures'
 
 const FIXTURES: Record<string, StageEvent[]> = {
   concert_flyer: concertEvents as StageEvent[],
   sensitive_doc: docEvents as StageEvent[],
+  ...CHAT_FIXTURES,
 }
 
 // Mock job ids encode which fixture to replay, mirroring the backend's filename rule.
 const MOCK_PREFIX = 'j_mock_'
 
 function pickFixture(filename: string): string {
+  if (filename.toLowerCase().includes('product')) return 'product'
+  if (filename.toLowerCase().includes('book')) return 'book'
   return filename.toLowerCase().includes('doc') ? 'sensitive_doc' : 'concert_flyer'
 }
 
@@ -72,7 +76,8 @@ function subscribeMock(jobId: string, onEvent: (event: StageEvent) => void): () 
       setTimeout(() => {
         const event: StageEvent = { ...fixture, job_id: jobId, ts: Date.now() / 1000 }
         if (event.stage === 'done' && event.data) {
-          event.data = { ...event.data, job_id: jobId }
+          const records = event.data.egress as import('../types').EgressRecord[] | undefined
+          event.data = { ...event.data, job_id: jobId, egress: records?.map((r) => ({ ...r, id: `${jobId}-${r.id}`, ts: event.ts })) ?? [] }
           recordMockResult(event.data as unknown as JobResult) // local intent library (#21)
         }
         onEvent(event)
