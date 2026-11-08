@@ -163,3 +163,13 @@ async def test_uses_existing_clamp(local):
     assert intent.confidence == 1 and len(intent.summary) == 140
     assert len(intent.public_entities) == 3
     assert intent.redaction_counts == {"other": 2, "email": 1}
+
+
+@pytest.mark.parametrize("today", [date(2026, 11, 6), date(2026, 11, 7), date(2026, 11, 8)])
+async def test_weekend_reference_handles_friday_saturday_and_sunday(local, today):
+    requests = local(EVENT)
+    await text_intent.extract_text_intent("Find AI events this weekend", Events(), now=today)
+    prompt = json.loads(requests[0].content)["messages"][0]["content"]
+    assert 'date "2026-11-07"' in prompt
+    assert today.isoformat() in prompt
+    assert "never copy them unless supported by the user text" in prompt

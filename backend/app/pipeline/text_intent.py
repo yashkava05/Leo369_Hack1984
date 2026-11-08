@@ -4,7 +4,7 @@ The runner must pass this clamped Intent through scrub_intent before queries or 
 just as for screenshot extraction. No transcript or model output belongs in events/logs.
 """
 
-from datetime import date
+from datetime import date, timedelta
 
 from app import egress
 from app.config import get_settings
@@ -19,6 +19,14 @@ device location, people, or context. Private names, emails, handles, addresses, 
 numbers, internal names and confidential figures belong only in redaction counts;
 never copy private values into any output field or redaction key.
 Use only these redaction categories: {categories}.
+General interests and event categories are PUBLIC topics, even without a named event.
+For event discovery, keep the requested subject/category as a topic entity, an explicit
+city as a city entity, and an explicit or resolved relative date as a date entity.
+For example, "Find AI events in Boston this weekend" has topic "AI events", city
+"Boston", and date "{weekend}". Do not discard the subject just because it is generic.
+Example values are not context: never copy them unless supported by the user text.
+Public performers, products and brands may be kept when explicitly named; private
+people and private identifiers must still be counted, never copied.
 Use the schema's intent/entity types. Return at most 12 public entities of at most 80
 characters each, a public summary of at most 140 characters and confidence from 0 to 1.
 Current local date: {today}. You may resolve relative dates from the text using this date
@@ -40,6 +48,7 @@ def normalize_text(text: str) -> str:
 async def extract_text_intent(text: str, emit: Emit, *, now: date | None = None) -> Intent:
     """Interpret reviewed text locally; schema repair is attempted exactly once."""
     text = normalize_text(text)
+    today = now or date.today()
     await emit("extract", "start", "Interpreting reviewed text on-device")
     failed = False
     intent = None
@@ -52,7 +61,8 @@ async def extract_text_intent(text: str, emit: Emit, *, now: date | None = None)
                     "role": "system",
                     "content": SYSTEM_PROMPT.format(
                         categories=", ".join(REDACTION_CATEGORIES),
-                        today=(now or date.today()).isoformat(),
+                        today=today.isoformat(),
+                        weekend=(today + timedelta(days=5 - today.weekday())).isoformat(),
                     ),
                 },
                 {"role": "user", "content": text},
