@@ -20,6 +20,10 @@ numbers, internal names and confidential figures belong only in redaction counts
 never copy private values into any output field or redaction key.
 Use only these redaction categories: {categories}.
 General interests and event categories are PUBLIC topics, even without a named event.
+Words such as concerts, events, shows, and games describe the subject: keep them as
+public topic entities, including requests listing alternatives ("concerts or events").
+A city alone is not the subject. Named sports teams are public organizations; keep
+the explicitly named team as public_org rather than dropping it or guessing its city.
 For event discovery, keep the requested subject/category as a topic entity, an explicit
 city as a city entity, and an explicit or resolved relative date as a date entity.
 For example, "Find AI events in Boston this weekend" has topic "AI events", city
@@ -30,7 +34,9 @@ people and private identifiers must still be counted, never copied.
 Use the schema's intent/entity types. Return at most 12 public entities of at most 80
 characters each, a public summary of at most 140 characters and confidence from 0 to 1.
 Current local date: {today}. You may resolve relative dates from the text using this date
-and return ISO dates as date entities. For 'this weekend', use the upcoming Saturday
+and return ISO dates as date entities. "Upcoming" and "currently" alone do not name a
+specific date: omit the date rather than inventing one. For 'this weekend', use the
+upcoming Saturday
 (today if Saturday, yesterday if Sunday). Do not infer a city from the current date.
 """
 
@@ -46,7 +52,7 @@ def normalize_text(text: str) -> str:
 
 
 async def extract_text_intent(text: str, emit: Emit, *, now: date | None = None) -> Intent:
-    """Interpret reviewed text locally; schema repair is attempted exactly once."""
+    """Interpret reviewed text locally; one schema or missing-subject repair is allowed."""
     text = normalize_text(text)
     today = now or date.today()
     await emit("extract", "start", "Interpreting reviewed text on-device")
@@ -79,17 +85,28 @@ async def extract_text_intent(text: str, emit: Emit, *, now: date | None = None)
             try:
                 content = response.json()["message"]["content"]
                 intent = clamp(Intent.model_validate_json(content))
-                break
+                missing_subject = intent.intent_type == "event" and not any(
+                    entity.type in ("performer", "event_name", "topic", "public_org")
+                    for entity in intent.public_entities
+                )
+                if attempt or not missing_subject:
+                    break
+                intent = None
             except (ValueError, KeyError, TypeError):
-                if attempt == 0:
-                    await emit("extract", "progress", "Retrying local interpretation once")
-                    body["messages"].append(
-                        {
-                            "role": "user",
-                            "content": "Return one valid Intent JSON matching the schema exactly. "
-                            "Use only the original text and the privacy rules.",
-                        }
-                    )
+                intent = None
+            if attempt == 0:
+                await emit("extract", "progress", "Retrying local interpretation once")
+                body["messages"].append(
+                    {
+                        "role": "user",
+                        "content": "Return one valid Intent JSON matching the schema exactly. "
+                        "Recheck the original text for its public subject: concert/event "
+                        "categories belong in topic, named sports teams in public_org. "
+                        "Do not keep only a city when a public subject was explicitly given. "
+                        "Never invent a missing subject, location, or date. "
+                        "Use only the original text and the privacy rules.",
+                    }
+                )
     except Exception:
         failed = True
     # Raise outside the handler: exceptions must not retain model text/request context.

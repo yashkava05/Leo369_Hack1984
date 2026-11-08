@@ -173,3 +173,29 @@ async def test_weekend_reference_handles_friday_saturday_and_sunday(local, today
     assert 'date "2026-11-07"' in prompt
     assert today.isoformat() in prompt
     assert "never copy them unless supported by the user text" in prompt
+
+
+async def test_retries_an_event_that_dropped_its_public_subject(local, caplog):
+    incomplete = dict(
+        EVENT,
+        summary="private model summary",
+        public_entities=[{"type": "city", "value": "Boston"}],
+    )
+    requests = local(incomplete, EVENT)
+    events = Events()
+    result = await text_intent.extract_text_intent("Show concerts or events in Boston", events)
+    assert any(entity.type == "topic" for entity in result.public_entities)
+    assert len(requests) == 2
+    repair = json.loads(requests[1].content)["messages"][-1]["content"]
+    assert "public subject" in repair
+    assert "private model summary" not in repair + repr(events) + caplog.text
+
+
+async def test_missing_subject_retry_stays_bounded_without_inventing_a_subject(local):
+    incomplete = dict(EVENT, public_entities=[{"type": "city", "value": "Boston"}])
+    requests = local(incomplete, incomplete)
+    result = await text_intent.extract_text_intent("Boston", Events())
+    assert len(requests) == 2
+    assert [(entity.type, entity.value) for entity in result.public_entities] == [
+        ("city", "Boston")
+    ]

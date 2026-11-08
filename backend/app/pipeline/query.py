@@ -273,9 +273,22 @@ _VOICE_EVENTS = (
     _Template(
         "event",
         "tickets",
-        (_s("performer", "event_name", "topic"), _s("city"), _s("date"), "tickets"),
+        (_s("performer", "event_name", "public_org", "topic"), _s("city"), _s("date"), "tickets"),
     ),
-    _Template("event", "tickets", (_s("performer", "event_name", "topic"), _s("city"), "tickets")),
+    _Template(
+        "event",
+        "tickets",
+        (_s("performer", "event_name", "public_org", "topic"), _s("city"), "tickets"),
+    ),
+    # A named team/event can be searched without inventing a separate location.
+    _Template(
+        "event",
+        "tickets",
+        (_s("performer", "event_name", "public_org", "topic"), _s("date"), "tickets"),
+    ),
+    _Template(
+        "event", "tickets", (_s("performer", "event_name", "public_org", "topic"), "tickets")
+    ),
 )
 
 

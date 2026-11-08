@@ -277,3 +277,42 @@ async def test_save_failure_is_a_safe_error_not_false_success(monkeypatch, caplo
     assert all(event.stage != "done" for event in job.events)
     assert not job.result.queries and not job.result.egress
     assert RAW not in caplog.text + job.result.model_dump_json()
+
+
+@pytest.mark.parametrize("entity_type", ["public_org", "performer", "event_name", "topic"])
+def test_voice_named_event_search_does_not_require_an_invented_city(entity_type):
+    intent = Intent(
+        intent_type="event",
+        summary="",
+        public_entities=[{"type": entity_type, "value": "Dover Comets"}],
+        redaction_counts={},
+        confidence=1,
+    )
+    queries = build_voice_queries(intent, date(2026, 11, 8))
+    assert [query.text for query in queries] == ["Dover Comets tickets"]
+    assert all(provenance_ok(query, intent) for query in queries)
+    assert related_voice_query(intent).text == "Dover Comets tickets"
+    assert build_queries(intent) == []
+
+
+def test_voice_city_alone_still_cannot_become_a_search():
+    city_only = Intent.model_validate(
+        {**PUBLIC.model_dump(), "public_entities": [{"type": "city", "value": "Boston"}]}
+    )
+    assert build_voice_queries(city_only) == []
+
+
+def test_named_voice_team_takes_priority_over_a_generic_games_topic():
+    intent = Intent(
+        intent_type="event",
+        summary="",
+        public_entities=[
+            {"type": "topic", "value": "games"},
+            {"type": "public_org", "value": "Dover Comets"},
+        ],
+        redaction_counts={},
+        confidence=1,
+    )
+    queries = build_voice_queries(intent)
+    assert [query.text for query in queries] == ["Dover Comets tickets"]
+    assert provenance_ok(queries[0], intent)
