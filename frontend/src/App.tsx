@@ -2,15 +2,19 @@ import { useEffect, useState } from 'react'
 import { API_URL, getHealth } from './api/client'
 import { AirGapToggle } from './components/AirGapToggle'
 import { AuditDrawer } from './components/AuditDrawer'
+import { ActionCard } from './components/cards/ActionCard'
+import { Dashboard } from './components/Dashboard'
 import { DropZone } from './components/DropZone'
 import { LeftDeviceSummary } from './components/LeftDeviceSummary'
 import { StageStrip } from './components/StageStrip'
 import { Terminal } from './components/Terminal'
 import type { HealthResponse } from './types'
+import { useJob } from './state/useJob'
 
 function App() {
   const [health, setHealth] = useState<HealthResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const job = useJob()
 
   useEffect(() => {
     getHealth()
@@ -32,6 +36,11 @@ function App() {
       </p>
       {error && <pre role="alert">Error: {error}</pre>}
       {!error && <pre data-testid="health">{health ? JSON.stringify(health, null, 2) : 'Loading…'}</pre>}
+      <Dashboard
+        stage={job.currentStage}
+        cards={job.result?.cards ?? []}
+        renderCard={(card) => <ActionCard card={card} />}
+      />
     </main>
   )
 }
