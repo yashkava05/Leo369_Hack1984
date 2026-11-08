@@ -41,7 +41,7 @@ export async function runAction(action: CardAction, card: Card): Promise<void> {
       return
     }
     case 'copy': {
-      const text = action.text ?? card.snippet
+      const text = action.text || card.snippet
       if (!text) throw new Error('Nothing to copy')
       await navigator.clipboard.writeText(text)
       return

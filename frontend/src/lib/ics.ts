@@ -8,7 +8,7 @@ const DEFAULT_DURATION_MS = 3 * 60 * 60 * 1000
 const DAY_MS = 24 * 60 * 60 * 1000
 
 const ISO_RE =
-  /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2})(?:\.\d+)?)?\s*(Z|[+-]\d{2}:?\d{2})?)?$/i
+  /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2})(?:\.\d+)?)?\s*(Z|[+-]\d{2}(?::?\d{2})?)?)?$/i
 
 interface ParsedTime {
   // Wall-clock fields encoded as a UTC timestamp, so date arithmetic never touches the viewer's zone.
@@ -23,12 +23,22 @@ function parseIso(value: string): ParsedTime {
   if (!m) throw new Error(`Invalid ISO 8601 date-time: ${value}`)
   const [, y, mo, d, h, mi, s, offset] = m
   const wall = Date.UTC(+y, +mo - 1, +d, h ? +h : 0, mi ? +mi : 0, s ? +s : 0)
+  // Reject out-of-range fields instead of letting Date roll them over (2026-02-30 -> March 2).
+  const check = new Date(wall)
+  if (
+    check.getUTCFullYear() !== +y ||
+    check.getUTCMonth() !== +mo - 1 ||
+    check.getUTCDate() !== +d ||
+    (h !== undefined && (+h > 23 || +mi > 59 || (s !== undefined && +s > 59)))
+  ) {
+    throw new Error(`Invalid ISO 8601 date-time: ${value}`)
+  }
   if (h === undefined) return { ms: wall, utc: false, dateOnly: true }
   if (offset === undefined) return { ms: wall, utc: false, dateOnly: false }
   if (offset.toUpperCase() === 'Z') return { ms: wall, utc: true, dateOnly: false }
   const sign = offset[0] === '-' ? -1 : 1
   const digits = offset.slice(1).replace(':', '')
-  const offsetMs = sign * (+digits.slice(0, 2) * 60 + +digits.slice(2, 4)) * 60_000
+  const offsetMs = sign * (+digits.slice(0, 2) * 60 + +(digits.slice(2, 4) || '0')) * 60_000
   return { ms: wall - offsetMs, utc: true, dateOnly: false }
 }
 
@@ -82,14 +92,29 @@ export function foldLine(line: string): string {
   return parts.join(`${CRLF} `)
 }
 
+/** URL value safe to write into the file: http(s) only, no control characters that could inject lines. */
+export function safeIcsUrl(url: string | null | undefined): string | null {
+  // eslint-disable-next-line no-control-regex
+  if (!url || /[\u0000-\u001f\u007f]/.test(url)) return null
+  try {
+    const parsed = new URL(url)
+    return parsed.protocol === 'https:' || parsed.protocol === 'http:' ? parsed.href : null
+  } catch {
+    return null
+  }
+}
+
+const sameValueType = (a: ParsedTime, b: ParsedTime): boolean => a.dateOnly === b.dateOnly && a.utc === b.utc
+
 export function buildIcs(e: IcsEvent, uid: string, now: Date = new Date()): string {
   const start = parseIso(e.start)
-  let end: ParsedTime
-  if (e.end) {
-    end = parseIso(e.end)
-  } else {
-    end = { ...start, ms: start.ms + (start.dateOnly ? DAY_MS : DEFAULT_DURATION_MS) }
-  }
+  const parsedEnd = e.end ? parseIso(e.end) : null
+  // RFC 5545 needs DTSTART and DTEND of the same value type, and DTEND (exclusive) after DTSTART.
+  const end: ParsedTime =
+    parsedEnd && sameValueType(start, parsedEnd) && parsedEnd.ms > start.ms
+      ? parsedEnd
+      : { ...start, ms: start.ms + (start.dateOnly ? DAY_MS : DEFAULT_DURATION_MS) }
+  const url = safeIcsUrl(e.url)
 
   const lines = [
     'BEGIN:VCALENDAR',
@@ -104,7 +129,7 @@ export function buildIcs(e: IcsEvent, uid: string, now: Date = new Date()): stri
   ]
   if (e.location) lines.push(`LOCATION:${escapeText(e.location)}`)
   // URL is a URI value, not TEXT, so it is not backslash-escaped.
-  if (e.url) lines.push(`URL:${e.url}`)
+  if (url) lines.push(`URL:${url}`)
   lines.push('END:VEVENT', 'END:VCALENDAR')
 
   return lines.map(foldLine).join(CRLF) + CRLF
