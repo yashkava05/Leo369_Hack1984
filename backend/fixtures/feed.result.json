@@ -1,0 +1,139 @@
+[
+  {
+    "id": "feed-discovery-nova",
+    "kind": "discovery",
+    "title": "Another night under the Nova Fields lights",
+    "teaser": "A small riverside festival shares the synth-pop pulse and public Port Aurora setting you saved.",
+    "hero": null,
+    "source_job_ids": ["job_nova_fields"],
+    "why": "Public entities in the Nova Fields memory overlap with this public event.",
+    "created_at": 1794085200,
+    "provenance": "web",
+    "actions": [
+      {
+        "label": "Open public listing",
+        "type": "open_url",
+        "url": "https://events.example/moonlit-sound",
+        "ics": null,
+        "text": null
+      }
+    ],
+    "feedback": [],
+    "body": "Moonlit Sound is a two-stage evening festival featuring synth-pop and ambient artists. The recommendation uses only public city and artist entities from the saved flyer.",
+    "sources": [
+      {
+        "title": "Moonlit Sound — official listing",
+        "url": "https://events.example/moonlit-sound",
+        "job_id": null
+      },
+      {
+        "title": "Saved event: Nova Fields",
+        "url": null,
+        "job_id": "job_nova_fields"
+      }
+    ],
+    "cards": [
+      {
+        "id": "feed-card-moonlit",
+        "kind": "related",
+        "title": "Moonlit Sound",
+        "subtitle": "Port Aurora · Saturday evening",
+        "url": "https://events.example/moonlit-sound",
+        "price": null,
+        "source": "events.example",
+        "snippet": "A public listing related to a memory you saved.",
+        "score": 0.91,
+        "actions": [
+          {
+            "label": "View original",
+            "type": "open_url",
+            "url": "https://events.example/moonlit-sound",
+            "ics": null,
+            "text": null
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "feed-connection-trip",
+    "kind": "connection",
+    "title": "Two saves, one coastal weekend",
+    "teaser": "The Harbor Glass exhibition and Northline rail note share a public place.",
+    "hero": null,
+    "source_job_ids": ["job_harbor_glass", "job_northline_rail"],
+    "why": "Both scrubbed memories contain the public city Port Aurora.",
+    "created_at": 1794078000,
+    "provenance": "local",
+    "actions": [],
+    "feedback": [],
+    "body": "These two locally stored memories share a public place. Combining them may make the weekend easier to plan.",
+    "sources": [
+      {
+        "title": "Saved place: Harbor Glass",
+        "url": null,
+        "job_id": "job_harbor_glass"
+      },
+      {
+        "title": "Saved trip: Northline rail",
+        "url": null,
+        "job_id": "job_northline_rail"
+      }
+    ],
+    "cards": []
+  },
+  {
+    "id": "feed-follow-up-calendar",
+    "kind": "follow_up",
+    "title": "The Lumen Archive details are ready",
+    "teaser": "The saved talk has a calendar action available when you want it.",
+    "hero": null,
+    "source_job_ids": ["job_lumen_archive"],
+    "why": "This event memory has a public date and a concrete next action.",
+    "created_at": 1794067200,
+    "provenance": "local",
+    "actions": [],
+    "feedback": [],
+    "body": "The talk is in the local library with a date and venue. Latent does not assume whether you acted on it.",
+    "sources": [
+      {
+        "title": "Saved event: Lumen Archive",
+        "url": null,
+        "job_id": "job_lumen_archive"
+      }
+    ],
+    "cards": []
+  },
+  {
+    "id": "feed-pattern-ceramics",
+    "kind": "pattern",
+    "title": "A quiet thread: independent ceramics",
+    "teaser": "Three recent saves share the public topic independent ceramics.",
+    "hero": null,
+    "source_job_ids": ["job_ember_clay", "job_mora_studio", "job_rill_forms"],
+    "why": "The public topic independent ceramics appears across three local memories.",
+    "created_at": 1794052800,
+    "provenance": "local",
+    "actions": [],
+    "feedback": [],
+    "body": "This pattern was found on device by comparing public entities in the local library.",
+    "sources": [
+      {
+        "title": "Saved studio: Ember Clay",
+        "url": null,
+        "job_id": "job_ember_clay"
+      },
+      {
+        "title": "Saved studio: Mora Studio",
+        "url": null,
+        "job_id": "job_mora_studio"
+      },
+      {
+        "title": "Saved studio: Rill Forms",
+        "url": null,
+        "job_id": "job_rill_forms"
+      }
+    ],
+    "cards": []
+  }
+]

@@ -15,6 +15,7 @@ import { WatchPill } from './components/WatchPill'
 import { dropDisabledReason, healthBanners, useHealth } from './state/useHealth'
 import { reserveVoiceSlot, useJob } from './state/useJob'
 import { ChatApp } from './chat/ChatApp'
+import { MuseFeed } from './components/feed/MuseFeed'
 import './App.css'
 
 // The integrated dashboard remains available at ?view=classic.
@@ -69,6 +70,8 @@ function ClassicApp() {
 }
 
 export default function App() {
-  const classic = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('view') === 'classic'
-  return classic ? <ClassicApp /> : <ChatApp />
+  const view = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('view') : null
+  if (view === 'classic') return <ClassicApp />
+  if (view === 'feed') return <MuseFeed />
+  return <ChatApp />
 }

@@ -94,8 +94,12 @@ git clone https://github.com/yashkava05/Leo369_Hack1984.git latent && cd latent
 ./scripts/dev.sh      # backend on :8000, frontend on http://localhost:5173
 ```
 
-Put your `TAVILY_API_KEY` (and optionally `EXA_API_KEY`) in `.env`, open http://localhost:5173 and
+Put your `TAVILY_API_KEY` (and optionally `EXA_API_KEY`) in the gitignored `.env.local`, open http://localhost:5173 and
 drop `eval/screenshots/concert_ig.png` on the chat (or click **Try a concert flyer**).
+
+The backend reads root/backend `.env` files, then root/backend `.env.local` overrides;
+shell environment variables take precedence over all of them. Restart the backend after changing
+a key. Keep keys unprefixed: never use `VITE_EXA_API_KEY`, which would expose a key to the browser.
 
 ## Track alignment
 
@@ -189,14 +193,29 @@ key itself is never returned or logged.
 Silicon or a GPU it takes a few seconds. With 16 GB+ RAM or a good GPU you can use the 7B model:
 set `LATENT_MODEL=qwen2.5vl:7b` in `.env` and re-run `./scripts/setup.sh`.
 
-**Windows.** `setup.sh` is for macOS and Linux. On Windows, run it inside WSL, or do the steps by
-hand: install Ollama for Windows, `ollama pull qwen2.5vl:3b`, then follow the manual setup above
-(the backend install includes `en_core_web_lg`).
+**Windows.** `setup.sh` and `dev.sh` are for macOS and Linux (or WSL). On Windows, clone the repo
+onto the Windows drive (for example `C:\src\latent`, not `\\wsl.localhost\...`), install Python
+3.11, Node 20.19+ and [Ollama for Windows](https://ollama.com/download/windows), then double-click
+`scripts\start-windows.cmd`. It checks the prerequisites (printing a fix for each missing one),
+creates `.env` if there is none (never touching an existing `.env` or `.env.local`), pulls the model,
+installs `backend\.venv` (including `en_core_web_lg`) and the frontend dependencies when they are
+missing or changed, starts the backend and frontend, waits for `/api/health` and opens the chat.
+Ctrl+C or closing the window stops both servers. From PowerShell:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\start-windows.ps1 -Check   # readiness report only
+scripts\start-windows.cmd -Mock      # replay fixtures: no Ollama, no network
+scripts\start-windows.cmd -AirGap    # start with every outbound request blocked
+scripts\start-windows.cmd -Wsl       # bind to 0.0.0.0 so WSL can reach the app (and Ollama, if started here)
+```
+
+See [`docs/DEMO.md`](docs/DEMO.md#windows-demo-laptop) for the demo-laptop routine.
 
 ## Configuration
 
-All settings live in one repo-root `.env` (copy `.env.example`). The backend reads it with
-`pydantic-settings`; Vite reads the `VITE_*` variables from the same file.
+Copy `.env.example` to the repo-root `.env` for defaults and put private overrides in
+`.env.local`. The backend reads both with `pydantic-settings` (including backend-specific
+overrides); Vite exposes only the `VITE_*` variables to browser code.
 
 | Variable | Default | Used by |
 | --- | --- | --- |
@@ -315,11 +334,12 @@ backend/tests/          pytest suite
 frontend/src/           Vite + React + TS (api/, components/, types.ts, App.tsx, main.tsx)
 eval/                   screenshots/, expected.json, run_eval.py
 scripts/setup.sh        one-shot local setup
+scripts/start-windows.* Windows: check, set up and start in one step
 ```
 
 ## Pitch deck
 
-- [`docs/pitch.pdf`](docs/pitch.pdf): the 6-slide deck for the submission.
+- [`docs/pitch.pdf`](docs/pitch.pdf): the 7-slide deck for the submission.
 - [`docs/pitch-notes.pdf`](docs/pitch-notes.pdf): the same slides with speaker notes under each one.
 - [`docs/pitch.html`](docs/pitch.html): the source. Open it in any browser to present
   (arrow keys or click to move, `F` fullscreen, `N` speaker notes). Edit the text in the file; no
