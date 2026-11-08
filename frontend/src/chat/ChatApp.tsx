@@ -1,12 +1,13 @@
-import { ArrowUp, Bookmark, Check, ChevronRight, Compass, ImagePlus, LockKeyhole, MessageCircle, Plus, ShieldCheck, Sparkles } from 'lucide-react'
+import { ArrowUp, Bookmark, Check, ChevronRight, Compass, ImagePlus, LockKeyhole, MessageCircle, Mic, Plus, ShieldCheck, Sparkles } from 'lucide-react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { DragEvent, FormEvent } from 'react'
 import { MOCK } from '../api/client'
+import { VoiceCapture } from '../components/voice/VoiceCapture'
 import { ActionCard } from '../components/cards/ActionCard'
 import { useJob } from '../state/useJob'
 import type { EgressRecord } from '../types'
 import type { ChatMessage } from './messages'
-import { chooseAsk, loadOffline, releaseImages, reopenKept, say, sendImage, sendText, syncJob, toggleOffline, useChat } from './store'
+import { beginVoiceJob, chooseAsk, loadOffline, releaseImages, reopenKept, say, sendImage, sendText, setVoiceBusy, syncJob, toggleOffline, useChat } from './store'
 import { receiptLabel } from './receipts'
 import { ReceiptsDrawer } from './ReceiptsDrawer'
 import { WorkSteps } from './WorkSteps'
@@ -38,6 +39,7 @@ export function ChatApp() {
   const [dragging, setDragging] = useState(false)
   const [sampleLoading, setSampleLoading] = useState<string | null>(null)
   const [drawer, setDrawer] = useState(false)
+  const [voiceOpen, setVoiceOpen] = useState(false)
   const [selectedReceipt, setSelectedReceipt] = useState<EgressRecord[] | null>(null)
   const attach = useRef<HTMLInputElement>(null)
   const scroller = useRef<HTMLDivElement>(null)
@@ -72,7 +74,7 @@ export function ChatApp() {
   }, [chat.messages])
 
   async function sample(name: string) {
-    if (chat.busy || loadingSample.current) { say("Give me a second, I'm still on the last one."); return }
+    if (chat.busy || chat.voicePending || loadingSample.current) { say("Give me a second, I'm still on the last one."); return }
     loadingSample.current = true
     setSampleLoading(name)
     try {
@@ -114,9 +116,9 @@ export function ChatApp() {
       case 'typing': return <div className="chat-agent-message"><Orb small /><div className="chat-typing" role="status" aria-label="Latent is reading your screenshot"><i /><i /><i /></div></div>
       case 'work-steps': return <div className="chat-agent-content"><WorkSteps message={message} /></div>
       case 'cards': return <div className="chat-agent-content"><Cards message={message} /></div>
-      case 'receipt': return <div className="chat-agent-content"><button type="button" className="chat-receipt-pill" onClick={() => openReceipt(message.records)}>{receiptLabel(message.records)}<ChevronRight size={13} aria-hidden="true" /></button></div>
+      case 'receipt': return <div className="chat-agent-content"><button type="button" className="chat-receipt-pill" onClick={() => openReceipt(message.records)}>{receiptLabel(message.records, message.source)}<ChevronRight size={13} aria-hidden="true" /></button></div>
       case 'ask': return <div className="chat-agent-message"><Orb small /><div className="chat-bubble chat-agent-bubble chat-ask"><p>{message.question}</p><div>
-        <button className="chat-primary" type="button" disabled={!!message.choice || (message.kind === 'resume' && chat.busy)} onClick={() => { void chooseAsk(message.id, true) }}>{message.choice === message.primary && <Check size={14} aria-hidden="true" />}{message.primary}</button>
+        <button className="chat-primary" type="button" disabled={!!message.choice || (message.kind === 'resume' && (chat.busy || chat.voicePending))} onClick={() => { void chooseAsk(message.id, true) }}>{message.choice === message.primary && <Check size={14} aria-hidden="true" />}{message.primary}</button>
         <button className="chat-secondary" type="button" disabled={!!message.choice} onClick={() => { void chooseAsk(message.id, false) }}>Not now</button>
       </div></div></div>
     }
@@ -149,10 +151,10 @@ export function ChatApp() {
         <div className="chat-scroll" ref={scroller} onScroll={() => { const el = scroller.current; if (el) following.current = el.scrollHeight - el.scrollTop - el.clientHeight < 100 }}>
           <main className="chat-thread" aria-label="Conversation with Latent">
             <div className="chat-day"><span />Today<span /></div>
-            {welcomeOnly && <div className="chat-intro"><span className="chat-intro-mark"><Sparkles size={18} strokeWidth={1.5} aria-hidden="true" /></span><h2>Saved it. Now what?</h2><p>Turn your screenshots into your next move.</p></div>}
+            {welcomeOnly && <div className="chat-intro"><span className="chat-intro-mark"><Sparkles size={18} strokeWidth={1.5} aria-hidden="true" /></span><h2>What are you looking for?</h2><p>Speak a request. Review it. Get live results.</p></div>}
             <div className="chat-messages" role="log" aria-label="Messages" aria-live="polite" aria-relevant="additions">
               {chat.messages.map((message, index) => <div key={message.id} className={`chat-message type-${message.type}`}>{messageView(message)}
-                {index === 0 && <div className="chat-samples"><p>A little inspiration to get started</p><div>{SAMPLES.map((item) => <button key={item.name} type="button" onClick={() => { void sample(item.name) }} aria-busy={sampleLoading === item.name}>
+                {MOCK && index === 0 && <div className="chat-samples"><p>A little inspiration to get started</p><div>{SAMPLES.map((item) => <button key={item.name} type="button" onClick={() => { void sample(item.name) }} aria-busy={sampleLoading === item.name}>
                   <span className="chat-sample-art"><img src={`/samples/${item.name}`} alt="" /><span>{item.icon}</span></span><span className="chat-sample-label">{item.title}<small>{sampleLoading === item.name ? 'Opening sample…' : item.hint}</small></span><Plus size={14} aria-hidden="true" /></button>)}</div></div>}
               </div>)}
             </div>
@@ -160,13 +162,17 @@ export function ChatApp() {
         </div>
         <div className="chat-composer-area">
           {MOCK && <p className="chat-demo-note"><span /> Demo mode · Sample results, no web searches sent</p>}
+          <div id="chat-voice-controls" className="chat-voice-panel" hidden={!voiceOpen}>
+            {voiceOpen && <VoiceCapture autoStart disabled={chat.busy} onBusyChange={setVoiceBusy} onJob={beginVoiceJob} onClose={() => setVoiceOpen(false)} />}
+          </div>
           <form className="chat-composer" onSubmit={submit} aria-label="Message composer">
             <button type="button" className="chat-attach" aria-label="Attach a screenshot" onClick={() => attach.current?.click()}><Plus size={21} aria-hidden="true" /></button>
+            <button type="button" className={`chat-attach chat-mic${voiceOpen ? ' is-active' : ''}`} aria-label={voiceOpen ? 'Close voice input' : 'Speak a thought'} aria-expanded={voiceOpen} aria-controls="chat-voice-controls" title={voiceOpen ? 'Close voice input' : 'Speak a thought'} disabled={chat.busy && !voiceOpen} onClick={() => setVoiceOpen(!voiceOpen)}><Mic size={18} aria-hidden="true" /></button>
             <input type="file" ref={attach} accept="image/png,image/jpeg,image/webp" hidden onChange={(event) => { const file = event.currentTarget.files?.[0]; event.currentTarget.value = ''; if (file) { following.current = true; void sendImage(file) } }} />
-            <input ref={composer} value={text} onChange={(event) => setText(event.target.value)} aria-label="Message Latent" placeholder="Message Latent, or paste a screenshot" />
+            <input ref={composer} value={text} onChange={(event) => setText(event.target.value)} aria-label="Message Latent" placeholder="Message Latent, or speak with the microphone" />
             <button type="submit" className="chat-send" aria-label="Send message" disabled={!text.trim()}><ArrowUp size={18} aria-hidden="true" /><span>Send</span></button>
           </form>
-          <p className="chat-composer-hint"><LockKeyhole size={11} aria-hidden="true" /> Your screenshots stay yours. Always.</p>
+          <p className="chat-composer-hint"><LockKeyhole size={11} aria-hidden="true" /> Your audio and screenshots stay on this device.</p>
         </div>
       </div>
       <ReceiptsDrawer open={drawer} onClose={() => setDrawer(false)} mockRecords={receipts} selectedRecords={selectedReceipt} />

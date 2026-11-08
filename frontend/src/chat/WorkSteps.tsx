@@ -18,6 +18,10 @@ export function WorkSteps({ message }: { message: Extract<ChatMessage, { type: '
     return () => window.clearTimeout(timer)
   }, [finished])
   const steps = mapSteps(message.events, message.result)
+    .filter((step) => !message.savedLocally || ['extract', 'scrub'].includes(step.id))
+    .map((step) => message.source === 'voice' && step.id === 'extract'
+      ? { ...step, title: 'Interpreting your reviewed thought' } : step)
+    .map((step) => message.source === 'voice' ? { ...step, detail: step.detail.replace('from your screenshot', 'from your reviewed thought').replace('no image', 'no audio or transcript') } : step)
   const blocked = steps.some((step) => step.state === 'blocked')
   const hasInternet = message.result?.egress.some((r) => !r.blocked)
   const headline = message.failed ? 'Something needs a little attention'
@@ -39,7 +43,7 @@ export function WorkSteps({ message }: { message: Extract<ChatMessage, { type: '
           return <li key={step.id} className={`chat-step is-${step.state} ${step.tag === 'Internet' ? 'is-net' : 'is-local'}`}>
             <span className="chat-step-icon"><Icon size={14} aria-hidden="true" /></span>
             <div><div className="chat-step-title"><span>{step.title}</span>
-              <span className={`chat-tag ${step.tag === 'Internet' ? 'net' : 'local'}`}>{step.tag}</span></div>
+              <span className={`chat-tag ${step.tag === 'Internet' ? 'net' : 'local'}`}>{message.source === 'voice' ? (step.tag === 'Internet' ? 'WEB' : 'LOCAL') : step.tag}</span></div>
               {step.detail && <p>{step.detail}</p>}
               <span className="visually-hidden">{step.state}</span>
             </div>
