@@ -148,19 +148,38 @@ def _lone_word_person(finding: RecognizerResult, text: str) -> bool:
     return finding.entity_type == PERSON and len(text.split()) == 1
 
 
-def _name_shaped(span: str) -> bool:
-    """True if a PERSON span could be someone's full name: two or more capitalized words.
+def _name_shaped(stretch: str) -> bool:
+    """True if a run of words could be someone's full name.
 
-    A title ("Dr. Kowalski") makes it one. A leading article ("The Glass Orchard"), a digit
-    ("Pulse X2") or a lowercase word other than a name particle ("tumbler") rules it out; a single
-    word is a first name at most.
+    `stretch` is a PERSON span widened to its capitalized neighbours. It is name-shaped if it
+    holds a title ("Dr. Kowalski") or two or more capitalized words in a row ("Marcus Delgado" in
+    "Marcus Delgado Pulse X2"), unless that run starts with an article ("The Glass Orchard"). A
+    word with a digit ("X2") or a lowercase word other than a name particle breaks a run, and a
+    single word is a first name at most.
     """
-    words = [re.sub(r"['’]s$", "", w) for w in span.split()]
+    words = [re.sub(r"['’]s$", "", w) for w in stretch.split()]
     if any(w.rstrip(".").casefold() in _HONORIFICS for w in words):
         return True
-    if len(words) < 2 or words[0].casefold() in _ARTICLES:
-        return False
-    return all(_NAME_WORD.fullmatch(w) or w in _NAME_PARTICLES for w in words)
+    run: list[str] = []
+    for word in [*words, ""]:
+        if _NAME_WORD.fullmatch(word) or (run and word in _NAME_PARTICLES):
+            run.append(word)
+            continue
+        if len(run) >= 2 and run[0].casefold() not in _ARTICLES:
+            return True
+        run = []
+    return False
+
+
+def _lowercase_name(span: str) -> bool:
+    """True for a PERSON span typed in lowercase ("jane smith"): two or more plain words."""
+    words = span.split()
+    return (
+        len(words) >= 2
+        and words[0].casefold() not in _ARTICLES
+        and all(w.isalpha() for w in words)
+        and any(w[0].islower() and w not in _NAME_PARTICLES for w in words)
+    )
 
 
 def _widened(text: str, start: int, end: int) -> str:
@@ -225,10 +244,14 @@ def _entity_removal(entity: Entity, intent_type: str, allow: set[str]) -> str | 
     hard = [r.entity_type for r in findings if r.entity_type != PERSON]
     if hard:
         return hard[0]
-    persons = [_widened(entity.value, r.start, r.end) for r in findings if r.entity_type == PERSON]
+    persons = [r for r in findings if r.entity_type == PERSON]
     if persons and entity.type not in PERSON_TYPES:
         public_name = entity.type in PUBLIC_NAME_TYPES and intent_type != "document"
-        if not public_name or any(_name_shaped(span) for span in persons):
+        if not public_name or any(
+            _name_shaped(_widened(entity.value, r.start, r.end))
+            or _lowercase_name(entity.value[r.start : r.end])
+            for r in persons
+        ):
             return PERSON
     if entity.type not in DIGIT_RUN_EXEMPT and DIGIT_RUN.search(entity.value):
         return LONG_NUMBER
