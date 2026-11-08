@@ -98,7 +98,12 @@ export function Dashboard({ stage, cards, renderCard }: DashboardProps) {
   const [webgl2] = useState(detectWebGL2)
   const reducedMotion = useReducedMotion()
   const width = useWidth(ref)
-  const fallback = shouldUseFallback({ webgl2, reducedMotion, width })
+  // Start in the grid (before measurement) and apply width hysteresis so a container hovering
+  // near 700 px doesn't flip modes and remount the scene on every resize. The last committed mode
+  // is kept in state (React's "store previous value" pattern) and fed back for the hysteresis.
+  const [prevFallback, setPrevFallback] = useState(true)
+  const fallback = shouldUseFallback({ webgl2, reducedMotion, width }, prevFallback)
+  if (fallback !== prevFallback) setPrevFallback(fallback)
   const grid = <FallbackGrid stage={stage} cards={cards} renderCard={renderCard} />
 
   return (

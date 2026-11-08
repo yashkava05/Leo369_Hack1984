@@ -1,6 +1,7 @@
 import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useMemo, useRef } from 'react'
 import { Color, MathUtils, type Group, type Mesh, type MeshStandardMaterial } from 'three'
+import { idleTickInterval, shouldIdleTick } from './idle'
 import { isAnimatedMode, type OrbMode } from './orbMode'
 
 interface ModeStyle {
@@ -26,8 +27,6 @@ const RADIUS = 0.9
 const RING_COUNT = 2
 const RING_PERIOD = 1.4 // s for one ripple to travel outwards
 const RING_REACH = 1.7 // extra radii a ripple travels
-/** Idle breathing renders at this rate instead of every display frame, to keep idle cost low. */
-const IDLE_FPS = 20
 const EPS = 1e-3
 
 export function Orb({ mode }: { mode: OrbMode }) {
@@ -47,11 +46,37 @@ export function Orb({ mode }: { mode: OrbMode }) {
     invalidate()
   }, [mode, invalidate])
 
-  // Idle breathing is the only motion with nothing happening; tick it at a low rate.
+  // Idle breathing is the only motion with nothing happening, so keep its cost near zero: tick
+  // at a low rate, never while the tab is hidden, and pause entirely after ~10 s (one final frame
+  // to settle). A pointer move or becoming visible again restarts the breathing window.
   useEffect(() => {
     if (mode !== 'idle') return
-    const id = window.setInterval(() => invalidate(), 1000 / IDLE_FPS)
-    return () => window.clearInterval(id)
+    const doc = globalThis.document
+    let start = performance.now()
+    let settled = false
+    const restart = () => {
+      start = performance.now()
+      settled = false
+      invalidate()
+    }
+    const tick = () => {
+      const hidden = Boolean(doc?.hidden)
+      const elapsed = (performance.now() - start) / 1000
+      if (shouldIdleTick(hidden, elapsed)) {
+        invalidate()
+      } else if (!settled && !hidden) {
+        settled = true // idle timed out: draw one last frame so breathing settles at rest
+        invalidate()
+      }
+    }
+    const id = window.setInterval(tick, idleTickInterval())
+    doc?.addEventListener('visibilitychange', restart)
+    window.addEventListener('pointermove', restart, { passive: true })
+    return () => {
+      window.clearInterval(id)
+      doc?.removeEventListener('visibilitychange', restart)
+      window.removeEventListener('pointermove', restart)
+    }
   }, [mode, invalidate])
 
   useFrame((state, rawDelta) => {

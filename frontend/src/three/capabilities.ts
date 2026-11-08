@@ -1,7 +1,15 @@
 // Decides whether the dashboard can run the WebGL scene or must show the plain card grid.
 
-/** Below this container width the dashboard uses the grid. */
+/**
+ * Nominal width threshold: the dashboard targets the 3D scene at/above this width and the grid
+ * below it. A hysteresis band around it (ENTER_3D_WIDTH / LEAVE_3D_WIDTH) stops a container
+ * hovering near the threshold from flipping grid<->3D on every resize and remounting the scene.
+ */
 export const MIN_3D_WIDTH = 700
+/** From the grid, only switch to 3D once comfortably above the threshold. */
+export const ENTER_3D_WIDTH = 720
+/** From 3D, only drop back to the grid once comfortably below the threshold. */
+export const LEAVE_3D_WIDTH = 680
 
 export const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)'
 
@@ -12,8 +20,19 @@ export interface RenderEnvironment {
   width: number
 }
 
-export function shouldUseFallback({ webgl2, reducedMotion, width }: RenderEnvironment): boolean {
-  return !webgl2 || reducedMotion || !(width >= MIN_3D_WIDTH)
+/**
+ * Whether to show the fallback grid instead of the WebGL scene. No WebGL2 or reduced motion
+ * always forces the grid. Width uses hysteresis: `previousFallback` is the current mode (start
+ * in the grid until measured), so the scene is entered at >= ENTER_3D_WIDTH and left at
+ * < LEAVE_3D_WIDTH; in between, the current mode is kept.
+ */
+export function shouldUseFallback(
+  { webgl2, reducedMotion, width }: RenderEnvironment,
+  previousFallback = true,
+): boolean {
+  if (!webgl2 || reducedMotion) return true
+  if (previousFallback) return !(width >= ENTER_3D_WIDTH)
+  return width < LEAVE_3D_WIDTH
 }
 
 type CanvasFactory = Pick<Document, 'createElement'>

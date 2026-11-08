@@ -1,28 +1,58 @@
 import { describe, expect, it, vi } from 'vitest'
-import { hasWebGL2, MIN_3D_WIDTH, prefersReducedMotion, REDUCED_MOTION_QUERY, shouldUseFallback } from './capabilities'
+import {
+  ENTER_3D_WIDTH,
+  hasWebGL2,
+  LEAVE_3D_WIDTH,
+  MIN_3D_WIDTH,
+  prefersReducedMotion,
+  REDUCED_MOTION_QUERY,
+  shouldUseFallback,
+} from './capabilities'
 import { isAnimatedMode, orbMode } from './orbMode'
 
 const OK = { webgl2: true, reducedMotion: false, width: 1200 }
 
 describe('shouldUseFallback', () => {
-  it('uses the 3D scene only with WebGL2, motion allowed and >= 700 px', () => {
+  it('uses the 3D scene with WebGL2, motion allowed and a wide container', () => {
     expect(shouldUseFallback(OK)).toBe(false)
-    expect(shouldUseFallback({ ...OK, width: MIN_3D_WIDTH })).toBe(false)
+    expect(shouldUseFallback(OK, false)).toBe(false)
   })
 
-  it('falls back without WebGL2', () => {
+  it('falls back without WebGL2 regardless of width or current mode', () => {
     expect(shouldUseFallback({ ...OK, webgl2: false })).toBe(true)
+    expect(shouldUseFallback({ ...OK, webgl2: false }, false)).toBe(true)
   })
 
-  it('falls back with prefers-reduced-motion', () => {
+  it('falls back with prefers-reduced-motion regardless of width or current mode', () => {
     expect(shouldUseFallback({ ...OK, reducedMotion: true })).toBe(true)
+    expect(shouldUseFallback({ ...OK, reducedMotion: true }, false)).toBe(true)
   })
 
-  it('falls back below 700 px and before the container is measured', () => {
+  it('starts in the grid until the container is measured', () => {
     expect(MIN_3D_WIDTH).toBe(700)
-    expect(shouldUseFallback({ ...OK, width: 699 })).toBe(true)
     expect(shouldUseFallback({ ...OK, width: 0 })).toBe(true)
     expect(shouldUseFallback({ ...OK, width: Number.NaN })).toBe(true)
+  })
+
+  it('applies a width hysteresis band: enter 3D at >= 720, leave at < 680', () => {
+    expect(ENTER_3D_WIDTH).toBe(720)
+    expect(LEAVE_3D_WIDTH).toBe(680)
+    // From the grid (previousFallback = true): only >= 720 enters the scene.
+    expect(shouldUseFallback({ ...OK, width: ENTER_3D_WIDTH }, true)).toBe(false)
+    expect(shouldUseFallback({ ...OK, width: 719 }, true)).toBe(true)
+    expect(shouldUseFallback({ ...OK, width: MIN_3D_WIDTH }, true)).toBe(true)
+    // From the scene (previousFallback = false): only < 680 drops back to the grid.
+    expect(shouldUseFallback({ ...OK, width: LEAVE_3D_WIDTH }, false)).toBe(false)
+    expect(shouldUseFallback({ ...OK, width: 679 }, false)).toBe(true)
+    expect(shouldUseFallback({ ...OK, width: MIN_3D_WIDTH }, false)).toBe(false)
+  })
+
+  it('keeps the current mode inside the band (no flip-flop on resize)', () => {
+    // Widths in [680, 720) hold whatever mode we were already in.
+    for (const width of [680, 700, 719]) {
+      expect(shouldUseFallback({ ...OK, width }, true)).toBe(true) // stay grid
+      expect(shouldUseFallback({ ...OK, width }, false)).toBe(false) // stay 3D
+    }
   })
 })
 

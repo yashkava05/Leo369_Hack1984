@@ -1,7 +1,8 @@
 import { Canvas } from '@react-three/fiber'
 import { Bloom, EffectComposer } from '@react-three/postprocessing'
-import { useMemo, type ReactNode, type RefObject } from 'react'
+import { useMemo, useState, type ReactNode, type RefObject } from 'react'
 import type { Card, Stage } from '../types'
+import { shouldBumpGeneration } from './bloom'
 import { CameraRig } from './CameraRig'
 import { CardPanel } from './CardPanel'
 import { layoutCards, layoutExtent, MAX_CARDS, MIN_CAMERA_DISTANCE } from './layout'
@@ -33,6 +34,17 @@ export default function Scene({ stage, cards, renderCard, container, overlay }: 
   const positions = useMemo(() => layoutCards(count), [count])
   const extent = useMemo(() => layoutExtent(count), [count])
 
+  // Per-result bloom identity: bumps whenever a new (non-empty) cards array arrives, even if the
+  // card ids repeat (mock fixture twice). Including it in the key remounts each CardPanel, so its
+  // bloom start state resets and the cards bloom again. Tracked with React's "store previous
+  // value" pattern so the generation survives re-renders.
+  const [generation, setGeneration] = useState(0)
+  const [prevCards, setPrevCards] = useState<Card[] | null>(null)
+  if (shouldBumpGeneration(prevCards, cards)) {
+    setPrevCards(cards)
+    setGeneration((g) => g + 1)
+  }
+
   return (
     <Canvas
       className="dashboard-canvas"
@@ -46,7 +58,7 @@ export default function Scene({ stage, cards, renderCard, container, overlay }: 
       <Orb mode={orbMode(stage, count > 0)} />
       {shown.map((card, i) => (
         <CardPanel
-          key={`${i}:${card.id}`}
+          key={`${generation}:${i}:${card.id}`}
           card={card}
           index={i}
           position={positions[i]}
