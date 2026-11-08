@@ -1,0 +1,112 @@
+{
+  "job_id": "j_fx_book",
+  "status": "done",
+  "intent": {
+    "intent_type": "book",
+    "summary": "Book cover: The Glass Orchard by Mira Calloway.",
+    "public_entities": [
+      {
+        "type": "book_title",
+        "value": "The Glass Orchard"
+      },
+      {
+        "type": "author",
+        "value": "Mira Calloway"
+      }
+    ],
+    "redaction_counts": {},
+    "confidence": 0.88
+  },
+  "queries": [
+    {
+      "text": "The Glass Orchard Mira Calloway book",
+      "purpose": "book",
+      "topic": "general",
+      "include_domains": []
+    }
+  ],
+  "cards": [
+    {
+      "id": "c_bbc6018b55",
+      "kind": "book",
+      "title": "The Glass Orchard by Mira Calloway | Paperback",
+      "subtitle": null,
+      "url": "https://www.bookbarn.test/books/the-glass-orchard",
+      "price": null,
+      "source": "bookbarn.test",
+      "snippet": "Paperback $17.99. A novel about three sisters.",
+      "score": 0.91,
+      "actions": [
+        {
+          "label": "Get the book",
+          "type": "open_url",
+          "url": "https://www.bookbarn.test/books/the-glass-orchard",
+          "ics": null,
+          "text": null
+        }
+      ]
+    },
+    {
+      "id": "c_96d9896166",
+      "kind": "book",
+      "title": "The Glass Orchard - Mira Calloway",
+      "subtitle": null,
+      "url": "https://openshelf.test/works/glass-orchard",
+      "price": null,
+      "source": "openshelf.test",
+      "snippet": "Published 2025, 352 pages.",
+      "score": 0.8,
+      "actions": [
+        {
+          "label": "Get the book",
+          "type": "open_url",
+          "url": "https://openshelf.test/works/glass-orchard",
+          "ics": null,
+          "text": null
+        }
+      ]
+    },
+    {
+      "id": "c_7ff60e9022",
+      "kind": "insight",
+      "title": "Quick answer",
+      "subtitle": "The Glass Orchard Mira Calloway book",
+      "url": null,
+      "price": null,
+      "source": "bookbarn.test",
+      "snippet": "The Glass Orchard is a 2025 novel by Mira Calloway about three sisters running a failing orchard.",
+      "score": 0.91,
+      "actions": [
+        {
+          "label": "Copy",
+          "type": "copy",
+          "url": null,
+          "ics": null,
+          "text": "The Glass Orchard is a 2025 novel by Mira Calloway about three sisters running a failing orchard."
+        }
+      ]
+    }
+  ],
+  "egress": [
+    {
+      "id": "eg_chat_book_0",
+      "ts": 1794000003.0,
+      "method": "POST",
+      "host": "api.tavily.com",
+      "path": "/search",
+      "bytes_out": 87,
+      "payload_preview": "{\"query\": \"The Glass Orchard Mira Calloway book\", \"topic\": \"general\", \"max_results\": 5}",
+      "blocked": false,
+      "reason": null
+    }
+  ],
+  "timings_ms": {
+    "ingest": 30,
+    "extract": 2100,
+    "scrub": 12,
+    "query": 4,
+    "search": 500,
+    "cards": 20
+  },
+  "error": null
+}
