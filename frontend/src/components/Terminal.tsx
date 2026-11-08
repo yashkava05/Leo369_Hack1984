@@ -68,11 +68,43 @@ function useTypewriter(lines: TerminalLine[], instant: boolean): Reveal {
 
 interface TerminalViewProps {
   lines: TerminalLine[]
-  counters: EgressCounters
+  // null for a result reopened from the library: it keeps no egress records, so zeros would be false.
+  counters: EgressCounters | null
   instant: boolean
 }
 
-export function TerminalView({ lines, counters: c, instant }: TerminalViewProps) {
+export const AUDIT_UNAVAILABLE = 'Network audit not kept for saved results'
+
+function Counters({ counters: c }: { counters: EgressCounters | null }) {
+  if (c === null) {
+    return (
+      <p className="terminal-counters" data-testid="terminal-counters">
+        {AUDIT_UNAVAILABLE}
+      </p>
+    )
+  }
+  return (
+    <p className="terminal-counters" data-testid="terminal-counters" aria-label={formatCounters(c)}>
+      <span>
+        Outbound requests: <b>{c.requests}</b>
+      </span>
+      <span aria-hidden="true"> · </span>
+      <span>
+        Bytes sent: <b>{c.bytes}</b>
+      </span>
+      <span aria-hidden="true"> · </span>
+      <span className="terminal-image-bytes" title={IMAGE_TOOLTIP} tabIndex={0}>
+        Image bytes sent: <b>{c.imageBytes}</b>
+      </span>
+      <span aria-hidden="true"> · </span>
+      <span className={c.blocked > 0 ? 'terminal-blocked-count' : undefined}>
+        Blocked: <b>{c.blocked}</b>
+      </span>
+    </p>
+  )
+}
+
+export function TerminalView({ lines, counters, instant }: TerminalViewProps) {
   const { done, chars } = useTypewriter(lines, instant)
   const scroller = useRef<HTMLDivElement>(null)
   const [following, setFollowing] = useState(true)
@@ -100,23 +132,7 @@ export function TerminalView({ lines, counters: c, instant }: TerminalViewProps)
     <section className="terminal" aria-label="Pipeline terminal">
       <header className="terminal-header">
         <span className="terminal-title">latent · live</span>
-        <p className="terminal-counters" data-testid="terminal-counters" aria-label={formatCounters(c)}>
-          <span>
-            Outbound requests: <b>{c.requests}</b>
-          </span>
-          <span aria-hidden="true"> · </span>
-          <span>
-            Bytes sent: <b>{c.bytes}</b>
-          </span>
-          <span aria-hidden="true"> · </span>
-          <span className="terminal-image-bytes" title={IMAGE_TOOLTIP} tabIndex={0}>
-            Image bytes sent: <b>{c.imageBytes}</b>
-          </span>
-          <span aria-hidden="true"> · </span>
-          <span className={c.blocked > 0 ? 'terminal-blocked-count' : undefined}>
-            Blocked: <b>{c.blocked}</b>
-          </span>
-        </p>
+        <Counters counters={counters} />
       </header>
       <div className="terminal-body" ref={scroller} onScroll={onScroll} tabIndex={0}>
         <ol className="terminal-lines" role="log" aria-live="polite">
@@ -148,9 +164,9 @@ export function TerminalView({ lines, counters: c, instant }: TerminalViewProps)
 }
 
 export function Terminal() {
-  const { status, events, result } = useJob()
+  const { status, events, result, reopened } = useJob()
   const instant = usePrefersReducedMotion()
   if (status === 'idle') return null
   const model = terminalModel(events, result)
-  return <TerminalView lines={model.lines} counters={model.counters} instant={instant} />
+  return <TerminalView lines={model.lines} counters={reopened ? null : model.counters} instant={instant} />
 }

@@ -16,6 +16,7 @@ from __future__ import annotations
 import io
 import json
 import logging
+import os
 import re
 import sqlite3
 import threading
@@ -75,22 +76,60 @@ def keep_thumbs() -> bool:
     return get_settings().latent_keep_thumbs
 
 
+def _make_private(path: Path) -> None:
+    """Create the library folder (0700) and DB file (0600) so other local users can't read them.
+
+    Folders this creates, and the default `~/.latent`, are set to 0700; an existing parent
+    chosen through `LATENT_DB_PATH` is left alone. SQLite gives its `-wal` and `-shm` sidecars
+    the DB file's own mode, so they are 0600 too.
+    """
+    parent = path.parent
+    missing = [d for d in (parent, *parent.parents) if not d.exists()]
+    for d in reversed(missing):
+        d.mkdir(mode=0o700)
+        d.chmod(0o700)  # mkdir's mode is narrowed by the umask but never widened; be exact
+    if parent == Path.home() / ".latent":
+        parent.chmod(0o700)
+    os.close(os.open(path, os.O_CREAT | os.O_WRONLY, 0o600))
+    for f in (path, path.with_name(path.name + "-wal"), path.with_name(path.name + "-shm")):
+        if f.exists():  # also tightens files left 0644 by an older version
+            f.chmod(0o600)
+
+
+def _enable_fts_secure_delete(conn: sqlite3.Connection) -> None:
+    """Make FTS5 remove a deleted row's terms from the index (SQLite >= 3.42).
+
+    Without it FTS5 only appends a delete marker and the old terms stay in the stored segments.
+    On an older SQLite, `delete` falls back to rebuilding the index instead.
+    """
+    try:
+        conn.execute("INSERT INTO intents_fts (intents_fts, rank) VALUES ('secure-delete', 1)")
+    except sqlite3.OperationalError:
+        log.info("FTS5 secure-delete unsupported; deletes rebuild the index instead")
+
+
 def init_db() -> Path:
     """Create the folder, the database and the schema (WAL mode). Safe to call repeatedly."""
     path = db_path()
     with _init_lock:
         if path in _initialized and path.exists():
             return path
-        path.parent.mkdir(parents=True, exist_ok=True)
+        _make_private(path)
         conn = sqlite3.connect(path)
         try:
             conn.execute("PRAGMA journal_mode=WAL")
             conn.executescript(SCHEMA)
+            _enable_fts_secure_delete(conn)
             conn.commit()
         finally:
             conn.close()
         _initialized.add(path)
     return path
+
+
+def _fts_secure_delete_on(conn: sqlite3.Connection) -> bool:
+    row = conn.execute("SELECT v FROM intents_fts_config WHERE k = 'secure-delete'").fetchone()
+    return bool(row and row[0])
 
 
 @contextmanager
@@ -216,11 +255,28 @@ def get(job_id: str) -> JobResult | None:
 
 
 def delete(job_id: str) -> bool:
-    """Delete one intent and its FTS row. Returns whether it existed."""
+    """Delete one intent and its FTS row, leaving none of its text in the file. Returns whether
+    it existed.
+
+    `secure_delete` zeroes the ordinary rows; FTS5 secure-delete (or, without it, a rebuild)
+    takes the terms out of the index segments; the checkpoint flushes old pages out of the WAL.
+    """
     with _connect() as conn:
         conn.execute("DELETE FROM intents_fts WHERE id = ?", (job_id,))
         cur = conn.execute("DELETE FROM intents WHERE id = ?", (job_id,))
-        return cur.rowcount > 0
+        existed = cur.rowcount > 0
+        if not _fts_secure_delete_on(conn):
+            conn.execute("INSERT INTO intents_fts (intents_fts) VALUES ('rebuild')")
+    _checkpoint()
+    return existed
+
+
+def _checkpoint() -> None:
+    conn = sqlite3.connect(init_db(), timeout=5)
+    try:
+        conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+    finally:
+        conn.close()
 
 
 def wipe() -> None:
