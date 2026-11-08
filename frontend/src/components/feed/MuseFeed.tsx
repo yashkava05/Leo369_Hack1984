@@ -1,5 +1,6 @@
 import { Aperture, MessageCircle, RefreshCw, ShieldCheck, Sparkles } from 'lucide-react'
 import { useLayoutEffect } from 'react'
+import { MOCK } from '../../api/client'
 import { Orb, Wordmark } from '../../chat/ChatApp'
 import { AppChrome } from '../AppNav'
 import { useFeed } from '../../state/useFeed'
@@ -50,6 +51,8 @@ export function ForYouPage() {
             <p>Notes from screenshots PrismLocal already read on this computer.</p>
           </div>
         </header>
+
+        {MOCK && <p className="feed-demo"><span aria-hidden="true" />Demo edit · Sample stories, no web requests sent</p>}
 
         {feed.error && <div className="feed-error" role="alert"><p>{feed.error}</p><button type="button" onClick={() => { void feed.load() }}>Try again</button></div>}
 

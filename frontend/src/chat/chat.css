@@ -180,6 +180,8 @@ body.chat-mode { margin: 0; padding: 0; background: #070910; }
 .chat-composer > input:focus-visible { outline: 0; }.chat-composer > input::placeholder { color: var(--chat-muted); }
 .chat-send { display: flex; align-items: center; justify-content: center; gap: 4px; border: 0; background: var(--chat-me); color: white !important; border-radius: 10px; padding: 9px 12px; font-size: 12px !important; }
 .chat-send:disabled { background: var(--chat-sunk); color: var(--chat-muted) !important; opacity: 1 !important; }
+.chat-demo-note { display: flex; align-items: center; gap: 7px; width: fit-content; padding: 5px 11px; border: 1px solid var(--chat-line); border-radius: 999px; background: rgb(255 255 255 / 0.04); backdrop-filter: blur(12px); color: var(--chat-muted); font-size: 10px; letter-spacing: .02em; margin: 0 auto 10px !important; }
+.chat-demo-note > span { width: 5px; height: 5px; border-radius: 50%; background: var(--chat-net); box-shadow: 0 0 8px var(--chat-net); }
 .chat-composer-hint { display: flex; align-items: center; justify-content: center; gap: 5px; font-size: 10px; color: var(--chat-muted); margin-top: 11px !important; }
 .chat-receipt-scrim { position: fixed; inset: 0; background: #11182766; z-index: 100; display: flex; justify-content: flex-end; }
 .chat-receipts { width: min(440px, 100%); background: #12151c; padding: 28px; overflow-y: auto; box-shadow: -15px 0 60px #0008; animation: chat-drawer .2s ease-out; border-left: 1px solid var(--chat-line); }

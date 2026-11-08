@@ -538,7 +538,8 @@ export function PrismDashboard() {
   const [voiceOpen, setVoiceOpen] = useState(false)
   const [voicePending, setVoicePending] = useState(false)
   const cards = useMemo(
-    () => (job.result?.cards?.length ? bloomFromCards(job.result.cards) : SAMPLE_CARDS),
+    // Placeholder cards stay visibly labelled so they never read as live results.
+    () => (job.result?.cards?.length ? bloomFromCards(job.result.cards) : SAMPLE_CARDS.map((card) => ({ ...card, eyebrow: `Sample · ${card.eyebrow}` }))),
     [job.result],
   )
 

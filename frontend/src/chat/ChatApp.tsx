@@ -217,6 +217,7 @@ export function ChatApp() {
           </main>
         </div>
         <div className="chat-composer-area">
+          {MOCK && <p className="chat-demo-note"><span aria-hidden="true" />Demo mode · Sample results, no web searches sent</p>}
           <div id="chat-voice-controls" className="chat-voice-panel" hidden={!voiceOpen}>
             {voiceOpen && <VoiceCapture autoStart disabled={chat.busy} onBusyChange={setVoiceBusy} onJob={beginVoiceJob} onClose={() => setVoiceOpen(false)}
               onOutlook={(request) => { following.current = true; setTeams(null); setOutlook({ key: Date.now(), request }) }}

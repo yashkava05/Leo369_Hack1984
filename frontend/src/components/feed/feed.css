@@ -20,6 +20,8 @@
 .feed-main { flex: 1; min-width: 0; padding: 0 clamp(20px, 5vw, 76px) 80px; overflow: hidden; }
 .feed-header { max-width: 980px; margin: 0 auto; padding: 28px 0 34px; }
 .feed-heading { max-width: 690px; }
+.feed-demo { display: flex; align-items: center; gap: 7px; width: fit-content; padding: 5px 11px; border: 1px solid var(--chat-line); border-radius: 999px; background: rgb(255 255 255 / 0.04); backdrop-filter: blur(12px); color: var(--chat-muted); font-size: 10px; letter-spacing: .02em; max-width: 980px; margin: -18px auto 24px !important; }
+.feed-demo > span { width: 5px; height: 5px; border-radius: 50%; background: var(--chat-net); box-shadow: 0 0 8px var(--chat-net); }
 .feed-kicker { margin-bottom: 11px !important; color: var(--chat-local); font-size: 11px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; }
 .feed-header h1 { font-size: clamp(40px, 6vw, 64px); font-weight: 500; line-height: .98; letter-spacing: -.04em; }
 .feed-header h1 + p { margin-top: 17px; max-width: 590px; color: var(--chat-muted); font-size: 14px; }
