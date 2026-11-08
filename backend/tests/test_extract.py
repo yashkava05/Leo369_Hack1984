@@ -24,6 +24,7 @@ from app.pipeline.extract import (
     extract_intent,
     preprocess,
 )
+from app.pipeline.image_links import ScreenshotIntent
 from app.pipeline.prompts import SYSTEM_PROMPT
 
 OLLAMA = "http://ollama.test:11434"
@@ -189,7 +190,7 @@ async def test_concert_flyer_request_shape_and_result(ollama):
     (body,) = fake.bodies()
     assert str(fake.requests[0].url) == f"{OLLAMA}/api/chat"
     assert body["model"] == "qwen2.5vl:3b"
-    assert body["format"] == Intent.model_json_schema()
+    assert body["format"] == ScreenshotIntent.model_json_schema()
     assert body["options"] == {"temperature": 0}
     assert body["stream"] is False and body["keep_alive"] == "30m"
     system, user = body["messages"]

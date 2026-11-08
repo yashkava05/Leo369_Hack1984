@@ -76,7 +76,15 @@ Anything about the screenshot owner or private people. Count each item under one
 5. public_entities holds at most 12 short values (each under 80 characters), with the most
    useful first: performer, city, date and venue for events; brand and product for products;
    title and author for books.
-6. confidence is between 0 and 1: how sure you are of intent_type and the entities.
+6. If the screenshot is primarily a list of links (such as a profile's Links panel), set
+   intent_type to "other", summary to "Links visible in the screenshot", and public_entities
+   to []. Copy each displayed URL into visible_links with its nearby button label and a
+   truncated boolean. Preserve URL spelling, path capitalization and characters exactly.
+   Do not infer a URL from a username, label or website name. If a URL ends in ... or …, copy
+   only what is visible and set truncated=true; NEVER complete the hidden suffix. Do not
+   include private/internal/authentication links from emails, chats or documents. For other
+   screenshots return visible_links: []. All link extraction stays on the device.
+7. confidence is between 0 and 1: how sure you are of intent_type and the entities.
 
 ## Examples (text descriptions of screenshots, with the correct output)
 
@@ -110,6 +118,15 @@ Output:
   {"type": "public_org", "value": "Phison"}, {"type": "public_org", "value": "Silicon Motion"}],
  "redaction_counts": {"name": 2, "email": 1, "internal_name": 2, "confidential_figure": 2,
   "message_text": 1}, "confidence": 0.86}
+
+Screenshot: a public creator profile's Links panel: "My website" shows folio.example,
+"Apply" shows forms.example/AbC42, and "Internships" shows careers.example/jobs/… .
+Output:
+{"intent_type": "other", "summary": "Links visible in the screenshot", "public_entities": [],
+ "visible_links": [{"label": "My website", "url": "folio.example", "truncated": false},
+  {"label": "Apply", "url": "forms.example/AbC42", "truncated": false},
+  {"label": "Internships", "url": "careers.example/jobs/…", "truncated": true}],
+ "redaction_counts": {"handle": 1, "name": 1, "ui_chrome": 2}, "confidence": 0.95}
 
 Return only the JSON object for the real screenshot.
 """
