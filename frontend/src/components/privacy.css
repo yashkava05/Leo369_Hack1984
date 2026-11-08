@@ -1,0 +1,177 @@
+/* Privacy-proof views (issue #16): air-gap toggle, audit drawer, "left this device" card. */
+
+/* --- air-gap toggle --- */
+.airgap {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.airgap-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.airgap-switch input {
+  width: 1rem;
+  height: 1rem;
+}
+
+.airgap-label {
+  font-size: 0.85rem;
+}
+
+.airgap-pill {
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  background: #c0152f;
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* --- audit drawer --- */
+.audit-open {
+  cursor: pointer;
+}
+
+.audit-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  height: 100vh;
+  width: min(420px, 90vw);
+  background: #11141a;
+  color: #e6e9ef;
+  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.4);
+  transform: translateX(100%);
+  transition: transform 0.2s ease-out;
+  overflow-y: auto;
+  z-index: 50;
+  padding: 1rem;
+  box-sizing: border-box;
+}
+
+.audit-drawer-open {
+  transform: translateX(0);
+}
+
+.audit-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+}
+
+.audit-close {
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.audit-empty {
+  opacity: 0.7;
+  font-size: 0.9rem;
+}
+
+.audit-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.audit-row {
+  border: 1px solid #262b35;
+  border-radius: 6px;
+  padding: 0.5rem 0.6rem;
+}
+
+.audit-row.audit-blocked {
+  border-color: #c0152f;
+}
+
+.audit-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: baseline;
+  font-size: 0.8rem;
+}
+
+.audit-target {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.audit-bytes {
+  opacity: 0.8;
+}
+
+.audit-status {
+  font-weight: 700;
+}
+
+.audit-status-sent {
+  color: #4caf7d;
+}
+
+.audit-status-blocked {
+  color: #ff6b81;
+}
+
+.audit-preview {
+  margin-top: 0.4rem;
+  font-size: 0.75rem;
+}
+
+.audit-preview pre {
+  margin: 0.3rem 0 0;
+  white-space: pre-wrap;
+  word-break: break-all;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  background: #0b0d12;
+  padding: 0.4rem;
+  border-radius: 4px;
+}
+
+/* --- left-this-device summary --- */
+.left-device {
+  border: 1px solid #262b35;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  margin: 1rem 0;
+}
+
+.left-device-headline {
+  font-weight: 600;
+  margin: 0 0 0.5rem;
+}
+
+.left-device-queries {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.left-device-queries code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85rem;
+}
+
+.left-device-none {
+  margin: 0;
+  opacity: 0.7;
+}
