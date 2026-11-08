@@ -83,6 +83,19 @@ export async function start(file: File): Promise<void> {
   unsubscribeEvents = subscribe(jobId, (event) => onEvent(gen, event))
 }
 
+/**
+ * Follow a job someone else started (the folder watcher, issue #20) without uploading anything.
+ * Does nothing while the user is mid-job (uploading or running). Returns whether it switched.
+ */
+export function follow(jobId: string): boolean {
+  if (state.status === 'uploading' || state.status === 'running') return false
+  clear()
+  const gen = generation
+  setState({ status: 'running', jobId, events: [] })
+  unsubscribeEvents = subscribe(jobId, (event) => onEvent(gen, event))
+  return true
+}
+
 export function reset(): void {
   clear()
   setState(IDLE)
@@ -102,7 +115,11 @@ function subscribeStore(listener: () => void): () => void {
 
 const getSnapshot = (): JobState => state
 
-export function useJob(): JobState & { start(file: File): Promise<void>; reset(): void } {
+export function useJob(): JobState & {
+  start(file: File): Promise<void>
+  follow(jobId: string): boolean
+  reset(): void
+} {
   const snapshot = useSyncExternalStore(subscribeStore, getSnapshot, getSnapshot)
-  return { ...snapshot, start, reset }
+  return { ...snapshot, start, follow, reset }
 }
