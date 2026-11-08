@@ -12,6 +12,10 @@ from app.models import Card, IntentType
 
 router = APIRouter()
 
+# One Kept item holds one result's cards (a handful); the browser imports one item per request.
+MAX_IMPORT_ITEMS = 200
+MAX_CARDS_PER_ITEM = 50
+
 
 class SavedImportItem(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -20,7 +24,7 @@ class SavedImportItem(BaseModel):
     label: str = Field(min_length=1, max_length=200)
     intent_type: IntentType
     saved_at: float = Field(allow_inf_nan=False)
-    cards: list[Card] = Field(max_length=500)
+    cards: list[Card] = Field(max_length=MAX_CARDS_PER_ITEM)
     source_job_id: str | None = None
 
 
@@ -28,7 +32,7 @@ class SavedImportRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     memory_epoch: int | None = None
-    items: list[SavedImportItem] = Field(max_length=500)
+    items: list[SavedImportItem] = Field(max_length=MAX_IMPORT_ITEMS)
 
 
 class SavedItemResponse(BaseModel):

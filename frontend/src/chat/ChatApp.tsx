@@ -158,7 +158,7 @@ export function ChatApp() {
           </div>)}
           <button type="button" onClick={() => { void refreshSaved() }}>Sync saved items</button>
           <button type="button" onClick={() => {
-            if (window.confirm('Delete all Latent local data? This removes saved items, library history, the search index, and browser Kept copies.')) void clearMemory()
+            if (window.confirm('Delete all Latent local data? This removes saved items, library history, the search index, and browser Kept copies from Latent. Copies outside the app (backups, other storage) are not affected.')) void clearMemory()
           }}>Delete all local data</button>
         </div>
         <div className="chat-sidebar-footer"><ShieldCheck size={17} aria-hidden="true" /><div>A little more private.<span>A lot more useful.</span></div></div>

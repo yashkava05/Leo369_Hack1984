@@ -274,3 +274,52 @@ async def test_reset_cancels_old_jobs_but_keeps_jobs_created_after_the_reset(mon
     assert old_job.job_id not in jobs.JOBS
     assert created[0].job_id in jobs.JOBS
     jobs.JOBS.pop(created[0].job_id)
+
+
+def test_tombstones_are_pruned_after_ttl_but_recent_ones_still_block_reimport():
+    library.import_saved_items([saved("old"), saved("recent")], client_epoch=None)
+    library.delete_saved_item("old", client_epoch=0)
+    library.delete_saved_item("recent", client_epoch=0)
+    with library._connect() as conn:
+        conn.execute(
+            "UPDATE saved_item_tombstones SET deleted_at = ? WHERE id = 'old'",
+            (library.time.time() - library.TOMBSTONE_TTL_S - 60,),
+        )
+    statuses = {
+        s["id"]: s["status"]
+        for s in library.import_saved_items([saved("old"), saved("recent")], client_epoch=0)[1]
+    }
+    assert statuses == {"old": "saved", "recent": "tombstoned"}
+    with library._connect() as conn:
+        ids = {r[0] for r in conn.execute("SELECT id FROM saved_item_tombstones")}
+    assert ids == {"recent"}
+
+
+async def test_import_rejects_oversized_batches_and_card_lists():
+    from app.routes.memory import MAX_CARDS_PER_ITEM, MAX_IMPORT_ITEMS
+
+    card = {"id": "c1", "kind": "link", "title": "Lumen Festival", "source": "example.com"}
+
+    def item(i, cards):
+        return {
+            "id": f"i{i}",
+            "label": "Lumen Festival",
+            "intent_type": "event",
+            "saved_at": 1,
+            "cards": cards,
+        }
+
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        too_many_cards = {"memory_epoch": 0, "items": [item(0, [card] * (MAX_CARDS_PER_ITEM + 1))]}
+        assert (await client.post("/api/saved/import", json=too_many_cards)).status_code == 422
+        too_many_items = {
+            "memory_epoch": 0,
+            "items": [item(i, []) for i in range(MAX_IMPORT_ITEMS + 1)],
+        }
+        assert (await client.post("/api/saved/import", json=too_many_items)).status_code == 422
+        ok = {"memory_epoch": 0, "items": [item(0, [card] * MAX_CARDS_PER_ITEM)]}
+        assert (await client.post("/api/saved/import", json=ok)).status_code == 200
+    (only,) = library.list_saved_items()[1]
+    assert only.id == "i0" and len(only.cards) == MAX_CARDS_PER_ITEM

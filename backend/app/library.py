@@ -36,6 +36,8 @@ log = logging.getLogger(__name__)
 THUMB_PX = 256
 DEFAULT_LIMIT = 50
 MAX_LIMIT = 200
+# A tombstone blocks re-import of an individually deleted saved item; prune after 90 days.
+TOMBSTONE_TTL_S = 90 * 24 * 60 * 60
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS intents (
@@ -475,6 +477,10 @@ def _require_epoch(conn: sqlite3.Connection, client_epoch: int | None) -> tuple[
     return (client_epoch == server_epoch, server_epoch)
 
 
+def _prune_tombstones(conn: sqlite3.Connection, now: float) -> None:
+    conn.execute("DELETE FROM saved_item_tombstones WHERE deleted_at < ?", (now - TOMBSTONE_TTL_S,))
+
+
 def import_saved_items(
     items: list[SavedItem], *, client_epoch: int | None
 ) -> tuple[int, list[dict[str, str]], bool]:
@@ -484,6 +490,7 @@ def import_saved_items(
         ok, epoch = _require_epoch(conn, client_epoch)
         if not ok:
             return (epoch, statuses, True)
+        _prune_tombstones(conn, time.time())
         for item in items:
             tombstoned = conn.execute(
                 "SELECT 1 FROM saved_item_tombstones WHERE id = ?",
@@ -525,6 +532,7 @@ def delete_saved_item(saved_id: str, *, client_epoch: int | None) -> tuple[int, 
         if not ok:
             return (epoch, False, True)
         now = time.time()
+        _prune_tombstones(conn, now)
         conn.execute(
             "INSERT OR REPLACE INTO saved_item_tombstones (id, deleted_at) VALUES (?, ?)",
             (saved_id, now),
