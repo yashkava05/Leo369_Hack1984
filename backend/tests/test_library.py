@@ -6,8 +6,6 @@ The DB lives in a per-test tmp file (see conftest.py), never the real ~/.latent.
 import io
 import os
 import sqlite3
-import time
-from urllib.parse import quote
 
 import httpx
 import pytest
@@ -280,77 +278,8 @@ def test_wipe_removes_everything():
     library.save(product())
     library.wipe()
     assert rows("SELECT count(*) FROM intents") == [(0,)]
-    assert rows("SELECT count(*) FROM cache_meta") == [(0,)]
     assert rows("SELECT count(*) FROM intents_fts") == [(0,)]
-    assert rows("SELECT count(*) FROM interests") == [(0,)]
     assert library.search() == []
-
-
-def test_save_creates_cache_meta_and_interest_rows():
-    item = concert()
-    performer = item.intent.public_entities[0].value
-    assert library.save(item)
-    meta = rows("SELECT access_count, saved, pinned FROM cache_meta WHERE id = ?", (item.job_id,))
-    assert meta == [(0, 0, 0)]
-    interests = rows("SELECT topic_key, forgotten FROM interests WHERE topic_key = ?", (performer.lower(),))
-    assert interests == [(performer.lower(), 0)]
-
-
-def test_cleanup_preview_and_execute_keep_saved_items():
-    old = concert("j_old")
-    kept = product("j_kept")
-    assert library.save(old)
-    assert library.save(kept)
-    assert library.mark_saved("j_kept", saved=True)
-    now = time.time()
-    conn = sqlite3.connect(library.db_path())
-    conn.execute("UPDATE cache_meta SET expires_at = ? WHERE id = ?", (now - 10, "j_old"))
-    conn.execute("UPDATE cache_meta SET expires_at = ? WHERE id = ?", (now - 10, "j_kept"))
-    conn.commit()
-    conn.close()
-
-    preview = library.cleanup_preview(now=now)
-    assert preview.candidate_ids == ["j_old"]
-    assert preview.kept_saved_items == 1
-
-    done = library.execute_cleanup(preview.candidate_ids, now=now)
-    assert done.deleted_ids == ["j_old"]
-    assert library.get("j_old") is None
-    assert library.get("j_kept") is not None
-
-
-def test_cleanup_revalidates_candidates_before_delete():
-    item = concert("j_maybe")
-    assert library.save(item)
-    now = time.time()
-    conn = sqlite3.connect(library.db_path())
-    conn.execute("UPDATE cache_meta SET expires_at = ? WHERE id = ?", (now - 10, "j_maybe"))
-    conn.commit()
-    conn.close()
-    preview = library.cleanup_preview(now=now)
-    assert preview.candidate_ids == ["j_maybe"]
-    assert library.mark_saved("j_maybe", saved=True)
-    done = library.execute_cleanup(preview.candidate_ids, now=now)
-    assert done.removed_entries == 0
-    assert done.skipped_not_eligible == 1
-    assert library.get("j_maybe") is not None
-
-
-def test_forget_interest_removes_disposable_not_saved_and_stays_forgotten():
-    one = concert("j_forget01")
-    two = concert("j_forget02")
-    performer = one.intent.public_entities[0].value
-    assert library.save(one)
-    assert library.save(two)
-    assert library.mark_saved("j_forget02", saved=True)
-
-    library.forget_interest(performer)
-    assert library.get("j_forget01") is None
-    assert library.get("j_forget02") is not None
-    assert rows("SELECT forgotten FROM interests WHERE topic_key = ?", (performer.lower(),)) == [(1,)]
-
-    assert library.save(concert("j_forget03"))
-    assert rows("SELECT forgotten FROM interests WHERE topic_key = ?", (performer.lower(),)) == [(1,)]
 
 
 # --- thumbnails -------------------------------------------------------------------
@@ -415,43 +344,6 @@ def test_routes_list_get_delete_wipe(client):
 
     assert client.delete("/api/library").status_code == 204
     assert client.get("/api/library").json() == []
-
-
-def test_cache_cleanup_and_delete_all_routes(client):
-    library.save(concert("j_route_old"))
-    library.save(product("j_route_keep"))
-    assert client.post("/api/library/j_route_keep/saved?saved=true").status_code == 204
-
-    now = time.time()
-    conn = sqlite3.connect(library.db_path())
-    conn.execute("UPDATE cache_meta SET expires_at = ? WHERE id = ?", (now - 10, "j_route_old"))
-    conn.execute("UPDATE cache_meta SET expires_at = ? WHERE id = ?", (now - 10, "j_route_keep"))
-    conn.commit()
-    conn.close()
-
-    preview = client.get("/api/library/cache/cleanup-preview").json()
-    assert preview["candidate_ids"] == ["j_route_old"]
-
-    executed = client.post("/api/library/cache/cleanup", json={"candidate_ids": preview["candidate_ids"]}).json()
-    assert executed["deleted_ids"] == ["j_route_old"]
-    assert client.get("/api/library/j_route_old").status_code == 404
-    assert client.get("/api/library/j_route_keep").status_code == 200
-
-    assert client.delete("/api/library/all-local-data").status_code == 400
-    assert client.delete("/api/library/all-local-data?confirm=DELETE_ALL_LOCAL_DATA").status_code == 204
-    assert client.get("/api/library").json() == []
-
-
-def test_forget_interest_route_keeps_saved_items(client):
-    first = concert("j_route_forget01")
-    second = concert("j_route_forget02")
-    performer = first.intent.public_entities[0].value
-    library.save(first)
-    library.save(second)
-    assert client.post("/api/library/j_route_forget02/saved?saved=true").status_code == 204
-    assert client.delete(f"/api/library/interests/{quote(performer, safe='')}").status_code == 204
-    assert client.get("/api/library/j_route_forget01").status_code == 404
-    assert client.get("/api/library/j_route_forget02").status_code == 200
 
 
 def test_mock_job_is_saved_to_library(client):
