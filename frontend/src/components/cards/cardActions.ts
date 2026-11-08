@@ -29,7 +29,7 @@ export function safeImageLinkUrl(value: string): string | null {
   for (const raw of [parts.search.slice(1), parts.hash.slice(1)]) {
     for (const key of new URLSearchParams(raw).keys()) {
       let normalized: string
-      try { normalized = decodeURIComponent(key).split('?').at(-1)!.toLowerCase().replaceAll('-', '_') } catch { return null }
+      try { normalized = decodeURIComponent(key).split('?').at(-1)!.split('=')[0].toLowerCase().replaceAll('-', '_') } catch { return null }
       if (forbidden.has(normalized) || /(?:^|_)(?:token|password|secret|session|signature|credential)(?:$|_)/.test(normalized)) return null
     }
   }
