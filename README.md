@@ -46,10 +46,10 @@ cd ../frontend && npm install
 The vision model runs on your own machine through Ollama (0.7 or newer). `./scripts/setup.sh`
 starts `ollama serve` if needed, pulls `qwen2.5vl:3b` (about 3.2 GB), and asks the model to read
 `scripts/smoke.png`. It prints `smoke test passed in Ns`, then installs the backend into
-`backend/.venv` (or your active virtualenv), downloads the spaCy `en_core_web_lg` model for the PII
-scrubber, and runs `npm install` in `frontend/`. Re-running it is safe.
-`LATENT_SKIP_SPACY_MODEL=1` skips the ~600 MB spaCy download; `LATENT_SKIP_NPM=1` skips the
-frontend install.
+`backend/.venv` (or your active virtualenv), including the spaCy `en_core_web_lg` model for the PII
+scrubber (pinned in `backend/pyproject.toml`, about 600 MB), checks that the model imports, and
+runs `npm install` in `frontend/`. Re-running it is safe. `LATENT_SKIP_NPM=1` skips the frontend
+install.
 
 Check it end to end (from the repo root, with the backend venv active):
 
@@ -71,7 +71,7 @@ set `LATENT_MODEL=qwen2.5vl:7b` in `.env` and re-run `./scripts/setup.sh`.
 
 **Windows.** `setup.sh` is for macOS and Linux. On Windows, run it inside WSL, or do the steps by
 hand: install Ollama for Windows, `ollama pull qwen2.5vl:3b`, then follow the manual setup above
-and run `python -m spacy download en_core_web_lg` in the backend venv.
+(the backend install includes `en_core_web_lg`).
 
 ## Configuration
 

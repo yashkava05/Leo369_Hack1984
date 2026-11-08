@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Latent setup: zero to "local vision model loaded and answering about an image".
 # Creates .env, checks Ollama, pulls and smoke-tests the model, then installs
-# backend (backend/.venv), spaCy model and frontend deps. Run from anywhere:
+# backend (backend/.venv, including the pinned spaCy model) and frontend deps. Run from anywhere:
 #
 #   ./scripts/setup.sh
 #
@@ -10,7 +10,6 @@
 # Environment (also read from .env at the repo root when not already set):
 #   OLLAMA_HOST                 Ollama URL (default http://localhost:11434)
 #   LATENT_MODEL                vision model to pull (default qwen2.5vl:3b; qwen2.5vl:7b on 16 GB+ RAM or a good GPU)
-#   LATENT_SKIP_SPACY_MODEL=1   skip the ~600 MB en_core_web_lg download
 #   LATENT_SKIP_NPM=1           skip npm install in frontend/
 set -euo pipefail
 
@@ -145,14 +144,10 @@ fi
 "$py" -m pip install --quiet --upgrade pip
 (cd "$ROOT/backend" && "$py" -m pip install --quiet -e ".[dev]")
 
-step "spaCy model for the PII scrubber (en_core_web_lg)"
-if "$py" -c 'import en_core_web_lg' >/dev/null 2>&1; then
-  info "already installed"
-elif [[ "${LATENT_SKIP_SPACY_MODEL:-0}" == "1" ]]; then
-  info "skipped (LATENT_SKIP_SPACY_MODEL=1); run '$py -m spacy download en_core_web_lg' later"
-else
-  "$py" -m spacy download en_core_web_lg
-fi
+step "Checking the spaCy model for the PII scrubber (en_core_web_lg)"
+"$py" -c 'import en_core_web_lg' >/dev/null 2>&1 \
+  || die "en_core_web_lg does not import after the backend install; it is pinned in backend/pyproject.toml, so re-run 'cd backend && $py -m pip install -e \".[dev]\"' and check its output"
+info "installed"
 
 step "Installing frontend dependencies"
 if [[ "${LATENT_SKIP_NPM:-0}" == "1" ]]; then
