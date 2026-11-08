@@ -1,6 +1,6 @@
 import { useId, useState } from 'react'
 import type { KeyboardEvent } from 'react'
-import { Bookmark, Mic, Search, Sparkles, X } from 'lucide-react'
+import { Bookmark, Mail, Mic, Search, Sparkles, X } from 'lucide-react'
 import type { VoiceAction } from '../../api/voice'
 import type { LibraryItem } from '../../api/library'
 
@@ -19,6 +19,8 @@ interface Props {
   onAction: (action: VoiceAction) => void
   onRerecord: () => void
   onDiscard: () => void
+  /** Optional (#67): hand the reviewed text to the read-only Outlook agent instead. */
+  onOutlook?: () => void
 }
 
 /**
@@ -61,6 +63,8 @@ export function TranscriptReview(props: Props) {
       <button type="button" className="voice-icon" onClick={props.onDiscard} aria-label="Discard" title="Discard"><X size={16} aria-hidden="true" /></button>
     </div>
 
+    {/* Outside the action row so the row still fits a 390 px phone (#67 review). */}
+    {props.onOutlook && !props.context && <button type="button" className="voice-link" disabled={locked || empty} onClick={props.onOutlook}><Mail size={14} aria-hidden="true" />Check Outlook instead…</button>}
     {!props.context && !showPicker && <button type="button" className="voice-link" disabled={locked} onClick={() => { setPickRelated(true); props.onLoad() }}>More like a saved item…</button>}
     {!props.context && showPicker && <div className="voice-related">
       {props.loading && <p role="status" className="voice-hint">Loading your saved items…</p>}

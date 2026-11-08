@@ -17,12 +17,14 @@ export interface VoiceCaptureProps {
   autoStart?: boolean
   /** Called when the user discards, or after an action has been handed to the pipeline. */
   onClose?: () => void
+  /** Optional (#67): open the read-only Outlook agent with the reviewed text. */
+  onOutlook?: (text: string) => void
 }
 
 const LIMIT_S = 30
 const clock = (s: number) => `0:${String(s).padStart(2, '0')}`
 
-export function VoiceCapture({ onJob, disabled = false, onBusyChange, autoStart = false, onClose }: VoiceCaptureProps) {
+export function VoiceCapture({ onJob, disabled = false, onBusyChange, autoStart = false, onClose, onOutlook }: VoiceCaptureProps) {
   const voice = useVoice(onJob, onBusyChange)
   const [items, setItems] = useState<LibraryItem[]>([])
   const [context, setContext] = useState<{ id: string; summary: string } | null>(null)
@@ -130,7 +132,8 @@ export function VoiceCapture({ onJob, disabled = false, onBusyChange, autoStart 
       {voice.phase === 'error' && voice.error && <p role="alert" className="voice-error">{voice.error}</p>}
       <TranscriptReview text={voice.text} busy={busy} disabled={disabled} items={items} context={context} loading={loading} libraryError={libraryError}
         onText={voice.setText} onLoad={() => { void load() }} onSelect={(id) => { void select(id) }} onRemove={clearContext}
-        onAction={(action) => { void act(action) }} onRerecord={record} onDiscard={discard} />
+        onAction={(action) => { void act(action) }} onRerecord={record} onDiscard={discard}
+        onOutlook={onOutlook ? () => { const text = voice.text.trim(); if (!text) return; cancel(); clearContext(); onOutlook(text); onClose?.() } : undefined} />
       {voice.phase === 'submitting' && <p role="status" className="voice-hint">Starting…</p>}
     </>}
 

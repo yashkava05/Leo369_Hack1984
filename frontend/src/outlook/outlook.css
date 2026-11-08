@@ -1,0 +1,54 @@
+/* Outlook browser-session panel (#67). Reuses the chat tokens so light/dark both work. */
+/* The voice-* button classes read --v-* variables, which .voice-capture defines; define them here too. */
+.outlook-panel { --v-text: var(--chat-ink, #18202c); --v-muted: var(--chat-muted, #5d6877); --v-surface: var(--chat-surface, #fff); --v-field: var(--chat-sunk, #f4f6f9); --v-border: var(--chat-line, #d6dce4); --v-accent: var(--chat-me, #3a3fd0); --v-on-accent: #fff; }
+.outlook-panel :is(button, select, input) { font: inherit; }
+.outlook-panel button { cursor: pointer; }
+.outlook-panel :is(button, select, input):focus-visible, .outlook-panel h3:focus-visible { outline: 2px solid var(--v-accent); outline-offset: 2px; }
+.outlook-panel h3:focus:not(:focus-visible) { outline: none; }
+.outlook-panel { box-sizing: border-box; min-width: 0; width: 100%; display: grid; gap: 10px; padding: 14px 16px; border: 1px solid var(--chat-line, #d6dce4); border-radius: 14px; background: var(--chat-surface, #fff); color: var(--chat-ink, #18202c); max-width: 680px; }
+.outlook-panel header { display: flex; align-items: center; gap: 10px; }
+.outlook-panel header > div { flex: 1; min-width: 0; }
+.outlook-panel h3 { margin: 0; font-size: 0.98rem; }
+.outlook-icon { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 9px; background: var(--chat-sunk, #f4f6f9); }
+.outlook-source { margin: 2px 0 0; font-size: 0.8rem; color: var(--chat-muted, #5d6877); overflow-wrap: anywhere; }
+.outlook-dot { display: inline-block; width: 7px; height: 7px; margin-right: 6px; border-radius: 50%; background: var(--chat-local, #0b8f7a); }
+.outlook-demo { display: flex; align-items: center; gap: 6px; margin: 0; padding: 6px 10px; border-radius: 8px; font-weight: 700; font-size: 0.78rem; letter-spacing: 0.02em; color: var(--chat-net, #b8701a); background: var(--chat-net-bg, #fbf0df); }
+.outlook-request { margin: 0; padding: 8px 10px; border-radius: 10px; background: var(--chat-sunk, #f4f6f9); font-size: 0.92rem; }
+.outlook-request span { display: block; font-size: 0.72rem; color: var(--chat-muted, #5d6877); text-transform: uppercase; letter-spacing: 0.04em; }
+.outlook-scope { display: grid; grid-template-columns: auto 1fr; gap: 6px 10px; align-items: center; margin: 0; padding: 10px; border: 1px solid var(--chat-line, #d6dce4); border-radius: 10px; }
+.outlook-scope legend { padding: 0 4px; font-size: 0.8rem; font-weight: 600; }
+.outlook-scope label { font-size: 0.85rem; }
+.outlook-scope select, .outlook-scope input { min-height: 34px; padding: 0 8px; border-radius: 8px; border: 1px solid var(--chat-line, #d6dce4); background: var(--chat-surface, #fff); color: inherit; font: inherit; }
+.outlook-scope input { width: 5.5em; }
+.outlook-scope .outlook-hint { grid-column: 1 / -1; }
+.outlook-hint { display: flex; gap: 6px; align-items: flex-start; margin: 0; font-size: 0.8rem; color: var(--chat-muted, #5d6877); }
+.outlook-steps { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; font-size: 0.86rem; }
+.outlook-steps li { display: flex; align-items: center; gap: 8px; }
+.outlook-steps li > span:first-of-type { flex: 1; }
+.outlook-steps li.is-idle { color: var(--chat-muted, #5d6877); }
+.outlook-steps li.is-error { color: var(--chat-block, #c23b2b); }
+.outlook-spin { animation: outlook-spin 1s linear infinite; }
+@keyframes outlook-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .outlook-spin { animation: none; } }
+.outlook-error { display: grid; gap: 8px; justify-items: start; padding: 10px; border-radius: 10px; color: var(--chat-block, #c23b2b); background: var(--chat-block-bg, #fbe7e4); font-size: 0.86rem; }
+.outlook-error p { margin: 0; }
+.outlook-results { display: grid; gap: 10px; }
+.outlook-coverage { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin: 0; font-size: 0.82rem; color: var(--chat-muted, #5d6877); }
+.outlook-tasks { display: grid; gap: 8px; }
+.outlook-task { padding: 10px 12px; border: 1px solid var(--chat-line, #d6dce4); border-radius: 12px; background: var(--chat-sunk, #f4f6f9); }
+.outlook-task h4 { display: flex; gap: 6px; align-items: center; margin: 0 0 6px; font-size: 0.92rem; }
+.outlook-task blockquote { margin: 0 0 6px; padding-left: 10px; border-left: 3px solid var(--chat-line, #d6dce4); font-size: 0.86rem; overflow-wrap: anywhere; }
+.outlook-meta { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; font-size: 0.76rem; color: var(--chat-muted, #5d6877); overflow-wrap: anywhere; }
+.outlook-deadline { font-weight: 600; color: var(--chat-net, #b8701a); }
+.outlook-emails summary { cursor: pointer; font-size: 0.86rem; font-weight: 600; }
+.outlook-emails ul { display: grid; gap: 8px; margin: 8px 0 0; padding: 0; list-style: none; }
+.outlook-emails li { display: grid; gap: 2px; padding: 8px 10px; border-radius: 10px; background: var(--chat-sunk, #f4f6f9); font-size: 0.86rem; overflow-wrap: anywhere; }
+.outlook-emails li.is-flagged { border: 1px dashed var(--chat-block, #c23b2b); }
+.outlook-flag { display: flex; gap: 4px; align-items: center; font-size: 0.76rem; color: var(--chat-block, #c23b2b); }
+.outlook-receipt { margin: 0; font-size: 0.76rem; color: var(--chat-muted, #5d6877); }
+.outlook-actions { flex-wrap: wrap; }
+@media (max-width: 480px) {
+  .outlook-panel { padding: 12px; }
+  .outlook-scope { grid-template-columns: 1fr; }
+  .outlook-actions .voice-primary { flex: 1 1 100%; justify-content: center; }
+}

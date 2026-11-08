@@ -6,10 +6,11 @@ from contextlib import asynccontextmanager
 from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app import egress, ollama, watch
+from app import browser_bridge, egress, ollama, watch
 from app.api import router as pipeline_router
 from app.config import get_settings
 from app.pipeline import scrub
+from app.routes.browser_agent import router as browser_agent_router
 from app.routes.feed import router as feed_router
 from app.routes.library import router as library_router
 from app.routes.mode import router as mode_router
@@ -31,9 +32,12 @@ async def lifespan(app: FastAPI):
         # The PII analyzer loads a spaCy model (a few seconds); mock mode never scrubs.
         await asyncio.to_thread(scrub.warm_up)
     watch.start(asyncio.get_running_loop())  # opt-in: no-op unless LATENT_WATCH_DIR is set
+    browser_bridge.publish_ui_secret()  # read by the Vite proxy (issue #67)
     try:
         yield
     finally:
+        browser_bridge.unpublish_ui_secret()
+        browser_bridge.reset()
         await asyncio.to_thread(watch.stop)
         if warmup is not None:
             warmup.cancel()
@@ -71,4 +75,5 @@ app.include_router(mode_router, prefix="/api")
 app.include_router(watch_router, prefix="/api")
 app.include_router(library_router, prefix="/api")
 app.include_router(voice_router, prefix="/api")
+app.include_router(browser_agent_router, prefix="/api")
 app.include_router(feed_router, prefix="/api")

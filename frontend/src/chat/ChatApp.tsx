@@ -5,6 +5,9 @@ import { MOCK } from '../api/client'
 import { VoiceCapture } from '../components/voice/VoiceCapture'
 import { ActionCard } from '../components/cards/ActionCard'
 import { useJob } from '../state/useJob'
+import { OutlookPanel } from '../outlook/OutlookPanel'
+import { liveDriver } from '../outlook/driver'
+import { createDemoDriver } from '../outlook/demo'
 import type { EgressRecord } from '../types'
 import type { ChatMessage } from './messages'
 import { beginVoiceJob, chooseAsk, loadOffline, releaseImages, reopenKept, say, sendImage, sendText, setVoiceBusy, syncJob, toggleOffline, useChat } from './store'
@@ -19,6 +22,9 @@ const SAMPLES = [
   { name: 'book_goodreads.png', title: 'Try a book', hint: 'Make room on your shelf', icon: '▤' },
   { name: 'doc_internal_email.png', title: 'Try a work email', hint: 'Keep the private bits private', icon: '✳' },
 ]
+
+// Demo mode never touches a browser extension: it uses the labelled fake inbox.
+const OUTLOOK_DRIVER = MOCK ? createDemoDriver() : liveDriver
 
 export function Orb({ small = false }: { small?: boolean }) {
   return <span aria-hidden="true" className={`chat-orb${small ? ' is-small' : ''}`}><span /></span>
@@ -41,6 +47,8 @@ export function ChatApp() {
   const [drawer, setDrawer] = useState(false)
   const [voiceOpen, setVoiceOpen] = useState(false)
   const [selectedReceipt, setSelectedReceipt] = useState<EgressRecord[] | null>(null)
+  // Private Outlook results live only inside the panel (#67), never in the chat store.
+  const [outlook, setOutlook] = useState<{ key: number; request: string } | null>(null)
   const attach = useRef<HTMLInputElement>(null)
   const scroller = useRef<HTMLDivElement>(null)
   const following = useRef(true)
@@ -158,12 +166,14 @@ export function ChatApp() {
                   <span className="chat-sample-art"><img src={`/samples/${item.name}`} alt="" /><span>{item.icon}</span></span><span className="chat-sample-label">{item.title}<small>{sampleLoading === item.name ? 'Opening sample…' : item.hint}</small></span><Plus size={14} aria-hidden="true" /></button>)}</div></div>}
               </div>)}
             </div>
+            {outlook && <div className="chat-agent-content"><OutlookPanel key={outlook.key} request={outlook.request} driver={OUTLOOK_DRIVER} offline={chat.offline === true} onClose={() => setOutlook(null)} /></div>}
           </main>
         </div>
         <div className="chat-composer-area">
           {MOCK && <p className="chat-demo-note"><span /> Demo mode · Sample results, no web searches sent</p>}
           <div id="chat-voice-controls" className="chat-voice-panel" hidden={!voiceOpen}>
-            {voiceOpen && <VoiceCapture autoStart disabled={chat.busy} onBusyChange={setVoiceBusy} onJob={beginVoiceJob} onClose={() => setVoiceOpen(false)} />}
+            {voiceOpen && <VoiceCapture autoStart disabled={chat.busy} onBusyChange={setVoiceBusy} onJob={beginVoiceJob} onClose={() => setVoiceOpen(false)}
+              onOutlook={(request) => { following.current = true; setOutlook({ key: Date.now(), request }) }} />}
           </div>
           <form className="chat-composer" onSubmit={submit} aria-label="Message composer">
             <button type="button" className="chat-attach" aria-label="Attach a screenshot" onClick={() => attach.current?.click()}><Plus size={21} aria-hidden="true" /></button>
