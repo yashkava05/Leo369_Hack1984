@@ -1,6 +1,6 @@
 import { useId, useState } from 'react'
 import type { KeyboardEvent } from 'react'
-import { Bookmark, Mic, Search, Sparkles, X } from 'lucide-react'
+import { Bookmark, Mail, Mic, Search, Sparkles, X } from 'lucide-react'
 import type { VoiceAction } from '../../api/voice'
 import type { LibraryItem } from '../../api/library'
 
@@ -19,6 +19,8 @@ interface Props {
   onAction: (action: VoiceAction) => void
   onRerecord: () => void
   onDiscard: () => void
+  /** Optional (#67): hand the reviewed text to the read-only Outlook agent instead. */
+  onOutlook?: () => void
 }
 
 /**
@@ -56,6 +58,7 @@ export function TranscriptReview(props: Props) {
         ? <button type="button" className="voice-primary" disabled={locked || props.loading || empty} onClick={() => props.onAction('related')}><Sparkles size={16} aria-hidden="true" />Find related</button>
         : <button type="button" className="voice-primary" disabled={locked || empty} onClick={() => props.onAction('explore')}><Search size={16} aria-hidden="true" />Search</button>}
       <button type="button" className="voice-secondary" disabled={locked || empty} onClick={() => props.onAction('save')}><Bookmark size={16} aria-hidden="true" />Save for later</button>
+      {props.onOutlook && !props.context && <button type="button" className="voice-secondary" disabled={locked || empty} onClick={props.onOutlook}><Mail size={16} aria-hidden="true" />Check Outlook</button>}
       <span className="voice-spacer" />
       <button type="button" className="voice-icon" disabled={locked} onClick={props.onRerecord} aria-label="Record again" title="Record again"><Mic size={16} aria-hidden="true" /></button>
       <button type="button" className="voice-icon" onClick={props.onDiscard} aria-label="Discard" title="Discard"><X size={16} aria-hidden="true" /></button>
