@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Latent — Pitch</title>
+<style>
+  :root {
+    --bg: #0b0f1a;
+    --panel: #121829;
+    --ink: #eef2fb;
+    --muted: #9aa6c2;
+    --accent: #7c8cff;
+    --accent2: #4fd1c5;
+    --local: #4fd1c5;
+    --net: #ff9e64;
+    --line: #273150;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: #05070d;
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .deck {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+    padding: 24px;
+  }
+  .slide {
+    position: relative;
+    width: 1280px;
+    height: 720px;
+    background: radial-gradient(1200px 700px at 80% -10%, #16203b 0%, var(--bg) 55%);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 56px 64px;
+    overflow: hidden;
+  }
+  .kicker {
+    text-transform: uppercase;
+    letter-spacing: .18em;
+    font-size: 15px;
+    color: var(--accent);
+    font-weight: 700;
+    margin: 0 0 10px;
+  }
+  h1 { font-size: 52px; line-height: 1.05; margin: 0 0 18px; font-weight: 800; }
+  h2 { font-size: 28px; margin: 0 0 10px; font-weight: 700; }
+  p { font-size: 22px; line-height: 1.45; color: var(--ink); margin: 0 0 14px; }
+  .muted { color: var(--muted); }
+  .lead { font-size: 26px; color: var(--muted); max-width: 980px; }
+  ul { font-size: 22px; line-height: 1.5; margin: 0 0 12px; padding-left: 26px; }
+  li { margin-bottom: 10px; }
+  .pagenum {
+    position: absolute;
+    bottom: 22px;
+    right: 28px;
+    font-size: 14px;
+    color: var(--muted);
+  }
+  .brand {
+    position: absolute;
+    bottom: 22px;
+    left: 64px;
+    font-size: 14px;
+    color: var(--muted);
+    letter-spacing: .04em;
+  }
+  .two {
+    display: grid;
+    grid-template-columns: 1.05fr 1fr;
+    gap: 40px;
+    align-items: start;
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 20px 22px;
+  }
+  .card h3 { margin: 0 0 8px; font-size: 20px; }
+  .card p { font-size: 18px; margin: 0; color: var(--muted); }
+  .still {
+    width: 100%;
+    border-radius: 10px;
+    border: 1px solid var(--line);
+    background: #fff;
+    object-fit: cover;
+    object-position: top;
+    max-height: 430px;
+  }
+  .tag {
+    display: inline-block;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: .06em;
+    padding: 3px 10px;
+    border-radius: 999px;
+    text-transform: uppercase;
+  }
+  .tag.local { background: rgba(79,209,197,.14); color: var(--local); border: 1px solid rgba(79,209,197,.4); }
+  .tag.net { background: rgba(255,158,100,.14); color: var(--net); border: 1px solid rgba(255,158,100,.4); }
+  .rules { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 28px; font-size: 19px; }
+  .rules .n { color: var(--accent); font-weight: 800; }
+  .rule { display: flex; gap: 10px; align-items: baseline; }
+  .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin: 6px 0 14px; }
+  .metric { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; text-align: center; }
+  .metric .v { font-size: 34px; font-weight: 800; color: var(--accent2); }
+  .metric .k { font-size: 15px; color: var(--muted); margin-top: 4px; }
+  .placeholder { color: var(--net); font-style: italic; font-size: 15px; }
+  .note { font-size: 15px; color: var(--muted); }
+  .handoff {
+    margin-top: 18px;
+    display: inline-block;
+    font-size: 18px;
+    font-weight: 700;
+    color: #05070d;
+    background: var(--accent2);
+    padding: 8px 16px;
+    border-radius: 999px;
+  }
+  .claim {
+    font-size: 24px;
+    line-height: 1.4;
+    border-left: 3px solid var(--accent2);
+    padding-left: 18px;
+    color: var(--ink);
+  }
+  /* architecture diagram */
+  svg { width: 100%; height: auto; }
+  /* print: one slide per page, exactly 6 pages */
+  @page { size: 1280px 720px; margin: 0; }
+  @media print {
+    html, body { background: #fff; }
+    .deck { gap: 0; padding: 0; }
+    .slide {
+      border: none;
+      border-radius: 0;
+      width: 1280px;
+      height: 720px;
+      page-break-after: always;
+      break-after: page;
+    }
+    .slide:last-child { page-break-after: auto; break-after: auto; }
+  }
+</style>
+</head>
+<body>
+<div class="deck">
+
+  <!-- SLIDE 1 — PROBLEM -->
+  <section class="slide">
+    <p class="kicker">Problem</p>
+    <h1>Your camera roll is a graveyard of intentions.</h1>
+    <p class="lead">We screenshot concert flyers, products, books, places and charts meaning to act &mdash; then they're buried forever. Nothing turns a screenshot into the next step.</p>
+    <div class="two" style="margin-top:28px;">
+      <div class="card">
+        <h3>Cloud screen assistants can't touch a work device</h3>
+        <p>"Read my screen" tools ship pixels to someone else's servers. On devices under NDAs, SOC&nbsp;2 / HIPAA / GDPR duties, that's a non-starter &mdash; the useful screenshots are exactly the ones you can't upload.</p>
+      </div>
+      <div class="card">
+        <h3>So the intent dies</h3>
+        <p>No safe path from screenshot &rarr; action means people fall back to manual copy-paste, or just forget. The value is stranded on-device.</p>
+      </div>
+    </div>
+    <div class="brand">Latent &middot; HACK1984</div>
+    <div class="pagenum">1 / 6</div>
+  </section>
+
+  <!-- SLIDE 2 — LATENT -->
+  <section class="slide">
+    <p class="kicker">Latent</p>
+    <h1>Drop a screenshot. Get actions &mdash; privately.</h1>
+    <div class="two">
+      <div>
+        <p class="lead">Latent is a local-first memory agent: a screenshot is understood by a vision model <strong>on your machine</strong>, private data is scrubbed, and only short text queries leave &mdash; blooming into action cards you can act on.</p>
+        <p class="claim">No image or raw text leaves the device &mdash; enforced by code and shown in the audit log.</p>
+        <div class="handoff">&rarr; Hand off to the live demo</div>
+      </div>
+      <div>
+        <img class="still" src="../screenshots/card-gallery.png" alt="Action cards blooming from a screenshot" />
+        <p class="note" style="margin-top:8px;">Action cards (fixture gallery). Swap for a bloom still once the WebGL dashboard (#13) lands.</p>
+      </div>
+    </div>
+    <div class="brand">Latent &middot; HACK1984</div>
+    <div class="pagenum">2 / 6</div>
+  </section>
+
+  <!-- SLIDE 3 — ARCHITECTURE -->
+  <section class="slide">
+    <p class="kicker">Architecture</p>
+    <h1>One door to the network.</h1>
+    <svg viewBox="0 0 1160 430" role="img" aria-label="Latent architecture: local zone to egress guard to network zone">
+      <defs>
+        <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+          <path d="M0,0 L8,3 L0,6 Z" fill="#7c8cff" />
+        </marker>
+        <marker id="arrowg" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+          <path d="M0,0 L8,3 L0,6 Z" fill="#4fd1c5" />
+        </marker>
+      </defs>
+
+      <!-- LOCAL ZONE -->
+      <rect x="10" y="20" width="560" height="390" rx="14" fill="rgba(79,209,197,.06)" stroke="#4fd1c5" stroke-dasharray="6 5" />
+      <text x="34" y="52" fill="#4fd1c5" font-size="20" font-weight="700" font-family="sans-serif">LOCAL ZONE &mdash; your machine</text>
+
+      <rect x="34" y="72" width="512" height="68" rx="10" fill="#121829" stroke="#273150" />
+      <text x="54" y="104" fill="#eef2fb" font-size="19" font-weight="700" font-family="sans-serif">Qwen2.5-VL &middot; Ollama</text>
+      <text x="54" y="126" fill="#9aa6c2" font-size="15" font-family="sans-serif">loopback only &mdash; image bytes stay in memory</text>
+
+      <rect x="34" y="156" width="512" height="68" rx="10" fill="#121829" stroke="#273150" />
+      <text x="54" y="188" fill="#eef2fb" font-size="19" font-weight="700" font-family="sans-serif">PII scrubber (Presidio + spaCy)</text>
+      <text x="54" y="210" fill="#9aa6c2" font-size="15" font-family="sans-serif">deterministic second pass; counts, never values</text>
+
+      <rect x="34" y="240" width="512" height="68" rx="10" fill="#121829" stroke="#273150" />
+      <text x="54" y="272" fill="#eef2fb" font-size="19" font-weight="700" font-family="sans-serif">Query builder</text>
+      <text x="54" y="294" fill="#9aa6c2" font-size="15" font-family="sans-serif">short text from public entities + fixed templates</text>
+
+      <text x="34" y="352" fill="#4fd1c5" font-size="15" font-family="sans-serif">extract &rarr; scrub &rarr; build_queries</text>
+
+      <!-- EGRESS GUARD -->
+      <rect x="470" y="150" width="140" height="130" rx="12" fill="#1a2236" stroke="#7c8cff" stroke-width="2" />
+      <text x="540" y="200" fill="#7c8cff" font-size="18" font-weight="800" font-family="sans-serif" text-anchor="middle">EGRESS</text>
+      <text x="540" y="224" fill="#7c8cff" font-size="18" font-weight="800" font-family="sans-serif" text-anchor="middle">GUARD</text>
+      <text x="540" y="252" fill="#9aa6c2" font-size="13" font-family="sans-serif" text-anchor="middle">egress.py</text>
+
+      <!-- arrow guard -> network -->
+      <line x1="610" y1="215" x2="710" y2="215" stroke="#4fd1c5" stroke-width="3" marker-end="url(#arrowg)" />
+      <text x="660" y="200" fill="#4fd1c5" font-size="14" font-weight="700" font-family="sans-serif" text-anchor="middle">text queries only</text>
+      <text x="660" y="236" fill="#4fd1c5" font-size="14" font-weight="700" font-family="sans-serif" text-anchor="middle">&le; 4 KB</text>
+
+      <!-- NETWORK ZONE -->
+      <rect x="720" y="20" width="430" height="390" rx="14" fill="rgba(255,158,100,.06)" stroke="#ff9e64" stroke-dasharray="6 5" />
+      <text x="744" y="52" fill="#ff9e64" font-size="20" font-weight="700" font-family="sans-serif">NETWORK ZONE</text>
+
+      <rect x="744" y="110" width="380" height="76" rx="10" fill="#121829" stroke="#273150" />
+      <text x="764" y="146" fill="#eef2fb" font-size="20" font-weight="700" font-family="sans-serif">Tavily search</text>
+      <text x="764" y="170" fill="#9aa6c2" font-size="15" font-family="sans-serif">api.tavily.com &middot; https &middot; key in header</text>
+
+      <rect x="744" y="210" width="380" height="76" rx="10" fill="#121829" stroke="#273150" stroke-dasharray="5 4" />
+      <text x="764" y="246" fill="#eef2fb" font-size="20" font-weight="700" font-family="sans-serif">Exa <tspan fill="#ff9e64" font-size="14">(stretch)</tspan></text>
+      <text x="764" y="270" fill="#9aa6c2" font-size="15" font-family="sans-serif">api.exa.ai &middot; same door</text>
+
+      <text x="744" y="340" fill="#ff9e64" font-size="15" font-family="sans-serif">results &rarr; action cards</text>
+    </svg>
+    <p class="note" style="margin-top:6px;">Image bytes never cross the dashed local boundary. Ollama is reached only via <code>egress.local_client()</code> (loopback). Every outbound request passes <code>egress.internet_post</code>.</p>
+    <div class="brand">Latent &middot; HACK1984</div>
+    <div class="pagenum">3 / 6</div>
+  </section>
+
+  <!-- SLIDE 4 — PROOF -->
+  <section class="slide">
+    <p class="kicker">Proof</p>
+    <h1>Enforced by code, measured by eval.</h1>
+    <div class="metrics">
+      <div class="metric"><div class="v">10</div><div class="k">synthetic screenshots<br/>(planted fake PII)</div></div>
+      <div class="metric"><div class="v">&mdash;%</div><div class="k">intent accuracy<br/><span class="placeholder">[run before demo]</span></div></div>
+      <div class="metric"><div class="v">0</div><div class="k">leaks target<br/><span class="placeholder">[confirm in results.md]</span></div></div>
+      <div class="metric"><div class="v">&mdash;s</div><div class="k">latency p50<br/><span class="placeholder">[run before demo]</span></div></div>
+    </div>
+    <p class="note" style="margin-top:-2px;">Eval numbers are placeholders &mdash; <strong>[from <code>eval/results.md</code> &mdash; run <code>LATENT_OFFLINE=1 python eval/run_eval.py</code> before the demo]</strong>. Leak = any planted <code>must_not_appear</code> string in the scrubbed Intent or any query.</p>
+    <div class="two" style="margin-top:14px;">
+      <div>
+        <h2>The six egress rules (<code>egress.py</code>)</h2>
+        <div class="rules">
+          <div class="rule"><span class="n">1</span><span>Air-gap: <code>LATENT_OFFLINE=1</code> blocks everything</span></div>
+          <div class="rule"><span class="n">2</span><span>Allow-list host, https, default port</span></div>
+          <div class="rule"><span class="n">3</span><span>Body &le; 4096 bytes (no image fits)</span></div>
+          <div class="rule"><span class="n">4</span><span>No base64-like blob (200+ chars)</span></div>
+          <div class="rule"><span class="n">5</span><span>PII check finds nothing in the body</span></div>
+          <div class="rule"><span class="n">6</span><span>No API key in body (headers only)</span></div>
+        </div>
+      </div>
+      <div>
+        <h2>Air-gap demo</h2>
+        <p style="font-size:19px;">Flip the air-gap toggle, drop an internal email: extraction still finishes <span class="tag local">Local</span>, search is blocked <span class="tag net">Net ✕</span>. The audit log shows the attempt, its byte count and the reason.</p>
+      </div>
+    </div>
+    <div class="brand">Latent &middot; HACK1984</div>
+    <div class="pagenum">4 / 6</div>
+  </section>
+
+  <!-- SLIDE 5 — BUSINESS MODEL -->
+  <section class="slide">
+    <p class="kicker">Business model</p>
+    <h1>Privacy is the product &mdash; and the moat.</h1>
+    <div class="two" style="margin-top:20px;">
+      <div class="card">
+        <h3>B2C &mdash; affiliate share</h3>
+        <p style="color:var(--ink);font-size:20px;">Action cards link to tickets, shopping and books. A planned <code>affiliate.tag_url</code> hook tags those outbound links for a referral share. Free to the user; revenue on intent we already surfaced.</p>
+        <p class="note" style="margin-top:10px;">Planned, not shipped &mdash; the hook is in open PR&nbsp;#35.</p>
+      </div>
+      <div class="card">
+        <h3>B2B &mdash; enterprise tier</h3>
+        <p style="color:var(--ink);font-size:20px;">The exact thing that blocks cloud assistants is our sale:</p>
+        <ul style="font-size:19px;color:var(--ink);margin-top:8px;">
+          <li>On-prem / fully local model</li>
+          <li>Policy controls over what may leave</li>
+          <li>Audit-log export for compliance</li>
+        </ul>
+      </div>
+    </div>
+    <p class="muted" style="margin-top:22px;font-size:20px;">Same engine, two doors: consumers get convenience, enterprises get provable control.</p>
+    <div class="brand">Latent &middot; HACK1984</div>
+    <div class="pagenum">5 / 6</div>
+  </section>
+
+  <!-- SLIDE 6 — TRACKS + ASK -->
+  <section class="slide">
+    <p class="kicker">Tracks &amp; ask</p>
+    <h1>Three tracks, one build.</h1>
+    <div class="two">
+      <div>
+        <ul style="font-size:20px;">
+          <li><strong>Privacy-First (main):</strong> single egress door, six enforced rules, air-gap toggle, visible audit log.</li>
+          <li><strong>SURGE (Tavily &amp; Exa):</strong> sanitized text queries drive Tavily today; Exa through the same door as a stretch.</li>
+          <li><strong>Most Startup-able:</strong> B2C affiliate + B2B on-prem tier on one engine.</li>
+        </ul>
+      </div>
+      <div>
+        <h2>What's next</h2>
+        <ul style="font-size:20px;">
+          <li>WebGL bloom dashboard (#13)</li>
+          <li>Exa search + affiliate hook (PRs in flight)</li>
+          <li>Run the eval, publish the numbers</li>
+        </ul>
+        <h2 style="margin-top:14px;">Team</h2>
+        <p style="font-size:20px;">[Team names]</p>
+      </div>
+    </div>
+    <p class="claim" style="margin-top:20px;">The ask: back the local-first agent that turns stranded screenshots into action &mdash; without the pixels ever leaving the device.</p>
+    <div class="brand">Latent &middot; HACK1984</div>
+    <div class="pagenum">6 / 6</div>
+  </section>
+
+</div>
+</body>
+</html>

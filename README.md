@@ -108,6 +108,13 @@ eval/                   screenshots/, expected.json, run_eval.py
 scripts/setup.sh        one-shot local setup
 ```
 
+## Pitch
+
+The 6-slide pitch deck (problem, architecture, proof, business model, tracks) lives in
+[`docs/pitch/`](docs/pitch/) — [`index.html`](docs/pitch/index.html) is a self-contained deck and
+[`notes.md`](docs/pitch/notes.md) has the slide text plus speaker notes. Exported PDF:
+[`docs/pitch.pdf`](docs/pitch.pdf).
+
 ## Team rules
 
 - One branch per issue, named `<number>-<slug>` (for example `1-repo-scaffold`).
