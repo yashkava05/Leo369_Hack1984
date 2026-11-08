@@ -28,7 +28,8 @@ export function useHealth(pollMs: number = HEALTH_POLL_MS): HealthState {
 
     const poll = async () => {
       try {
-        const [health, mode] = await Promise.all([getHealth(), modeKnown ? null : getMode()])
+        // /api/mode is optional (an older backend lacks it): its failure must not read as "backend down".
+        const [health, mode] = await Promise.all([getHealth(), modeKnown ? null : getMode().catch(() => null)])
         if (!active) return
         if (mode) modeKnown = true
         setState((prev) => ({ health, backendMock: mode ? mode.mock : prev.backendMock, unreachable: false }))
@@ -57,7 +58,7 @@ export interface Banner {
 /** The banners to show for a health state, most severe first. Pure, so it is unit-tested. */
 export function healthBanners({ health, backendMock, unreachable }: HealthState): Banner[] {
   if (unreachable) {
-    return [{ id: 'backend', level: 'error', text: 'Backend not reachable on :8000 — start it with scripts/dev.sh' }]
+    return [{ id: 'backend', level: 'error', text: 'Backend not reachable — start it with scripts/dev.sh' }]
   }
   if (!health) return []
   const banners: Banner[] = []
