@@ -270,3 +270,18 @@ it('persists the Kept label from public entities without the private intent summ
   expect(JSON.parse(stored)[0].label).toBe('Lumen Festival')
   expect(stored).not.toContain('synthetic-private-summary-do-not-persist')
 })
+
+
+it('shows locally extracted image links without claiming a web search or saving them', async () => {
+  await store.sendImage(image())
+  const extracted = result()
+  extracted.intent!.intent_type = 'other'
+  extracted.intent!.public_entities = []
+  extracted.queries = []; extracted.egress = []
+  extracted.cards = [{ ...extracted.cards[0], kind: 'link', source: 'on-device', title: 'My website', url: 'https://folio.example' }]
+  store.syncJob({ status: 'done', result: extracted, events: [] })
+  expect(replies().at(-1)).toContain('1 complete link')
+  expect(replies().at(-1)).toContain('no websites were visited')
+  expect(asks()).toHaveLength(0)
+  expect(storage.size).toBe(0)
+})

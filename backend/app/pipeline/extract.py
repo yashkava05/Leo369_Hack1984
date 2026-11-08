@@ -7,6 +7,7 @@ only; `scrub.py` re-checks the result afterwards.
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import io
 import logging
@@ -20,6 +21,7 @@ from pydantic import ValidationError
 from app import egress
 from app.config import get_settings
 from app.models import Entity, Intent
+from app.pipeline.image_links import ScreenshotIntent, native_image_links
 from app.pipeline.prompts import (
     REDACTION_CATEGORIES,
     RETRY_PROMPT,
@@ -85,7 +87,7 @@ def _chat_body(model: str, png_b64: str, user_text: str) -> dict:
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": user_text, "images": [png_b64]},
         ],
-        "format": Intent.model_json_schema(),
+        "format": ScreenshotIntent.model_json_schema(),
         "options": {"temperature": 0},
         "stream": False,
         "keep_alive": KEEP_ALIVE,
@@ -102,7 +104,7 @@ async def _ask(client: httpx.AsyncClient, body: dict) -> Intent:
     if not isinstance(content, str):
         raise ModelOutputInvalid("message.content is not a string")
     try:
-        return Intent.model_validate_json(content)
+        return ScreenshotIntent.model_validate_json(content)
     except ValidationError as exc:
         raise ModelOutputInvalid(str(exc)) from exc
 
@@ -133,7 +135,10 @@ def clamp(intent: Intent) -> Intent:
     if len(summary) > MAX_SUMMARY_CHARS:
         summary = summary[: MAX_SUMMARY_CHARS - 1].rstrip() + "…"
 
-    return Intent(
+    model = ScreenshotIntent if isinstance(intent, ScreenshotIntent) else Intent
+    links = {"visible_links": intent.visible_links} if isinstance(intent, ScreenshotIntent) else {}
+    return model(
+        **links,
         intent_type=intent.intent_type,
         summary=summary,
         public_entities=entities,
@@ -175,7 +180,9 @@ async def extract_intent(image_bytes: bytes, emit: Emit) -> Intent:
             intent = await _ask(client, _chat_body(settings.latent_model, png_b64, user_text))
             break
         except ModelOutputInvalid as exc:
-            log.warning("extract attempt %d: invalid model output: %s", attempt, exc)
+            log.warning(
+                "extract attempt %d: invalid model output (%s)", attempt, type(exc).__name__
+            )
             if attempt == 2:
                 break
             await emit(STAGE, "progress", "Model output did not match the schema; retrying once…")
@@ -196,6 +203,13 @@ async def extract_intent(image_bytes: bytes, emit: Emit) -> Intent:
         return FALLBACK_INTENT
 
     intent = clamp(intent)
+    if intent.intent_type == "other":
+        # Native OCR takes precedence over model guesses for visible URL characters.
+        recognized = await asyncio.to_thread(native_image_links, image_bytes)
+        if recognized:
+            intent = ScreenshotIntent(
+                **intent.model_dump(include=set(Intent.model_fields)), visible_links=recognized
+            )
     withheld = sum(intent.redaction_counts.values())
     log.info(
         "extract: %s, %d entities, %d withheld, %.2f s",

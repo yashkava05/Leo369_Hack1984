@@ -4,7 +4,7 @@ import type { Card, CardAction, CardKind } from '../../types'
 /** Kinds built on this device from the screenshot itself rather than from a search result. */
 export const LOCAL_KINDS: ReadonlySet<CardKind> = new Set<CardKind>(['calendar', 'place'])
 
-export const isLocalCard = (card: Card): boolean => LOCAL_KINDS.has(card.kind)
+export const isLocalCard = (card: Card): boolean => LOCAL_KINDS.has(card.kind) || card.source === 'on-device'
 
 /** Only http(s) links are opened; card data comes from the network and must not run script URLs. */
 export function safeHttpUrl(url: string | null | undefined): string | null {
