@@ -26,6 +26,8 @@ class Settings(BaseSettings):
     # Local intent library (issue #21): SQLite file, default ~/.latent/latent.db.
     latent_db_path: str = ""
     latent_keep_thumbs: bool = False  # store a 256 px JPEG thumbnail per saved job
+    # Demo safety net (issue #17): a failed Tavily call is answered from recorded responses.
+    demo_fallback: bool = False
     cors_origins: list[str] = ["http://localhost:5173"]
 
 
