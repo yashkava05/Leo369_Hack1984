@@ -2,7 +2,7 @@ import { API_URL } from '../api/client'
 import type { BrowserJobView, ExtensionHello, ReadScope } from './types'
 
 /**
- * The two halves of a real read: the Latent backend (job, nonce, local analysis) and the Latent
+ * The two halves of a real read: the PrismLocal backend (job, nonce, local analysis) and the PrismLocal
  * extension (the only thing that can see the authorized Outlook tab). The demo driver in
  * demo.ts implements the same interface with a clearly labelled fake inbox.
  */
@@ -37,7 +37,7 @@ function runtime(): ChromeRuntime | null {
   return chrome?.runtime?.sendMessage ? chrome.runtime : null
 }
 
-/** Message the Latent extension. Pages other than the Latent UI cannot reach it (manifest). */
+/** Message the PrismLocal extension. Pages other than the PrismLocal UI cannot reach it (manifest). */
 export function sendToExtension<T>(message: Record<string, unknown>, id = EXTENSION_ID): Promise<T> {
   const rt = runtime()
   // chrome.runtime is only exposed to pages listed in some extension's externally_connectable.

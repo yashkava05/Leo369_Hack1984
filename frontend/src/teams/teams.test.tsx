@@ -76,7 +76,7 @@ describe('demo session', () => {
     expect(html).toContain('no message link available')
     expect(html).toContain('took no tasks from it')
     expect(html).not.toContain('post this chat')
-    expect(html).toContain('internet requests from Latent: 0')
+    expect(html).toContain('internet requests from PrismLocal: 0')
     expect(html).toContain('not done automatically')
   })
 

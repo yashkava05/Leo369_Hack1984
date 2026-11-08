@@ -44,7 +44,7 @@ describe('demo session', () => {
     expect(html).toContain('“Please review the Northwind Fabrics contract by Friday.”')
     expect(html).toContain('Email 1 of 4')
     expect(html).toContain('did not act on them')
-    expect(html).toContain('requests from Latent to Tavily/Exa: 0')
+    expect(html).toContain('requests from PrismLocal to Tavily/Exa: 0')
     expect(html).toContain('demo analysis')
   })
 

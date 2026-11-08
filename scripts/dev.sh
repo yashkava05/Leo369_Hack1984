@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Latent dev: one command brings the whole app up. Run from anywhere after ./scripts/setup.sh:
+# PrismLocal dev: one command brings the whole app up. Run from anywhere after ./scripts/setup.sh:
 #
 #   ./scripts/dev.sh
 #

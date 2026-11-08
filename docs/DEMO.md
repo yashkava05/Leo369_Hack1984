@@ -1,10 +1,10 @@
-# Latent demo script
+# PrismLocal demo script
 
 The demo is judged in about 2 minutes, on someone else's Wi-Fi, with a local model that may be
 cold. This page is the plan: the timed script with exact words, the checklist for the demo laptop,
 the fallback plan if something breaks, and the rehearsal log.
 
-The demo runs on the chat screen at http://localhost:5173: you send Latent a screenshot, its work
+The demo runs on the chat screen at http://localhost:5173: you send PrismLocal a screenshot, its work
 steps tag every stage **On device** or **Internet**, it replies with action cards and a privacy
 receipt, and it asks before it acts. The older Terminal + Dashboard layout is still at
 http://localhost:5173/?view=classic; the fallback plan says when to switch to it.
@@ -17,7 +17,7 @@ the demo and never replace it with a made-up number.
 | Role | Who | Does |
 | --- | --- | --- |
 | Narrator | [TBD: name] | Says the lines below, faces the judges, keeps time |
-| Driver | [TBD: name] | Drives the laptop: drops screenshots on the chat, answers Latent's questions, flips the air-gap switch, opens Receipts |
+| Driver | [TBD: name] | Drives the laptop: drops screenshots on the chat, answers PrismLocal's questions, flips the air-gap switch, opens Receipts |
 | Backup | [TBD: name] | Watches the timer and the work steps; switches to `?view=classic` or starts the backup video if the laptop fails |
 
 ## Screenshots
@@ -31,7 +31,7 @@ figure in them is made up.
   confidential figures. Its only public entity is the topic ("edge AI").
 
 The same two images are also the **Try a concert flyer** and **Try a work email** chips under
-Latent's welcome message. Clicking a chip sends that sample exactly as a drop would, so the driver
+PrismLocal's welcome message. Clicking a chip sends that sample exactly as a drop would, so the driver
 can use it if dragging from the desktop fails.
 
 ## The script (target 90 s, hard limit 100 s)
@@ -54,10 +54,10 @@ What the driver needs to know about the chat screen:
 ### 0–10 s · Problem (empty chat on screen)
 
 > "Your camera roll is a graveyard of intentions. Concerts you meant to go to, products you meant
-> to compare. Latent turns a screenshot into the next step, without your screenshot leaving your
+> to compare. PrismLocal turns a screenshot into the next step, without your screenshot leaving your
 > laptop."
 
-Driver: Latent is open on a fresh chat: the welcome message and the four sample chips, header
+Driver: PrismLocal is open on a fresh chat: the welcome message and the four sample chips, header
 status "Works on this device", **Air-gap** off.
 
 ### 10–40 s · Drop the concert post (work steps)
@@ -77,7 +77,7 @@ the summary line to open them.
 
 ### 40–55 s · Cards and the calendar approval
 
-Latent replies ("Looks like you want to see ... Here's what I found."), the cards appear in a row,
+PrismLocal replies ("Looks like you want to see ... Here's what I found."), the cards appear in a row,
 then the receipt pill and the question "Want me to put it on your calendar?".
 
 > "Tickets, the venue on a map, and the date. It asks before it does anything: yes, put it in my
@@ -86,7 +86,7 @@ then the receipt pill and the question "Want me to put it on your calendar?".
 (Name only the cards that actually appear.)
 
 Driver clicks **Add to calendar** under the question. The `.ics` downloads (it was built
-on-device), Latent says "Done. Your calendar file is ready." and the result appears under **Kept
+on-device), PrismLocal says "Done. Your calendar file is ready." and the result appears under **Kept
 for later** in the sidebar.
 
 ### 55–80 s · Air-gap and the receipts
@@ -98,19 +98,19 @@ device". Driver drops `doc_internal_email.png` (or clicks **Try a work email**).
 > search is blocked at the egress guard: nothing leaves."
 
 Point at: the **Internet** step "Blocked: offline mode" and the receipt pill "Nothing left this
-device. 2 searches blocked." Latent asks "Turn air-gap off and finish?".
+device. 2 searches blocked." PrismLocal asks "Turn air-gap off and finish?".
 
-Driver clicks **Turn off and finish**. Latent turns air-gap off and runs the same screenshot again,
+Driver clicks **Turn off and finish**. PrismLocal turns air-gap off and runs the same screenshot again,
 so there is no second drop.
 
 > "...and all that goes out is a search about the public topic, edge AI. No names, no codename, no
 > figures. Here are the receipts: every request that left this device, with its size."
 
-(Say the topic Latent names in its reply: "I ... only searched the general topic: ...".)
+(Say the topic PrismLocal names in its reply: "I ... only searched the general topic: ...".)
 
 Driver clicks **Receipts** (top right) and points at the summary line ("Image data sent: 0 bytes.
 N text searches sent, ... bytes. N blocked."), a "Blocked: offline mode" row and a "Sent N bytes"
-row. Close the drawer. If Latent asks to save these cards, leave the question unanswered.
+row. Close the drawer. If PrismLocal asks to save these cards, leave the question unanswered.
 
 If a **Related** card (from Exa) appears among the cards, point at it: "plus related reading from
 Exa." If none appears, say nothing about Exa. The script works either way, and Exa may be out of
@@ -118,7 +118,7 @@ credits.
 
 ### 80–90 s · Close (chat)
 
-> "Latent: local-first, privacy enforced and auditable. Built for Privacy-First, SURGE with Tavily
+> "PrismLocal: local-first, privacy enforced and auditable. Built for Privacy-First, SURGE with Tavily
 > and Exa, and Most Startup-able: free for consumers with an affiliate share on tickets and
 > products, and an on-prem tier for teams that can't use cloud assistants."
 
@@ -164,7 +164,7 @@ Five minutes before:
       browser's `localStorage` under `latent:kept`).
 - [ ] `concert_ig.png` and `doc_internal_email.png` are on the desktop.
 - [ ] Do Not Disturb on; notifications, chat apps and email closed.
-- [ ] Browser zoom 110%, one window, only the Latent tab plus the backup video tab. The window is
+- [ ] Browser zoom 110%, one window, only the PrismLocal tab plus the backup video tab. The window is
       wide enough to show the sidebar with **Kept for later**.
 - [ ] Backup video open in another tab, paused at 0:00: [TBD: link].
 - [ ] Laptop on power, sleep disabled, screen mirroring tested on the venue projector.
@@ -181,7 +181,7 @@ With `DEMO_FALLBACK=1`, when a Tavily call fails or times out, the backend answe
 recorded response.
 
 On the chat screen it looks like this: the **Internet** step turns red with the error (for example
-`search ✕ Tavily unreachable`), Latent says "Some web searches couldn't finish. Check the API key
+`search ✕ Tavily unreachable`), PrismLocal says "Some web searches couldn't finish. Check the API key
 and connection in your backend, then try again. The options built on this device are still here.",
 and the cards from the recording still appear. The chat does **not** label these results as
 recorded. Only the classic view's terminal does, with a LOCAL line
@@ -198,7 +198,7 @@ What it never does:
   `search ✕ no recorded result for '<query>'` and the turn ends with on-device cards only.
 
 Line to say if it happens: "The venue Wi-Fi just dropped, so these are Tavily results we recorded
-earlier for this exact query. Latent shows the search as failed, and the cards come from that
+earlier for this exact query. PrismLocal shows the search as failed, and the cards come from that
 recording."
 
 Limits to know:
@@ -282,14 +282,14 @@ beat runs long.
 
 ## Submission text (paste into the hackathon portal)
 
-> **Latent: your screenshots, turned into actions, without your screenshots leaving your laptop.**
+> **PrismLocal: your screenshots, turned into actions, without your screenshots leaving your laptop.**
 >
-> Your camera roll is a graveyard of intentions. Send Latent a screenshot and a vision model
+> Your camera roll is a graveyard of intentions. Send PrismLocal a screenshot and a vision model
 > running on your own machine (Qwen2.5-VL through Ollama) works out what you meant to do and pulls
 > out the public facts: the artist and venue on a concert flyer, the product in a shop post. A
 > deterministic PII scrubber removes names, handles, emails, phone numbers and account numbers on
 > the device. Only short text queries built from public facts go out, through one egress guard with
-> six rules, to Tavily (and Exa for related reading). Latent replies in a chat with action cards:
+> six rules, to Tavily (and Exa for related reading). PrismLocal replies in a chat with action cards:
 > tickets, a map pin, a calendar file it creates only after you say yes. Its work steps tag every
 > stage On device or Internet, a privacy receipt under each reply shows exactly what left, an
 > air-gap switch cuts the network entirely, and Receipts lists every request and its size. Privacy

@@ -12,7 +12,7 @@ import { deleteMemory, initialSaved, keepSaved, resolvePending, syncSaved } from
 import type { SavedView } from './saved'
 import type { ChatMessage, KeptItem } from './messages'
 
-export const WELCOME = "Hi, I'm Prism—your entirely private, on-device AI assistant. We all save things for later—a quick screenshot, a voice note, a typed idea—and then completely forget about them. I'm here to give those scattered thoughts a purpose. I remember what matters to you and automatically turn your ideas into real next steps: booking tickets, finding products, or organizing a private feed just for you. Your personal data never leaves this computer; I only search the public web when you ask me to. Drop a screenshot, type a thought, or just say hello to get started."
+export const WELCOME = "Hi, I'm PrismLocal—your entirely private, on-device AI assistant. We all save things for later—a quick screenshot, a voice note, a typed idea—and then completely forget about them. I'm here to give those scattered thoughts a purpose. I remember what matters to you and automatically turn your ideas into real next steps: booking tickets, finding products, or organizing a private feed just for you. Your personal data never leaves this computer; I only search the public web when you ask me to. Drop a screenshot, type a thought, or just say hello to get started."
 interface ChatState {
   messages: ChatMessage[]
   kept: KeptItem[]
@@ -150,6 +150,13 @@ export function syncJob(job: JobState): void {
 }
 
 function finishResult(result: JobResult, file?: File, searchError?: string, voiceAction?: VoiceAction): void {
+  if (result.cards.length && result.cards.every((card) => card.kind === 'link' && card.source === 'on-device')) {
+    const complete = result.cards.filter((card) => card.url).length
+    say(`I read ${complete} complete link${complete === 1 ? '' : 's'} from your image. Open or copy a link below. Cut-off or unclear links need review; no websites were visited.`)
+    append({ id: id(), type: 'cards', cards: result.cards })
+    append({ id: id(), type: 'receipt', records: result.egress })
+    return
+  }
   if (voiceAction === 'save') {
     say('Your scrubbed interest is saved in the local library. Nothing left this device.')
     append({ id: id(), type: 'receipt', source: 'voice', records: result.egress })

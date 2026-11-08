@@ -40,7 +40,7 @@ export async function transcribeAudio(blob: Blob, filename: string, signal?: Abo
 const mockJobs = new Map<string, StageEvent[]>()
 export const MOCK_VOICE_CONTEXT_ID = 'voice-demo-context'
 export const mockVoiceIntent: Intent = {
-  intent_type: 'event', summary: 'AI Fest in Boston on November 14, 2026.',
+  intent_type: 'event', summary: 'AI Fest in Boston on November 14, 2026 (demo).',
   public_entities: [{ type: 'event_name', value: 'AI Fest' }, { type: 'city', value: 'Boston' }, { type: 'date', value: '2026-11-14' }],
   redaction_counts: {}, confidence: 0.95,
 }
@@ -64,7 +64,7 @@ export async function analyzeVoice(text: string, action: VoiceAction, contextLib
   const result: JobResult = {
     job_id: jobId, status: 'done', intent,
     queries: action === 'save' ? [] : [{ text: query, purpose: action === 'related' ? 'related' : 'tickets', topic: 'general', include_domains: [] }],
-    cards: action === 'save' ? [] : [{ id: 'voice-demo-card', kind: action === 'related' ? 'related' : 'tickets', title: intent.public_entities.map((e) => e.value).join(' · '), subtitle: 'Suggestions from public details', url: null, price: null, source: 'this device', snippet: 'Suggestions from scrubbed public details.', score: 0.9, actions: [] }],
+    cards: action === 'save' ? [] : [{ id: 'voice-demo-card', kind: action === 'related' ? 'related' : 'tickets', title: intent.public_entities.map((e) => e.value).join(' · '), subtitle: 'Demo result · no network request', url: null, price: null, source: 'demo', snippet: 'Suggestions from scrubbed public details.', score: 0.9, actions: [] }],
     egress: [], timings_ms: {}, error: null,
   }
   if (action !== 'save') {
@@ -76,7 +76,7 @@ export async function analyzeVoice(text: string, action: VoiceAction, contextLib
     ['scrub', 'Private details removed on-device', true],
     ...(action === 'save' ? [] : [
       ['query', 'Building queries from scrubbed public entities', true],
-      ['search', 'Web search using public details only', false],
+      ['search', 'Demo search · no web request sent', false],
       ['cards', 'Preparing voice result cards', true],
     ] as [StageEvent['stage'], string, boolean][]),
     ['done', action === 'save' ? 'Scrubbed interest saved locally; no web search' : 'Voice results ready', true],

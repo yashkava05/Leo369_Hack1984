@@ -1,7 +1,7 @@
 /*
- * Latent bridge service worker (#67; Teams Web adapter #68). Talks to exactly two parties:
- * - the Latent page on localhost (externally_connectable + sender.origin check), and
- * - the Latent backend on 127.0.0.1:8000, authenticated by this extension's origin and a
+ * PrismLocal bridge service worker (#67; Teams Web adapter #68). Talks to exactly two parties:
+ * - the PrismLocal page on localhost (externally_connectable + sender.origin check), and
+ * - the PrismLocal backend on 127.0.0.1:8000, authenticated by this extension's origin and a
  *   one-job nonce the backend issued for a request the user confirmed.
  * The selected source lives in chrome.storage.session (memory only, cleared on browser exit).
  * One source at a time: sharing a Teams tab replaces a shared Outlook tab and vice versa, and
@@ -105,7 +105,7 @@ async function read(jobId, nonce) {
     if (claim.status === 422 && !job.cancelled) { await report(jobId, nonce, 'no_source_selected'); return }
     if (!claim.ok || job.cancelled) return // refused (air-gap, wrong origin, replay) or stopped
     var teams = source.provider === 'teams'
-    // The chat/channel the user confirmed in Latent must be the one shared from this tab.
+    // The chat/channel the user confirmed in PrismLocal must be the one shared from this tab.
     if (teams && (!source.conversation || claim.data.source !== source.conversation.fp)) {
       await report(jobId, nonce, 'conversation_changed'); return
     }
@@ -142,7 +142,7 @@ async function read(jobId, nonce) {
 }
 
 /**
- * Visible signal in Chrome itself (not only in Latent's page) whenever the extension reads mail or chat,
+ * Visible signal in Chrome itself (not only in PrismLocal's page) whenever the extension reads mail or chat,
  * so a read started by anything else is noticed. The badge stays until the read ends.
  */
 async function showReading(on) {
@@ -150,7 +150,7 @@ async function showReading(on) {
   try {
     await chrome.action.setBadgeBackgroundColor({ color: '#b8701a' })
     await chrome.action.setBadgeText({ text: reading ? 'READ' : '' })
-    await chrome.action.setTitle({ title: reading ? 'Latent is reading your shared tab' : 'Share an Outlook tab or Teams chat with Latent' })
+    await chrome.action.setTitle({ title: reading ? 'PrismLocal is reading your shared tab' : 'Share an Outlook tab or Teams chat with PrismLocal' })
   } catch (e) { /* badge is best effort; the read itself is unaffected */ }
 }
 
@@ -176,7 +176,7 @@ async function hello() {
   try { await chrome.tabs.get(source.tabId) } catch (e) { alive = false }
   if (!alive) { await setSource(null); return { ok: true, version: chrome.runtime.getManifest().version, source: null } }
   var shared = { provider: source.provider, origin: source.origin, accountLabel: source.accountLabel || '', granted: granted }
-  // Teams: the shared chat/channel label goes only to the local Latent page, for confirmation.
+  // Teams: the shared chat/channel label goes only to the local PrismLocal page, for confirmation.
   if (source.provider === 'teams') shared.conversation = source.conversation || null
   return { ok: true, version: chrome.runtime.getManifest().version, source: shared }
 }
@@ -247,7 +247,7 @@ async function selectTab(tabId) {
     accountLabel: probe.account,
   }
   if (match.provider === 'teams') {
-    // Teams shares exactly the chat/channel open now; Latent never picks or searches one.
+    // Teams shares exactly the chat/channel open now; PrismLocal never picks or searches one.
     var conv = probe.conversation
     if (!conv || !conv.fp || !conv.label) return { ok: false, error: 'nothing_selected' }
     source.conversation = { fp: conv.fp, label: conv.label, kind: conv.kind === 'channel' ? 'channel' : 'chat' }

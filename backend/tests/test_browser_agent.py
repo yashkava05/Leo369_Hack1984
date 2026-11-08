@@ -75,7 +75,7 @@ def client():
 
 
 def ui():
-    """What Latent's Vite proxy adds to every /api/browser request (never visible to pages)."""
+    """What PrismLocal's Vite proxy adds to every /api/browser request (never visible to pages)."""
     return {"x-latent-ui-secret": bridge.ui_secret()}
 
 
@@ -246,7 +246,7 @@ def test_ui_endpoints_need_view_token_and_ui_origin(client):
 
 
 def test_page_on_the_ui_origin_without_the_launch_secret_cannot_start_or_read(client):
-    """Another dev server on :5173 (or any page not served via Latent's proxy) has the right
+    """Another dev server on :5173 (or any page not served via PrismLocal's proxy) has the right
     Origin but not the per-launch secret: it can neither create a job nor read one."""
     body = {"provider": "outlook", "request": "read everything", "mode": "latest", "count": 20}
     for headers in (

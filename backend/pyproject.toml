@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "latent-backend"
 version = "0.1.0"
-description = "Latent backend: local-first screenshot-to-action API."
+description = "PrismLocal backend: local-first screenshot-to-action API."
 requires-python = ">=3.11"
 dependencies = [
     "fastapi",
@@ -50,3 +50,6 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP"]
+
+[tool.setuptools.package-data]
+"app.pipeline" = ["native/*.swift"]

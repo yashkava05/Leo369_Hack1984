@@ -9,6 +9,7 @@ describe('Prism spatial dashboard', () => {
     expect(html).toContain('For You')
     expect(html).toContain('Drop a screenshot here, or tap to speak.')
     expect(html).toContain('Tame Impala Concert')
+    expect(html).toContain('Sample · Live near you')
     expect(html).toContain('The Bell Jar')
     expect(html).toContain('Air-Gap')
     expect(html).toContain('WEB ENABLED')

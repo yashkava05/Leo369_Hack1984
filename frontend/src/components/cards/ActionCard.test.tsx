@@ -5,7 +5,7 @@ import sensitiveFixture from '../../api/fixtures/sensitive_doc.result.json'
 import { SAMPLE_CARDS } from '../../pages/sampleCards'
 import type { Card, CardKind, JobResult } from '../../types'
 import { ActionCard } from './ActionCard'
-import { cardActions, formatEventWhen, runAction, safeHttpUrl } from './cardActions'
+import { cardActions, formatEventWhen, runAction, safeHttpUrl, safeImageLinkUrl } from './cardActions'
 
 const ALL_CARDS: Card[] = [
   ...(concertFixture as JobResult).cards,
@@ -170,4 +170,39 @@ describe('visible source citations', () => {
       expect(html).not.toContain('card-citations')
     }
   })
+})
+
+
+it('opens and copies an image-extracted URL while labelling it on-device', () => {
+  const card: Card = { ...byId('c_tickets'), kind: 'link', source: 'on-device', title: 'My website', url: 'https://folio.example', actions: [
+    { type: 'open_url', label: 'Open link', url: 'https://folio.example', text: null, ics: null },
+    { type: 'copy', label: 'Copy link', url: null, text: 'https://folio.example', ics: null },
+  ] }
+  const html = renderToStaticMarkup(<ActionCard card={card} />)
+  expect(html).toContain('Built on-device')
+  expect(html).toContain('Open link')
+  expect(html).toContain('Copy link')
+  expect(html).not.toContain('card-citations')
+})
+
+it('requires a review before opening an ambiguous or cut-off screenshot URL', () => {
+  const card: Card = { ...byId('c_tickets'), kind: 'link', source: 'on-device', title: 'Product — unavailable', url: null, subtitle: 'go.example/Fake|GReel2', actions: [] }
+  const html = renderToStaticMarkup(<ActionCard card={card} />)
+  expect(html).toContain('Review URL')
+  expect(html).toContain('Open reviewed link')
+  expect(html).toContain('disabled=""')
+  expect(html).not.toContain('href=')
+})
+
+
+it.each(['http://localhost:8080/private', 'https://user:pass@folio.example/a', 'https://folio.example/?token=SYNTHETIC', 'https://folio.example/#id_token=SYNTHETIC', 'https://folio.example/#/auth?refresh_token=SYNTHETIC'])('rejects reviewed URLs outside the extraction policy: %s', (url) => {
+  expect(safeImageLinkUrl(url)).toBeNull()
+})
+it('accepts a reviewed public URL and preserves path case', () => {
+  expect(safeImageLinkUrl('go.example/FakeIGReel2')).toBe('https://go.example/FakeIGReel2')
+})
+
+
+it.each(['https://folio.example/?access_token=SYNTHETIC%3Fref=profile', 'https://folio.example/#access_token=SYNTHETIC%3Fref=profile', 'https://folio.example/#/auth?access_token=SYNTHETIC%3Fref=profile'])('never discards auth keys before a question mark in a value: %s', (url) => {
+  expect(safeImageLinkUrl(url)).toBeNull()
 })

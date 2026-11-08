@@ -27,6 +27,7 @@ from app.pipeline import cards as cards_mod
 from app.pipeline import exa as exa_mod
 from app.pipeline import search as search_mod
 from app.pipeline.extract import extract_intent
+from app.pipeline.image_links import VisibleLink, link_cards
 from app.pipeline.query import allow_terms as query_allow_terms
 from app.pipeline.query import build_queries, related_query
 from app.pipeline.scrub import scrub_intent
@@ -167,6 +168,9 @@ async def _run_stages(job: jobs.JobState, box: list[bytes], timings: dict[str, i
         log.info("extract failed for %s: %s", job_id, type(exc).__name__)
         await _finish_error(job, f"extraction failed ({type(exc).__name__})", timings)
         return
+    # Keep link candidates only for link-list screenshots; never send them into the search path.
+    visible_links = getattr(intent, "visible_links", []) if intent.intent_type == "other" else []
+    intent = Intent.model_validate(intent.model_dump(include=set(Intent.model_fields)))
     # Drop the only reference to the raw bytes as soon as the model is done with them.
     del image_bytes
     timings["extract"] = _ms(time.perf_counter() - t0)
@@ -177,6 +181,10 @@ async def _run_stages(job: jobs.JobState, box: list[bytes], timings: dict[str, i
     scrubbed, report = await asyncio.to_thread(scrub_intent, intent)
     await _publish(job, "scrub", "ok", _scrub_message(report.removed, report.kept), local=True)
     timings["scrub"] = _ms(time.perf_counter() - t0)
+
+    if visible_links:
+        await _finish_image_links(job, scrubbed, visible_links, timings)
+        return
 
     # --- query (local) ------------------------------------------------------------
     t0 = time.perf_counter()
@@ -195,6 +203,55 @@ async def _run_stages(job: jobs.JobState, box: list[bytes], timings: dict[str, i
     timings["query"] = _ms(time.perf_counter() - t0)
 
     await finish_intent_job(job, scrubbed, queries, timings, related_q=related_q, thumb=thumb)
+
+
+async def _finish_image_links(
+    job: jobs.JobState, intent: Intent, visible_links: list[VisibleLink], timings: dict[str, int]
+) -> None:
+    """Unreviewed screenshot URLs are ephemeral: no provider calls or persistent history."""
+    await _publish(
+        job,
+        "query",
+        "ok",
+        "Visible links read locally; no search queries built",
+        local=True,
+        data={"queries": []},
+    )
+    timings["query"] = 0
+    await _publish(job, "search", "ok", "No websites opened and no searches sent", local=True)
+    timings["search"] = 0
+    started = time.perf_counter()
+    cards = link_cards(visible_links)
+    timings["cards"] = _ms(time.perf_counter() - started)
+    await _publish(
+        job,
+        "cards",
+        "ok",
+        f"Read {len(cards)} visible link entries on-device",
+        local=True,
+        data={"count": len(cards)},
+    )
+    intent = intent.model_copy(
+        update={"summary": "Links visible in the screenshot", "public_entities": []}
+    )
+    job.result = job.result.model_copy(
+        update={
+            "status": "done",
+            "intent": intent,
+            "queries": [],
+            "cards": cards,
+            "egress": [],
+            "timings_ms": timings,
+        }
+    )
+    await _publish(
+        job,
+        "done",
+        "ok",
+        "Links extracted locally; websites have not been visited",
+        local=True,
+        data=job.result.model_dump(mode="json"),
+    )
 
 
 async def finish_intent_job(

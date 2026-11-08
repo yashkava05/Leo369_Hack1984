@@ -1,6 +1,7 @@
 import { Aperture, MessageCircle, RefreshCw, ShieldCheck, Sparkles } from 'lucide-react'
 import { useLayoutEffect } from 'react'
-import { Orb } from '../../chat/ChatApp'
+import { MOCK } from '../../api/client'
+import { Orb, Wordmark } from '../../chat/ChatApp'
 import { AppChrome } from '../AppNav'
 import { useFeed } from '../../state/useFeed'
 import { FeedCard } from './FeedCard'
@@ -27,11 +28,11 @@ export function ForYouPage() {
           </button>
         }
       />
-      <aside className="chat-sidebar feed-sidebar" aria-label="Prism navigation">
-        <div className="chat-brand"><Orb /><span>Prism</span></div>
+      <aside className="chat-sidebar feed-sidebar" aria-label="PrismLocal navigation">
+        <div className="chat-brand"><Orb /><Wordmark /></div>
         <nav className="chat-sidebar-section" aria-label="Main">
           <h2>Explore</h2>
-          <a className="chat-nav-item" href="/"><Aperture size={17} aria-hidden="true" /><span>Prism</span></a>
+          <a className="chat-nav-item" href="/"><Aperture size={17} aria-hidden="true" /><span>Home</span></a>
           <a className="chat-nav-item" href="?view=chat"><MessageCircle size={17} aria-hidden="true" /><span>Chat</span></a>
           <a className="chat-nav-item is-selected" href="?view=for-you" aria-current="page"><Sparkles size={17} aria-hidden="true" /><span>For You</span><span className="chat-online-dot" /></a>
         </nav>
@@ -47,9 +48,11 @@ export function ForYouPage() {
           <div className="feed-heading">
             <p className="feed-kicker">From what you kept</p>
             <h1>For You</h1>
-            <p>Notes from screenshots Prism already read on this computer.</p>
+            <p>Notes from screenshots PrismLocal already read on this computer.</p>
           </div>
         </header>
+
+        {MOCK && <p className="feed-demo"><span aria-hidden="true" />Demo edit · Sample stories, no web requests sent</p>}
 
         {feed.error && <div className="feed-error" role="alert"><p>{feed.error}</p><button type="button" onClick={() => { void feed.load() }}>Try again</button></div>}
 
@@ -62,7 +65,7 @@ export function ForYouPage() {
           <section className="feed-empty">
             <Sparkles size={27} aria-hidden="true" />
             <h2>Nothing new just yet</h2>
-            <p>Save a few events, places, or ideas in chat. Prism will find the threads between them — still on this computer.</p>
+            <p>Save a few events, places, or ideas in chat. PrismLocal will find the threads between them — still on this computer.</p>
             <a href="?view=chat">Return to chat</a>
           </section>
         ) : (

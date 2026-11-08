@@ -4,7 +4,7 @@ import type { Card, CardAction, CardKind } from '../../types'
 /** Kinds built on this device from the screenshot itself rather than from a search result. */
 export const LOCAL_KINDS: ReadonlySet<CardKind> = new Set<CardKind>(['calendar', 'place'])
 
-export const isLocalCard = (card: Card): boolean => LOCAL_KINDS.has(card.kind)
+export const isLocalCard = (card: Card): boolean => LOCAL_KINDS.has(card.kind) || card.source === 'on-device'
 
 /** Only http(s) links are opened; card data comes from the network and must not run script URLs. */
 export function safeHttpUrl(url: string | null | undefined): string | null {
@@ -15,6 +15,25 @@ export function safeHttpUrl(url: string | null | undefined): string | null {
   } catch {
     return null
   }
+}
+
+/** Screenshot URL review follows the same public-URL restrictions as local extraction. */
+export function safeImageLinkUrl(value: string): string | null {
+  if (!value || /[|<>\\^`{}…]|\.\.\.|\s/.test(value)) return null
+  const url = safeHttpUrl(value.includes('://') ? value : `https://${value}`)
+  if (!url) return null
+  const parts = new URL(url)
+  const host = parts.hostname
+  if (parts.username || parts.password || !/^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z][a-z0-9-]{1,62}$/i.test(host) || /\.(localhost|local|internal|lan)$/i.test(host)) return null
+  const forbidden = new Set(['token', 'access_token', 'auth', 'api_key', 'apikey', 'password', 'secret', 'signature', 'sig', 'code', 'id_token', 'refresh_token', 'auth_token', 'session', 'sessionid'])
+  for (const raw of [parts.search.slice(1), parts.hash.slice(1)]) {
+    for (const key of new URLSearchParams(raw).keys()) {
+      let normalized: string
+      try { normalized = decodeURIComponent(key).split('?').at(-1)!.split('=')[0].toLowerCase().replaceAll('-', '_') } catch { return null }
+      if (forbidden.has(normalized) || /(?:^|_)(?:token|password|secret|session|signature|credential)(?:$|_)/.test(normalized)) return null
+    }
+  }
+  return url
 }
 
 /** Citation actions reuse the existing contract, but render as source links rather than CTAs. */

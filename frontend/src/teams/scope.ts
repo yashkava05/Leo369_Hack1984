@@ -27,7 +27,7 @@ export function mentionsTeams(text: string): boolean {
 }
 
 /**
- * A chat/channel name the request mentions ("in the Fabrikam launch channel"), if any. Latent
+ * A chat/channel name the request mentions ("in the Fabrikam launch channel"), if any. PrismLocal
  * never searches for it; it only compares it with the one conversation the user shared.
  */
 export function namedSource(text: string): string | null {

@@ -1,7 +1,8 @@
 import { BookOpen, CalendarDays, Lightbulb, Link2, MapPin, ShoppingBag, Sparkles, Ticket } from 'lucide-react'
+import { useState } from 'react'
 import type { JSX } from 'react'
 import type { Card } from '../../types'
-import { formatEventWhen } from './cardActions'
+import { formatEventWhen, safeImageLinkUrl } from './cardActions'
 import { CardShell } from './CardShell'
 
 function Snippet({ card }: { card: Card }) {
@@ -58,8 +59,25 @@ function InsightCard({ card }: { card: Card }) {
   )
 }
 
+function ImageLinkReview({ card }: { card: Card }) {
+  const [value, setValue] = useState(card.subtitle ?? '')
+  const [checked, setChecked] = useState(false)
+  const candidate = safeImageLinkUrl(value)
+  const corrected = checked && !!candidate
+  return <CardShell card={card} icon={Link2} kindLabel="Image link" hideSubtitle>
+    <p className="card-snippet">{card.snippet} Check unclear characters before opening.</p>
+    <label className="card-url-review">Review URL
+      <input aria-label={`Review URL: ${card.title}`} value={value} onChange={(event) => { setValue(event.target.value); setChecked(false) }} spellCheck={false} autoCapitalize="none" />
+    </label>
+    <label className="card-url-confirm"><input type="checkbox" checked={checked} onChange={(event) => setChecked(event.target.checked)} />I checked this URL against the image</label>
+    <button className="card-action" type="button" disabled={!corrected}
+      onClick={() => { if (corrected && candidate) window.open(candidate, '_blank', 'noopener,noreferrer') }}>Open reviewed link</button>
+  </CardShell>
+}
+
 function LinkCard({ card }: { card: Card }) {
-  return <CardShell card={card} icon={Link2} kindLabel="Link" badge={card.price} />
+  if (card.source === 'on-device' && !card.url && card.subtitle) return <ImageLinkReview card={card} />
+  return <CardShell card={card} icon={Link2} kindLabel={card.source === 'on-device' ? 'Image link' : 'Link'} badge={card.price} />
 }
 
 function RelatedCard({ card }: { card: Card }) {

@@ -141,8 +141,8 @@ export function VoiceCapture({ onJob, disabled = false, onBusyChange, autoStart 
     </>}
 
     <p className="voice-privacy"><LockKeyhole size={11} aria-hidden="true" />Audio stays on this device · only scrubbed keywords are searched</p>
-    {MOCK && <label className="voice-demo">
-      <select aria-label="Voice scenario" value={voice.scenario} disabled={busy || disabled} onChange={(event) => { clearContext(); voice.setScenario(event.target.value as VoiceScenario) }}>
+    {MOCK && <label className="voice-demo">Demo
+      <select aria-label="Voice demo scenario" value={voice.scenario} disabled={busy || disabled} onChange={(event) => { clearContext(); voice.setScenario(event.target.value as VoiceScenario) }}>
         <option value="event">Event discovery</option><option value="save">Save only</option><option value="related">Related to a saved item</option><option value="silence">Silence</option><option value="permission-denied">Permission denied</option>
       </select>
     </label>}

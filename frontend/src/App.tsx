@@ -29,7 +29,7 @@ function ClassicApp() {
   return (
     <div className="app">
       <header className="app-header">
-        <h1 className="app-title">Prism</h1>
+        <h1 className="app-title"><img className="app-logo" src="/brand/icon-128.png" alt="" /><span>Prism<span>Local</span></span></h1>
         <div className="app-header-tools">
           <AirGapToggle />
           <WatchPill />
