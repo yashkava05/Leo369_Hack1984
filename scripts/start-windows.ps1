@@ -347,14 +347,14 @@ if (Test-Path -LiteralPath $ViteJs) {
   Info 'frontend dependencies are missing; they will be installed below'
 }
 
-# Optional local voice model (faster-whisper, see scripts/setup_voice.sh when it lands).
+# Optional local voice model (faster-whisper; see scripts/setup_voice.sh and the README voice section).
 $SttPath = Get-Setting 'LATENT_STT_MODEL_PATH' '~/.latent/models/faster-whisper-base.en'
 $SttPath = $SttPath -replace '^~', $HOME
 if (Test-Path -LiteralPath $SttPath) {
   if ($VenvState -eq 'present' -and (Run $VenvPy @('-c', 'import faster_whisper')).Code -eq 0) { Ok "optional voice model found ($SttPath)" }
-  else { Warn 'optional voice model is downloaded but faster-whisper is not installed in backend\.venv' 'only needed for voice input: install the backend voice extra (pip install -e ".[voice]" in backend, see scripts/setup_voice.sh once local voice lands)' }
+  else { Warn 'optional voice model is downloaded but faster-whisper is not installed in backend\.venv' 'only needed for voice input: cd backend; .venv\Scripts\python -m pip install -e ".[voice]"' }
 } else {
-  Info "optional voice model not found ($SttPath); voice input will offer typed text instead"
+  Info "optional voice model not found ($SttPath); voice input will offer typed text instead (to add it, see the README section 'Local voice and reviewed text')"
 }
 
 # .env and keys: report presence only, never values.
