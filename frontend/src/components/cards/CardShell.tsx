@@ -1,8 +1,8 @@
-import { Cpu, type LucideIcon } from 'lucide-react'
+import { Cpu, ExternalLink, type LucideIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 import type { Card } from '../../types'
 import { ActionButton } from './ActionButton'
-import { cardActions, isLocalCard } from './cardActions'
+import { cardActions, cardCitations, isLocalCard } from './cardActions'
 import './cards.css'
 
 interface CardShellProps {
@@ -20,6 +20,7 @@ interface CardShellProps {
 export function CardShell({ card, icon: Icon, kindLabel, badge, hideSubtitle, children }: CardShellProps) {
   const local = isLocalCard(card)
   const actions = cardActions(card)
+  const citations = cardCitations(card)
   const titleId = `card-${card.id}-title`
 
   return (
@@ -53,8 +54,21 @@ export function CardShell({ card, icon: Icon, kindLabel, badge, hideSubtitle, ch
             <Cpu size={12} aria-hidden="true" />
             Built on-device
           </span>
+        ) : citations.length ? (
+          <div className="card-citations">
+            {card.kind === 'insight' && <span>Search sources</span>}
+            <ul aria-label={card.kind === 'insight' ? 'Search sources' : 'Source'}>
+              {citations.map((citation) => <li key={citation.url}>
+                <a href={citation.url} target="_blank" rel="noopener noreferrer" title={citation.url}
+                  aria-label={`Source: ${citation.title} (${citation.host}, opens in a new tab)`}>
+                  {card.kind === 'insight' ? `${citation.title} · ${citation.host}` : `Source: ${citation.host}`}
+                  <ExternalLink size={11} aria-hidden="true" />
+                </a>
+              </li>)}
+            </ul>
+          </div>
         ) : (
-          <span title="Where this information came from">Source: {card.source}</span>
+          <span>Source links unavailable{card.kind === 'insight' ? ' for this saved answer' : ''}.</span>
         )}
       </footer>
     </article>

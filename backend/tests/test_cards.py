@@ -521,3 +521,98 @@ def test_pagination_param_duplicates_collapse():
     )
     cards = build_cards(_bare("event"), [q], results, NOW)
     assert [c.kind for c in cards].count("tickets") == 1
+
+
+def test_tavily_answer_keeps_all_returned_page_sources_not_just_the_top_domain():
+    query = SearchQuery(text="Lumen Festival", purpose="context")
+    response = TavilyResponse(
+        query=query.text,
+        answer="The festival runs on two dates.",
+        results=[
+            {
+                "title": "Festival schedule",
+                "url": "https://events.example/schedule?utm_source=web&date=2026",
+            },
+            {"title": "Venue guide", "url": "https://venue.example/guide#details"},
+            {"title": "Duplicate schedule", "url": "https://events.example/schedule?date=2026"},
+        ],
+    )
+    insight = cards_mod.insight_card([query], {query.text: response})
+    assert insight is not None
+    assert insight.actions[0].type == "copy"
+    assert [(a.label, a.url) for a in insight.actions[1:]] == [
+        ("Source: Festival schedule", "https://events.example/schedule?date=2026"),
+        ("Source: Venue guide", "https://venue.example/guide"),
+    ]
+    # A cited page can also appear as a standalone result; don't dedupe the answer away.
+    intent = Intent(
+        intent_type="other",
+        summary="Lumen Festival",
+        public_entities=[],
+        redaction_counts={},
+        confidence=1,
+    )
+    built = build_cards(intent, [query], {query.text: response}, now=NOW)
+    assert any(c.kind == "insight" for c in built)
+    assert any(c.url == "https://events.example/schedule?date=2026" for c in built)
+
+
+def test_result_citation_uses_original_page_not_affiliate_action(monkeypatch):
+    from app.pipeline.search import TavilyResult
+
+    monkeypatch.setattr(cards_mod, "tag_url", lambda url: url + "&affiliate=demo")
+    result = TavilyResult(
+        title="Lumen Festival tickets",
+        url="https://ticketmaster.com/event/lumen?id=1&utm_source=web",
+    )
+    card = cards_mod._result_card("tickets", result)
+    assert card.actions[0].url.endswith("&affiliate=demo")
+    assert card.actions[1].url == "https://ticketmaster.com/event/lumen?id=1"
+    assert card.actions[1].label == "Source: Lumen Festival tickets"
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "",
+        "not a URL",
+        "javascript:alert(1)",
+        "file:///tmp/data",
+        "https://user:pass@events.example/page",
+        "https://[",
+    ],
+)
+def test_answers_without_a_safe_returned_source_are_not_presented_as_cited(url):
+    query = SearchQuery(text="Lumen Festival", purpose="context")
+    response = TavilyResponse(
+        query=query.text, answer="Unsupported answer", results=[{"title": "Bad source", "url": url}]
+    )
+    assert cards_mod.insight_card([query], {query.text: response}) is None
+
+
+def test_uncited_answer_does_not_hide_a_later_cited_answer():
+    first = SearchQuery(text="Lumen Festival", purpose="context")
+    second = SearchQuery(text="Lumen schedule", purpose="context")
+    response = {
+        first.text: TavilyResponse(query=first.text, answer="No returned source pages"),
+        second.text: TavilyResponse(
+            query=second.text,
+            answer="Schedule from the returned page",
+            results=[{"title": "Schedule", "url": "https://events.example/schedule"}],
+        ),
+    }
+    insight = cards_mod.insight_card([first, second], response)
+    assert insight.subtitle == second.text
+    assert insight.actions[1].url == "https://events.example/schedule"
+
+
+def test_source_citations_preserve_the_actual_paginated_page():
+    from app.pipeline.search import TavilyResult
+
+    action = cards_mod.source_action(
+        TavilyResult(
+            title="Festival schedule, page two",
+            url="https://events.example/schedule?page=2&utm_source=web",
+        )
+    )
+    assert action.url == "https://events.example/schedule?page=2"

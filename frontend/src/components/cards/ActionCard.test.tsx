@@ -118,3 +118,56 @@ describe('card actions', () => {
     expect(formatEventWhen('2026-12-05')).toEqual({ day: 'Sat, Dec 5, 2026', time: null })
   })
 })
+
+
+describe('visible source citations', () => {
+  it('links result sources to their exact page with safe new-tab attributes', () => {
+    const html = renderToStaticMarkup(<ActionCard card={byId('c_tickets')} />)
+    expect(html).toContain(`href="${byId('c_tickets').url}"`)
+    expect(html).toContain('target="_blank" rel="noopener noreferrer"')
+    expect(html).toContain('Source: ticketmaster.com')
+  })
+  it('shows all quick-answer search sources while keeping Copy as the action', () => {
+    const card: Card = { ...byId('c_insight'), actions: [
+      { label: 'Source: Festival schedule', type: 'open_url', url: 'https://events.example/schedule', ics: null, text: null },
+      { label: 'Source: Venue guide', type: 'open_url', url: 'https://venue.example/guide', ics: null, text: null },
+    ] }
+    const html = renderToStaticMarkup(<ActionCard card={card} />)
+    expect(html).toContain('Search sources')
+    expect(html).toContain('href="https://events.example/schedule"')
+    expect(html).toContain('href="https://venue.example/guide"')
+    expect(html).toContain('Festival schedule · events.example')
+    expect(cardActions(card).map((action) => action.type)).toEqual(['copy'])
+  })
+  it('uses the source URL rather than the affiliate purchase URL', () => {
+    const card: Card = { ...byId('c_tickets'), url: 'https://tickets.example/buy?affiliate=demo', actions: [
+      { label: 'Source: Event listing', type: 'open_url', url: 'https://events.example/listing', ics: null, text: null },
+    ] }
+    const html = renderToStaticMarkup(<ActionCard card={card} />)
+    expect(html).toContain('href="https://events.example/listing"')
+    expect(html).not.toContain('href="https://tickets.example/buy?affiliate=demo"')
+  })
+  it('never fabricates a publisher link for saved answers without a source URL', () => {
+    const html = renderToStaticMarkup(<ActionCard card={{ ...byId('c_insight'), source: 'tavily.com', url: null, actions: [] }} />)
+    expect(html).toContain('Source links unavailable for this saved answer.')
+    expect(html).not.toContain('href=')
+  })
+  it('filters unsafe citation links, deduplicates URLs, and escapes titles', () => {
+    const card: Card = { ...byId('c_insight'), url: null, actions: [
+      { label: 'Source: Unsafe', type: 'open_url', url: 'javascript:alert(1)', ics: null, text: null },
+      { label: 'Source: <script>test</script>', type: 'open_url', url: 'https://events.example/page', ics: null, text: null },
+      { label: 'Source: Duplicate', type: 'open_url', url: 'https://events.example/page', ics: null, text: null },
+    ] }
+    const html = renderToStaticMarkup(<ActionCard card={card} />)
+    expect(html).not.toContain('javascript:')
+    expect(html).not.toContain('<script>')
+    expect(html.match(/href=/g)).toHaveLength(1)
+  })
+  it('keeps local calendar and map cards labelled on-device without web citations', () => {
+    for (const id of ['c_calendar', 'c_place']) {
+      const html = renderToStaticMarkup(<ActionCard card={byId(id)} />)
+      expect(html).toContain('Built on-device')
+      expect(html).not.toContain('card-citations')
+    }
+  })
+})

@@ -105,7 +105,7 @@ KIND_CAP = {
 # --- helpers ----------------------------------------------------------------------
 
 
-def clean_url(url: str) -> str:
+def clean_url(url: str, *, drop_pagination: bool = True) -> str:
     """Drop utm_*, fbclid and gclid query params and the fragment."""
     parts = urlsplit(url.strip())
     params = [
@@ -113,7 +113,7 @@ def clean_url(url: str) -> str:
         for k, v in parse_qsl(parts.query, keep_blank_values=True)
         if not k.lower().startswith("utm_")
         and k.lower() not in TRACKING_PARAMS
-        and k.lower() not in PAGINATION_PARAMS
+        and (not drop_pagination or k.lower() not in PAGINATION_PARAMS)
     ]
     return urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(params), ""))
 
@@ -270,6 +270,25 @@ def place_card(intent: Intent) -> Card | None:
 # --- result cards -----------------------------------------------------------------
 
 
+def source_action(result: TavilyResult) -> CardAction | None:
+    """Cite a returned page, never a generated provider homepage or a tagged purchase URL."""
+    try:
+        parts = urlsplit(result.url.strip())
+        if (
+            parts.scheme not in {"http", "https"}
+            or not parts.hostname
+            or parts.username
+            or parts.password
+        ):
+            return None
+        _ = parts.port  # Reject malformed ports as well as malformed hosts.
+        url = clean_url(result.url, drop_pagination=False)
+    except ValueError:
+        return None
+    title = " ".join(result.title.split()) or domain_of(url)
+    return CardAction(label=f"Source: {title}", type="open_url", url=url)
+
+
 def _result_card(purpose: str, r: TavilyResult) -> Card:
     url = clean_url(r.url)
     host = domain_of(url)
@@ -302,7 +321,8 @@ def _result_card(purpose: str, r: TavilyResult) -> Card:
         source=host,
         snippet=text,
         score=r.score,
-        actions=[CardAction(label=label, type="open_url", url=url)],
+        actions=[CardAction(label=label, type="open_url", url=url)]
+        + ([citation] if (citation := source_action(r)) else []),
     )
 
 
@@ -312,17 +332,25 @@ def insight_card(queries: list[SearchQuery], results: dict[str, TavilyResponse])
         answer = " ".join((resp.answer or "").split()) if resp else ""
         if not answer or NO_ANSWER_RE.search(answer):
             continue
+        citations = []
+        seen = set()
+        for result in resp.results:
+            action = source_action(result)
+            if action and action.url not in seen:
+                citations.append(action)
+                seen.add(action.url)
+        if not citations:
+            continue  # Do not present an uncited generated answer as a sourced insight.
         text = snippet(answer) or answer
-        top = resp.results[0] if resp.results else None
         return Card(
             id=card_id("insight", text),
             kind="insight",
             title="Quick answer",
             subtitle=q.text,
-            source=domain_of(top.url) if top else "tavily.com",
+            source="tavily.com",
             snippet=text,
-            score=top.score if top else 0.0,
-            actions=[CardAction(label="Copy", type="copy", text=text)],
+            score=max((r.score for r in resp.results), default=0.0),
+            actions=[CardAction(label="Copy", type="copy", text=text), *citations],
         )
     return None
 

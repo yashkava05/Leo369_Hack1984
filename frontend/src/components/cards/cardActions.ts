@@ -17,9 +17,25 @@ export function safeHttpUrl(url: string | null | undefined): string | null {
   }
 }
 
+/** Citation actions reuse the existing contract, but render as source links rather than CTAs. */
+export const isCitationAction = (action: CardAction): boolean => action.type === 'open_url' && action.label.startsWith('Source: ')
+
+export function cardCitations(card: Card): { url: string; title: string; host: string }[] {
+  if (isLocalCard(card)) return []
+  const citations = card.actions.filter(isCitationAction).map((action) => ({ url: action.url, title: action.label.slice('Source: '.length) }))
+  if (!citations.length && card.url) citations.push({ url: card.url, title: card.title })
+  const seen = new Set<string>()
+  return citations.flatMap((citation) => {
+    const url = safeHttpUrl(citation.url)
+    if (!url || seen.has(url)) return []
+    seen.add(url)
+    return [{ url, title: citation.title, host: new URL(url).hostname.replace(/^www\./, '') }]
+  })
+}
+
 /** Actions to show for a card. Insight cards always offer a copy of their quote. */
 export function cardActions(card: Card): CardAction[] {
-  const actions = card.actions.filter((a) => a.type !== 'open_url' || safeHttpUrl(a.url ?? card.url))
+  const actions = card.actions.filter((a) => !isCitationAction(a)).filter((a) => a.type !== 'open_url' || safeHttpUrl(a.url ?? card.url))
   if (card.kind === 'insight' && card.snippet && !actions.some((a) => a.type === 'copy')) {
     actions.push({ label: 'Copy', type: 'copy', url: null, ics: null, text: null })
   }
