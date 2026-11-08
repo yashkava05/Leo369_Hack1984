@@ -378,3 +378,12 @@ Fixture runs (`concert_flyer`, `sensitive_doc`) let the UI be built without Olla
 
 Fixtures live in `backend/fixtures/` and are copied to `frontend/src/api/fixtures/`;
 `pytest tests/test_contract.py` checks both copies against the models.
+
+### Links visible in screenshots
+
+Upload a public Links-panel screenshot to extract visible URLs locally. Complete URLs become
+Open/Copy cards; cut-off or unclear URLs require review, and hidden suffixes are never filled in.
+No linked page is fetched automatically, no URL is sent to Tavily/Exa, and these unreviewed link
+results stay in the current session rather than being saved to history. On macOS, an optional
+Apple Vision OCR pass uses the installed Swift command-line tools; other platforms use the
+local vision-model response, whose links require manual review before opening. URL transcription is best-effort, so check case-sensitive short links.
