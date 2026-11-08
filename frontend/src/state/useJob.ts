@@ -42,13 +42,22 @@ function clear(): void {
   if (state.previewUrl) URL.revokeObjectURL(state.previewUrl)
 }
 
+/**
+ * Whether an event (other than `done`) ends the job as failed. A network-side error, such as a
+ * search request blocked by air-gap mode, does not: the pipeline still finishes locally with
+ * `done`, so only `stage: error` or a local stage error is fatal.
+ */
+export function endsJob(event: StageEvent): boolean {
+  return event.stage === 'error' || (event.status === 'error' && event.local)
+}
+
 function onEvent(gen: number, event: StageEvent): void {
   if (gen !== generation) return
   const events = [...state.events, event]
   if (event.stage === 'done') {
     closeStream()
     setState({ ...state, events, status: 'done', result: (event.data ?? undefined) as JobResult | undefined })
-  } else if (event.stage === 'error' || event.status === 'error') {
+  } else if (endsJob(event)) {
     closeStream()
     setState({ ...state, events, status: 'error', error: event.message })
   } else {

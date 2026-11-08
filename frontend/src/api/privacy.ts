@@ -9,6 +9,11 @@ import { API_URL, MOCK, getEgress } from './client'
 // In-memory air-gap flag used only in VITE_MOCK mode (no backend to persist it).
 let mockOffline = false
 
+/** The mock air-gap flag, read by the VITE_MOCK event replay. */
+export function isMockOffline(): boolean {
+  return mockOffline
+}
+
 export async function getOffline(): Promise<boolean> {
   if (MOCK) return mockOffline
   const res = await fetch(`${API_URL}/api/offline`)

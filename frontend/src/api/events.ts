@@ -1,5 +1,7 @@
 import type { AnalyzeResponse, StageEvent } from '../types'
 import { API_URL, MOCK } from './client'
+import { offlineReplay } from './offlineReplay'
+import { isMockOffline } from './privacy'
 import concertEvents from './fixtures/concert_flyer.events.json'
 import docEvents from './fixtures/sensitive_doc.events.json'
 
@@ -59,7 +61,8 @@ function subscribeLive(jobId: string, onEvent: (event: StageEvent) => void): () 
 
 function subscribeMock(jobId: string, onEvent: (event: StageEvent) => void): () => void {
   const name = Object.keys(FIXTURES).find((key) => jobId.startsWith(`${MOCK_PREFIX}${key}`))
-  const events = FIXTURES[name ?? 'concert_flyer']
+  const base = FIXTURES[name ?? 'concert_flyer']
+  const events = isMockOffline() ? offlineReplay(base) : base
   const timers: ReturnType<typeof setTimeout>[] = []
   let at = 0
   events.forEach((fixture, i) => {
