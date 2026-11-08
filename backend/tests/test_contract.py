@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from app.models import JobResult, StageEvent
+from app.models import FeedItem, FeedItemDetail, FeedResponse, JobResult, StageEvent
 
 BACKEND = Path(__file__).resolve().parent.parent
 FIXTURES = BACKEND / "fixtures"
@@ -68,3 +68,32 @@ def test_models_forbid_extra_fields():
     data["unexpected"] = 1
     with pytest.raises(ValueError):
         JobResult.model_validate(data)
+
+
+def test_feed_contract_fixture_matches_frontend_copy():
+    backend = json.loads((FIXTURES / "feed.result.json").read_text())
+    frontend = json.loads((FRONTEND_FIXTURES / "feed.result.json").read_text())
+    assert frontend == backend
+
+    details = [FeedItemDetail.model_validate(item) for item in backend]
+    response = FeedResponse(
+        items=[
+            FeedItem.model_validate(detail.model_dump(exclude={"body", "sources", "cards"}))
+            for detail in details
+        ],
+        generated_at=1794088800,
+    )
+    assert {item.kind for item in response.items} == {
+        "discovery",
+        "connection",
+        "follow_up",
+        "pattern",
+    }
+    assert response.next_cursor is None
+
+
+def test_feed_contract_forbids_extra_fields():
+    data = json.loads((FIXTURES / "feed.result.json").read_text())[0]
+    data["unexpected"] = 1
+    with pytest.raises(ValueError):
+        FeedItemDetail.model_validate(data)

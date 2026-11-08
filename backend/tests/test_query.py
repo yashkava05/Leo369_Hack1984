@@ -15,6 +15,7 @@ from app.pipeline.query import (
     MAX_QUERY_WORDS,
     TEMPLATE_WORDS,
     build_queries,
+    feed_discovery_query,
     provenance_ok,
 )
 
@@ -267,8 +268,43 @@ def test_provenance_rejects_foreign_words():
     assert not provenance_ok(empty, intent)
 
 
+@pytest.mark.parametrize(
+    ("intent", "expected"),
+    [
+        (
+            make_intent("event", ("event_name", "Nova Fields"), ("city", "Port Aurora")),
+            "Nova Fields similar events near Port Aurora",
+        ),
+        (
+            make_intent("product", ("brand", "Aurelo"), ("product", "Pulse X2")),
+            "Aurelo similar products",
+        ),
+        (
+            make_intent("book", ("book_title", "The Glass Orchard"), ("author", "Mira Calloway")),
+            "The Glass Orchard similar books",
+        ),
+        (
+            make_intent("place", ("place", "Museum of Light"), ("city", "Port Aurora")),
+            "Museum of Light similar places near Port Aurora",
+        ),
+    ],
+)
+def test_feed_discovery_queries_are_provenance_safe(intent, expected):
+    query = feed_discovery_query(intent, now=NOW)
+    assert query is not None
+    assert query.text == expected
+    assert query.purpose == "related"
+    assert query.include_domains == []
+    assert provenance_ok(query, intent)
+
+
+def test_feed_discovery_needs_public_location_for_nearby():
+    intent = make_intent("event", ("event_name", "Nova Fields"))
+    assert feed_discovery_query(intent, now=NOW) is None
+
+
 def test_template_words_cover_every_literal():
-    for tpl in qmod._TEMPLATES:
+    for tpl in (*qmod._TEMPLATES, *qmod._DISCOVERY_TEMPLATES):
         for part in tpl.parts:
             if isinstance(part, str) and part != qmod._YEAR:
                 assert part in TEMPLATE_WORDS
