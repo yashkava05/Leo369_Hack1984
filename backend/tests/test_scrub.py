@@ -91,6 +91,98 @@ POLICY_CASES = [
         ["Lumen Drift"],
         {"PERSON": 1},
     ),
+    # Public titles, products, brands and companies spaCy mistakes for people (issue #49).
+    (
+        "public-product-kept",
+        "product",
+        [("brand", "Stanley"), ("product", "Quencher H2.0 tumbler"), ("price", "$45")],
+        ["Stanley", "Quencher H2.0 tumbler", "$45"],
+        {},
+    ),
+    (
+        "invented-book-title-kept",
+        "book",
+        [("book_title", "The Glass Orchard"), ("author", "Mira Calloway")],
+        ["The Glass Orchard", "Mira Calloway"],
+        {},
+    ),
+    (
+        "invented-brand-and-product-kept",
+        "product",
+        [("brand", "Aurelo"), ("product", "Pulse X2 headphones")],
+        ["Aurelo", "Pulse X2 headphones"],
+        {},
+    ),
+    (
+        "private-name-as-product-removed",
+        "product",
+        [("brand", "Sony"), ("product", "Marcus Delgado")],
+        ["Sony"],
+        {"PERSON": 1},
+    ),
+    (
+        "private-name-in-product-removed",
+        "product",
+        [("brand", "Stanley"), ("product", "Dana Whitfield tumbler")],
+        ["Stanley"],
+        {"PERSON": 1},
+    ),
+    (
+        "private-name-before-model-number-removed",
+        "product",
+        [("brand", "Sony"), ("product", "Marcus Delgado Pulse X2")],
+        ["Sony"],
+        {"PERSON": 1},
+    ),
+    (
+        "lowercase-private-name-in-product-removed",
+        "product",
+        [("brand", "Stanley"), ("product", "jane smith tumbler")],
+        ["Stanley"],
+        {"PERSON": 1},
+    ),
+    (
+        "private-name-as-book-title-removed",
+        "book",
+        [("book_title", "Tomas Lindqvist"), ("author", "Andy Weir")],
+        ["Andy Weir"],
+        {"PERSON": 1},
+    ),
+    (
+        "private-name-as-public-org-removed",
+        "chart",
+        [("public_org", "Priya Raman"), ("metric", "share price")],
+        ["share price"],
+        {"PERSON": 1},
+    ),
+    (
+        "handle-in-product-removed",
+        "product",
+        [("brand", "Stanley"), ("product", "tumbler from @cozy.corner.finds")],
+        ["Stanley"],
+        {"HANDLE": 1},
+    ),
+    (
+        "email-in-brand-removed",
+        "product",
+        [("brand", "orders jane.doe@example.com"), ("product", "Quencher H2.0 tumbler")],
+        ["Quencher H2.0 tumbler"],
+        {"EMAIL_ADDRESS": 1},
+    ),
+    (
+        "phone-in-book-title-removed",
+        "book",
+        [("book_title", "The Glass Orchard 617-555-0134")],
+        [],
+        {"PHONE_NUMBER": 1},
+    ),
+    (
+        "public-name-rule-not-for-documents",
+        "document",
+        [("product", "Quencher H2.0 tumbler"), ("public_org", "Jane Doe")],
+        [],
+        {"PERSON": 2},
+    ),
     # Row 3: document intents keep only topic/public_org/product.
     (
         "document-revenue-figure-dropped",
@@ -230,6 +322,78 @@ def test_contains_pii_allow_list() -> None:
     # spaCy tags "Hail Mary Theo Vance" as one name; the title word left over is not a name.
     assert contains_pii("Hail Mary Theo Vance book", allow={"Theo Vance"}) == []
     assert contains_pii("Theo Vance with Jane Smith", allow={"Theo Vance"}) == ["PERSON"]
+
+
+# Private names, handles and emails planted in eval/expected.json. The public-name rule must not
+# let any of them through when the model labels one as a title, product, brand or company.
+PLANTED = [
+    "Priya Raman",
+    "Marcus Delgado",
+    "Tomas Lindqvist",
+    "Aisha Bello",
+    "Jane Doe",
+    "Ravi Menon",
+    "Maya Chen",
+    "Leo Fischer",
+    "Sam Ortiz",
+    "Dr. Kowalski",
+    "Marcus Delgado Pulse X2",
+    "Dana Whitfield Pro 2",
+    "jane smith tumbler",
+    "@harbor_gig_guide",
+    "@lena.okafor99",
+    "@cozy.corner.finds",
+    "@jaybird_writes",
+    "@maya.c",
+    "jane.doe@example.com",
+    "ravi.menon@example.com",
+]
+
+
+@pytest.mark.parametrize("entity_type", ["product", "brand", "book_title", "public_org"])
+def test_planted_private_values_still_removed_as_public_names(entity_type: str) -> None:
+    intent_type = "book" if entity_type == "book_title" else "product"
+    for planted in PLANTED:
+        cleaned, report = scrub_intent(
+            make_intent(intent_type, [("brand", "Stanley"), (entity_type, planted)])
+        )
+        assert planted.lower() not in json.dumps(cleaned.model_dump()).lower(), planted
+        assert report.kept == 1, planted
+
+
+@pytest.mark.parametrize(
+    ("span", "shaped"),
+    [
+        ("Marcus Delgado", True),
+        ("Anna de Vries", True),
+        ("Mike Johnson's", True),
+        ("Dr. Kowalski", True),
+        ("Kowalski MD", True),
+        ("The Glass Orchard", False),
+        ("Pulse X2", False),
+        ("Quencher H2.0", False),
+        ("Marcus Delgado Pulse X2", True),
+        ("Dana Whitfield Pro 2", True),
+        ("Quencher", False),
+        ("Stanley tumbler", False),
+    ],
+)
+def test_name_shaped(span: str, shaped: bool) -> None:
+    assert scrub._name_shaped(span) is shaped
+
+
+def test_allow_terms_only_kept_public_names() -> None:
+    cleaned, _ = scrub_intent(
+        make_intent(
+            "product",
+            [("brand", "Stanley"), ("product", "Marcus Delgado"), ("price", "$45")],
+        )
+    )
+    assert scrub.allow_terms(cleaned) == {"Stanley"}
+    doc, _ = scrub_intent(
+        make_intent("document", [("public_org", "Northwind Labs"), ("topic", "edge AI")])
+    )
+    assert scrub.allow_terms(doc) == set()
 
 
 def test_lone_word_not_a_person() -> None:

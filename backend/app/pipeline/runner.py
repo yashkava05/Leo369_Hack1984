@@ -27,6 +27,7 @@ from app.pipeline import cards as cards_mod
 from app.pipeline import exa as exa_mod
 from app.pipeline import search as search_mod
 from app.pipeline.extract import extract_intent
+from app.pipeline.query import allow_terms as query_allow_terms
 from app.pipeline.query import build_queries, related_query
 from app.pipeline.scrub import scrub_intent
 
@@ -193,8 +194,9 @@ async def _run_stages(job: jobs.JobState, box: list[bytes], timings: dict[str, i
     )
     timings["query"] = _ms(time.perf_counter() - t0)
 
-    # allow_terms: only the kept performer/author values may appear in an outbound query.
-    allow_terms = {e.value for e in scrubbed.public_entities if e.type in ("performer", "author")}
+    # allow_terms: only kept public names (performers, authors, titles, products, brands,
+    # companies) may appear in an outbound query; the same set the query builder checked with.
+    allow_terms = query_allow_terms(scrubbed)
 
     # --- search (network) ---------------------------------------------------------
     # Tavily and Exa run concurrently; Exa's findSimilar waits only for the Tavily answer.
