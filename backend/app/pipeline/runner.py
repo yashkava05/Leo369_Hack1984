@@ -211,19 +211,36 @@ async def _run_stages(job: jobs.JobState, box: list[bytes], timings: dict[str, i
     related_cards: list[Card] = []
     exa_task = None
     if related_q is not None:
+        # Exa is optional: once Tavily answers it gets at most OPTIONAL_BUDGET_S more, and
+        # keeps whatever arrived by then.
         exa_task = asyncio.create_task(
-            exa_mod.related_concurrent([related_q], tavily_context(), job_id, allow_terms)
+            exa_mod.related_concurrent(
+                [related_q],
+                tavily_context(),
+                job_id,
+                allow_terms,
+                budget=exa_mod.OPTIONAL_BUDGET_S,
+            )
         )
     try:
-        results = await tavily_task
-    except Exception as exc:  # search never raises, but degrade gracefully if it ever does
-        log.info("search failed for %s: %s", job_id, type(exc).__name__)
-        results = {}
-    if exa_task is not None:
         try:
-            related_cards = await exa_task
-        except Exception as exc:  # Exa never raises either; related cards are optional
-            log.info("exa failed for %s: %s", job_id, type(exc).__name__)
+            results = await tavily_task
+        except Exception as exc:  # search never raises, but degrade gracefully if it ever does
+            log.info("search failed for %s: %s", job_id, type(exc).__name__)
+            results = {}
+        if exa_task is not None:
+            try:
+                related_cards = await exa_task
+            except Exception as exc:  # Exa never raises either; related cards are optional
+                log.info("exa failed for %s: %s", job_id, type(exc).__name__)
+    finally:
+        # On cancellation, stop both network tasks and wait for them before returning.
+        for task in (tavily_task, exa_task):
+            if task is not None and not task.done():
+                task.cancel()
+        await asyncio.gather(
+            *(t for t in (tavily_task, exa_task) if t is not None), return_exceptions=True
+        )
     search_note = SEARCH_DEGRADED_NOTE if queries and not results else None
     await _publish(
         job,

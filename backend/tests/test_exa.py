@@ -54,23 +54,39 @@ ALLOW = {"Mira Calloway"}
 class Server:
     """Records every request and answers Exa/Tavily with the recorded JSON."""
 
-    def __init__(self, exa_status: int = 200, delay: float = 0.0):
+    def __init__(
+        self,
+        exa_status: int = 200,
+        delay: float = 0.0,
+        delays: dict[str, float] | None = None,
+        tavily_top: str | None = None,
+    ):
         self.requests: list[httpx.Request] = []
         self.log: list[str] = []
         self.exa_status = exa_status
         self.delay = delay
+        self.delays = delays or {}  # per "host/path" delay, overrides `delay`
+        self.tavily_top = tavily_top  # extra top-scored Tavily result URL
 
     async def __call__(self, request: httpx.Request) -> httpx.Response:
         self.requests.append(request)
         name = f"{request.url.host}{request.url.path}"
         self.log.append(f"start {name}")
-        if self.delay:
-            await asyncio.sleep(self.delay)
+        delay = self.delays.get(name, self.delay)
+        try:
+            if delay:
+                await asyncio.sleep(delay)
+        except asyncio.CancelledError:
+            self.log.append(f"cancelled {name}")
+            raise
         self.log.append(f"end {name}")
         if request.url.host == "api.tavily.com":
             body = json.loads(request.content)
             payload = next(iter(TAVILY_BOOK["responses"].values()))
-            return httpx.Response(200, json={**payload, "query": body["query"]})
+            results = list(payload["results"])
+            if self.tavily_top:
+                results.insert(0, {**results[0], "url": self.tavily_top, "score": 0.99})
+            return httpx.Response(200, json={**payload, "query": body["query"], "results": results})
         if self.exa_status != 200:
             return httpx.Response(self.exa_status, json={"error": "nope"})
         key = "search" if request.url.path == "/search" else "findSimilar"
@@ -259,16 +275,40 @@ async def test_offline_blocks_and_records(monkeypatch):
     }
 
 
-async def test_pii_in_top_url_is_blocked_by_the_guard(monkeypatch):
+async def test_pii_in_top_url_never_reaches_exa(monkeypatch):
     server = Server()
     use(monkeypatch, server)
     scrub_mod.warm_up()
     leaky = "https://example.test/call/617-555-0142"
     cards = await exa.related([RELATED_Q], leaky, "", ALLOW)
-    similar = [r for r in egress.records() if r.path == "/findSimilar"]
-    assert similar and similar[0].blocked and "pii" in (similar[0].reason or "")
+    # Checked on-device before any request is built: no /findSimilar attempt at all.
+    assert not [r for r in egress.records() if r.path == "/findSimilar"]
     assert [r.url.path for r in server.exa_requests()] == ["/search"]
+    assert all(b"555-0142" not in r.content for r in server.requests)
     assert cards  # /search still produced cards
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://example.test/report?email=alex%40example.com",
+        "https://example.test/report?email=alex%2540example.com",  # double-encoded
+        "https://example.test/report?to=alex+tran%40example.com",
+        "https://example.test/u/alex%40example.com/profile",
+        "https://example.test/call/617-555-0142",
+        "https://example.test/call?n=617%2D555%2D0142",
+        "https://alex:hunter2@example.test/report",
+    ],
+)
+def test_safe_similar_url_rejects_private_data(url):
+    scrub_mod.warm_up()
+    assert exa.safe_similar_url(url, ALLOW) is None
+
+
+def test_safe_similar_url_keeps_public_urls():
+    scrub_mod.warm_up()
+    assert exa.safe_similar_url(TOP_URL + "?utm_source=x", ALLOW) == TOP_URL
+    assert exa.safe_similar_url("https://openshelf.test/works/glass-orchard", ALLOW)
 
 
 def test_tavily_context_prefers_context_query():
@@ -400,6 +440,110 @@ async def test_runner_no_exa_key_still_done(monkeypatch):
     assert server.exa_requests() == []
     assert not any(c.kind == "related" for c in job.result.cards)
     assert sum(e.message == "Exa disabled (no key)" for e in job.events) == 1
+
+
+LEAKY_TOP = "https://example.test/report?email=alex%40example.com"
+
+
+async def test_runner_never_forwards_encoded_email_url_to_exa(monkeypatch):
+    scrub_mod.warm_up()
+    server = Server(tavily_top=LEAKY_TOP)
+    use(monkeypatch, server)
+    monkeypatch.setattr(runner, "extract_intent", fake_extract)
+    job = jobs.create_job()
+
+    await runner.run_job(job.job_id, png_bytes(), "book.png")
+
+    assert job.result.status == "done"
+    # Transport level: no Exa request carries the URL, in any encoding.
+    exa_bodies = [r.content.decode() for r in server.exa_requests()]
+    assert [r.url.path for r in server.exa_requests()] == ["/search"]
+    assert not any("alex" in b or "example.test" in b for b in exa_bodies)
+    assert not [r for r in job.result.egress if r.path == "/findSimilar"]
+    assert any(e.message == exa.UNSAFE_URL_MESSAGE and e.local for e in job.events)
+    assert any(c.kind == "related" for c in job.result.cards)  # /search still counts
+
+
+async def test_cancel_during_tavily_cancels_and_awaits_exa_search(monkeypatch):
+    started = asyncio.Event()
+    log: list[str] = []
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        log.append(f"start {request.url.path}")
+        started.set()
+        try:
+            await asyncio.sleep(30)
+        except asyncio.CancelledError:
+            log.append(f"cancelled {request.url.path}")
+            raise
+        return httpx.Response(200, json=EXA["search"])
+
+    monkeypatch.setattr(
+        egress, "_internet", httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    )
+    tavily_pending: asyncio.Future = asyncio.get_running_loop().create_future()
+    task = asyncio.create_task(exa.related_concurrent([RELATED_Q], tavily_pending, "", ALLOW))
+    await asyncio.wait_for(started.wait(), 5)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    # Cancelled *and awaited* before related_concurrent returned: no extra tick needed.
+    assert log == ["start /search", "cancelled /search"]
+
+
+async def test_runner_cancel_cancels_exa_while_tavily_pending(monkeypatch):
+    scrub_mod.warm_up()
+    server = Server(delays={"api.tavily.com/search": 30, "api.exa.ai/search": 30})
+    use(monkeypatch, server)
+    monkeypatch.setattr(runner, "extract_intent", fake_extract)
+    job = jobs.create_job()
+    run = asyncio.create_task(runner.run_job(job.job_id, png_bytes(), "book.png"))
+    for _ in range(500):
+        if "start api.exa.ai/search" in server.log:
+            break
+        await asyncio.sleep(0.01)
+    assert "start api.exa.ai/search" in server.log
+    run.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await run
+    assert "cancelled api.exa.ai/search" in server.log
+    assert "end api.exa.ai/search" not in server.log
+    assert not any(x.startswith("start api.exa.ai/findSimilar") for x in server.log)
+
+
+async def test_slow_find_similar_does_not_hold_tavily_cards(monkeypatch):
+    scrub_mod.warm_up()
+    server = Server(delays={"api.tavily.com/search": 0.03, "api.exa.ai/findSimilar": 1.2})
+    use(monkeypatch, server)
+    monkeypatch.setattr(runner, "extract_intent", fake_extract)
+    job = jobs.create_job()
+
+    await runner.run_job(job.job_id, png_bytes(), "book.png")
+
+    result = job.result
+    assert result.status == "done"
+    budget_ms = exa.OPTIONAL_BUDGET_S * 1000
+    assert result.timings_ms["search"] < 30 + budget_ms + 300  # not the 1.2 s findSimilar
+    assert "cancelled api.exa.ai/findSimilar" in server.log
+    assert "end api.exa.ai/findSimilar" not in server.log
+    assert any(c.kind != "related" for c in result.cards)  # Tavily cards kept
+    related = [c for c in result.cards if c.kind == "related"]
+    assert related  # the /search results that arrived in time are kept
+    assert all("findsimilar" not in (c.url or "").lower() for c in related)
+
+
+async def test_budget_keeps_find_similar_that_arrives_in_time(monkeypatch):
+    server = Server(delays={"api.exa.ai/findSimilar": 0.05})
+    use(monkeypatch, server)
+
+    async def tavily() -> exa.TavilyContext:
+        return TOP_URL, frozenset({TOP_URL})
+
+    scrub_mod.warm_up()
+    cards = await exa.related_concurrent([RELATED_Q], tavily(), "", ALLOW, budget=0.5)
+    assert "end api.exa.ai/findSimilar" in server.log
+    sim_urls = {exa.clean_url(r["url"]) for r in EXA["findSimilar"]["results"]}
+    assert any(c.url in sim_urls for c in cards)
 
 
 # --- live ---------------------------------------------------------------------------
