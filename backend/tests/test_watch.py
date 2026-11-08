@@ -169,6 +169,27 @@ async def test_ignored_files_start_nothing(mock_env, tmp_path):
     assert watcher.started == []
 
 
+async def test_renaming_an_existing_image_is_not_a_new_screenshot(mock_env, tmp_path):
+    (tmp_path / "Screenshot old.png").write_bytes(PNG)
+    watcher = watch.start(asyncio.get_running_loop(), folder=tmp_path)
+    os.rename(tmp_path / "Screenshot old.png", tmp_path / "flyer.png")
+    await asyncio.sleep(1.2)
+    assert watcher.started == []
+
+
+def test_observer_failure_leaves_watcher_off(mock_env, tmp_path, monkeypatch):
+    def boom(self):
+        raise OSError("inotify watch limit reached")
+
+    monkeypatch.setattr(watch.FolderWatcher, "start", boom)
+    loop = asyncio.new_event_loop()
+    try:
+        assert watch.start(loop, folder=tmp_path) is None
+    finally:
+        loop.close()
+    assert watch.status() == {"enabled": False, "dir": None}
+
+
 async def test_files_are_never_modified_moved_or_deleted(mock_env, tmp_path):
     watcher = watch.start(asyncio.get_running_loop(), folder=tmp_path)
     (tmp_path / "a.png").write_bytes(PNG)

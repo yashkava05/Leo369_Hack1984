@@ -142,8 +142,12 @@ class _Handler(FileSystemEventHandler):
             self._watcher.notify(str(event.src_path))
 
     def on_moved(self, event: FileSystemEvent) -> None:
-        if not event.is_directory:
-            self._watcher.notify(str(event.dest_path))
+        if event.is_directory:
+            return
+        src = Path(str(event.src_path))
+        if src.parent == self._watcher.folder and is_candidate(src):
+            return  # the user renamed an image already in the folder: not a new screenshot
+        self._watcher.notify(str(event.dest_path))
 
 
 class FolderWatcher:
@@ -169,8 +173,11 @@ class FolderWatcher:
         path = Path(raw_path)
         if path.parent != self.folder or not is_candidate(path):
             return
-        with contextlib.suppress(RuntimeError):  # loop already closed during shutdown
-            asyncio.run_coroutine_threadsafe(self.handle(path), self.loop)
+        try:
+            future = asyncio.run_coroutine_threadsafe(self.handle(path), self.loop)
+        except RuntimeError:  # loop already closed during shutdown
+            return
+        future.add_done_callback(_log_failure)
 
     async def handle(self, path: Path) -> str | None:
         """Wait for the file to settle, then start a job for it. Returns the job id."""
@@ -194,13 +201,17 @@ class FolderWatcher:
             self._seen.add(key)
             job = jobs.create_job()
             jobs.start_job(job, path.name, data)
-            del data
             notice = {"job_id": job.job_id, "filename": path.name}
             self.started.append(notice)
             broadcaster.publish(notice)
             return job.job_id
         finally:
             self._pending.discard(path)
+
+
+def _log_failure(future) -> None:
+    if not future.cancelled() and future.exception() is not None:
+        log.warning("folder watcher could not start a job: %s", type(future.exception()).__name__)
 
 
 def _read_image(path: Path) -> bytes | None:
@@ -222,7 +233,11 @@ def start(loop: asyncio.AbstractEventLoop, folder: Path | None = None) -> Folder
     if folder is None:
         return None
     watcher = FolderWatcher(folder, loop)
-    watcher.start()
+    try:
+        watcher.start()
+    except OSError as exc:  # e.g. inotify watch limit or no permission: stay off, keep serving
+        log.warning("folder watcher could not start (%s); it stays off", type(exc).__name__)
+        return None
     _watcher = watcher
     log.info("watching a folder for new screenshots")
     return watcher

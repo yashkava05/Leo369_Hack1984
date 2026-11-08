@@ -103,7 +103,7 @@ LATENT_WATCH_DIR=~/Desktop uvicorn app.main:app --port 8000   # from backend/
   prints "does not exist", screenshots go to the default, `~/Desktop`.
 - Only new `.png`, `.jpg`, `.jpeg` and `.webp` files are picked up (including the macOS
   temp-name-then-rename save); hidden and temp files, files over 10 MB and files already in the
-  folder are ignored. A file must stop growing for 500 ms before it is read, so half-written
+  folder are ignored (renaming one of them does not count as new). A file must stop growing for 500 ms before it is read, so half-written
   files never start a job.
 - Latent only reads the file. It never moves, edits or deletes anything in the folder, and the
   image bytes stay on this machine exactly as with a dropped screenshot.
