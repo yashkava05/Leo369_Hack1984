@@ -172,7 +172,7 @@ def _migrate_phase1(conn: sqlite3.Connection) -> None:
     if version >= 1:
         return
     now = time.time()
-    conn.executescript(PHASE1_SCHEMA)
+    conn.executescript("BEGIN IMMEDIATE;\n" + PHASE1_SCHEMA)
     conn.execute(
         "INSERT OR IGNORE INTO memory_state (id, generation, memory_epoch, updated_at)"
         " VALUES (1, 0, 0, ?)",
@@ -186,7 +186,8 @@ def _read_state(conn: sqlite3.Connection) -> tuple[int, int]:
     if row is None:
         now = time.time()
         conn.execute(
-            "INSERT INTO memory_state (id, generation, memory_epoch, updated_at) VALUES (1, 0, 0, ?)",
+            "INSERT INTO memory_state (id, generation, memory_epoch, updated_at)"
+            " VALUES (1, 0, 0, ?)",
             (now,),
         )
         return (0, 0)
@@ -197,6 +198,15 @@ def current_generation() -> int:
     with _connect() as conn:
         generation, _ = _read_state(conn)
     return generation
+
+
+def job_generation() -> int:
+    """A storage failure must not break processing or allow an unfenced late save."""
+    try:
+        return current_generation()
+    except Exception as exc:
+        log.warning("memory generation unavailable: %s", type(exc).__name__)
+        return -1
 
 
 def current_memory_epoch() -> int:
@@ -255,6 +265,7 @@ def save(
     stored = result.model_copy(update={"egress": []})
     entities = " ".join(e.value for e in intent.public_entities)
     with _connect() as conn:
+        conn.execute("BEGIN IMMEDIATE")
         if expected_generation is not None:
             generation, _ = _read_state(conn)
             if generation != expected_generation:
@@ -375,6 +386,10 @@ def _checkpoint() -> None:
 def wipe() -> None:
     """Delete every saved intent, then VACUUM so the freed pages leave the file too."""
     with _connect() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        conn.execute(
+            "UPDATE memory_state SET generation = generation + 1, updated_at = ?", (time.time(),)
+        )
         conn.execute("DELETE FROM intents_fts")
         conn.execute("DELETE FROM intents")
     conn = sqlite3.connect(init_db(), timeout=5)
@@ -389,9 +404,11 @@ def wipe() -> None:
 
 def list_saved_items() -> tuple[int, list[SavedItem]]:
     with _connect() as conn:
+        conn.execute("BEGIN")  # The epoch and snapshots must come from the same DB snapshot.
         _, epoch = _read_state(conn)
         rows = conn.execute(
-            "SELECT id, created_at, updated_at, last_opened_at, pinned, label, intent_type, cards_json,"
+            "SELECT id, created_at, updated_at, last_opened_at, pinned, label,"
+            " intent_type, cards_json,"
             " source_job_id FROM saved_items ORDER BY created_at DESC"
         ).fetchall()
     out: list[SavedItem] = []
@@ -426,6 +443,7 @@ def import_saved_items(
 ) -> tuple[int, list[dict[str, str]], bool]:
     statuses: list[dict[str, str]] = []
     with _connect() as conn:
+        conn.execute("BEGIN IMMEDIATE")
         ok, epoch = _require_epoch(conn, client_epoch)
         if not ok:
             return (epoch, statuses, True)
@@ -444,7 +462,8 @@ def import_saved_items(
             now = time.time()
             conn.execute(
                 "INSERT INTO saved_items "
-                "(id, created_at, updated_at, last_opened_at, pinned, label, intent_type, cards_json, source_job_id)"
+                "(id, created_at, updated_at, last_opened_at, pinned, label,"
+                " intent_type, cards_json, source_job_id)"
                 " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     item.id,
@@ -459,11 +478,12 @@ def import_saved_items(
                 ),
             )
             statuses.append({"id": item.id, "status": "saved"})
-    return (current_memory_epoch(), statuses, False)
+    return (epoch, statuses, False)
 
 
 def delete_saved_item(saved_id: str, *, client_epoch: int | None) -> tuple[int, bool, bool]:
     with _connect() as conn:
+        conn.execute("BEGIN IMMEDIATE")
         ok, epoch = _require_epoch(conn, client_epoch)
         if not ok:
             return (epoch, False, True)
@@ -480,6 +500,7 @@ def set_saved_item_pin(
     saved_id: str, *, pinned: bool, client_epoch: int | None
 ) -> tuple[int, bool, bool]:
     with _connect() as conn:
+        conn.execute("BEGIN IMMEDIATE")
         ok, epoch = _require_epoch(conn, client_epoch)
         if not ok:
             return (epoch, False, True)
@@ -492,6 +513,7 @@ def set_saved_item_pin(
 
 def memory_summary() -> dict[str, int]:
     with _connect() as conn:
+        conn.execute("BEGIN")
         generation, epoch = _read_state(conn)
         saved_count = int(conn.execute("SELECT COUNT(*) FROM saved_items").fetchone()[0])
         history_count = int(conn.execute("SELECT COUNT(*) FROM intents").fetchone()[0])
@@ -507,6 +529,7 @@ def delete_all_local_data(*, confirm: str) -> tuple[bool, int]:
     if confirm != "DELETE_ALL_LOCAL_DATA":
         return (False, current_memory_epoch())
     with _connect() as conn:
+        conn.execute("BEGIN IMMEDIATE")
         generation, epoch = _read_state(conn)
         now = time.time()
         conn.execute(

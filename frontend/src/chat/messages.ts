@@ -11,6 +11,7 @@ export type ChatMessage =
   | (Message & { type: 'ask'; kind: 'calendar' | 'save' | 'resume'; question: string; primary: string; result: JobResult; file?: File; choice?: string })
 
 export interface KeptItem {
+  id?: string
   label: string
   intent_type: IntentType
   savedAt: number

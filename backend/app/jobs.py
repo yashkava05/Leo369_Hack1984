@@ -8,6 +8,7 @@ import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from app import library
 from app.config import get_settings
 from app.models import EgressRecord, JobResult, StageEvent
 
@@ -31,6 +32,7 @@ class JobState:
     events: list[StageEvent] = field(default_factory=list)
     changed: asyncio.Condition = field(default_factory=asyncio.Condition)
     task: asyncio.Task | None = None
+    memory_generation: int = field(default_factory=library.job_generation)
 
     @property
     def finished(self) -> bool:
@@ -183,9 +185,7 @@ async def run_mock(job: JobState, fixture: str) -> None:
         if event.stage == "done":
             job.result = result
             EGRESS_LOG.extend(result.egress)
-            from app import library  # local intent library (issue #21)
-
-            library.save_quietly(result)
+            library.save_quietly(result, expected_generation=job.memory_generation)
             update["data"] = result.model_dump(mode="json")
         await job.publish(event.model_copy(update=update))
 

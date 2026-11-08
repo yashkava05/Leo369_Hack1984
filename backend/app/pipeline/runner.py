@@ -280,7 +280,9 @@ async def _run_stages(job: jobs.JobState, box: list[bytes], timings: dict[str, i
     )
     result: JobResult = job.result
     # Save the scrubbed result (egress stripped) to the local library before announcing done.
-    await asyncio.to_thread(library.save_quietly, result, thumb)
+    await asyncio.to_thread(
+        library.save_quietly, result, thumb, expected_generation=job.memory_generation
+    )
     await _publish(
         job,
         "done",

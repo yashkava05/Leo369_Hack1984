@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, Field
+import asyncio
 
 from fastapi import APIRouter, HTTPException, Query
+from pydantic import BaseModel, ConfigDict, Field
 
-from app import library
-from app.models import IntentType
+from app import jobs, library
+from app.models import Card, IntentType
 
 router = APIRouter()
 
@@ -18,8 +19,8 @@ class SavedImportItem(BaseModel):
     id: str = Field(min_length=1, max_length=200)
     label: str = Field(min_length=1, max_length=200)
     intent_type: IntentType
-    saved_at: float
-    cards: list[dict]
+    saved_at: float = Field(allow_inf_nan=False)
+    cards: list[Card] = Field(max_length=500)
     source_job_id: str | None = None
 
 
@@ -27,7 +28,7 @@ class SavedImportRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     memory_epoch: int | None = None
-    items: list[SavedImportItem]
+    items: list[SavedImportItem] = Field(max_length=500)
 
 
 class SavedItemResponse(BaseModel):
@@ -80,7 +81,7 @@ def import_saved(body: SavedImportRequest) -> dict:
                 pinned=False,
                 label=item.label,
                 intent_type=item.intent_type,
-                cards=item.cards,
+                cards=[card.model_dump(mode="json") for card in item.cards],
                 source_job_id=item.source_job_id,
             )
             for item in body.items
@@ -93,7 +94,9 @@ def import_saved(body: SavedImportRequest) -> dict:
 
 
 @router.post("/saved/{saved_id}/pin")
-def pin_saved(saved_id: str, pinned: bool = Query(True), memory_epoch: int | None = Query(None)) -> dict:
+def pin_saved(
+    saved_id: str, pinned: bool = Query(True), memory_epoch: int | None = Query(None)
+) -> dict:
     epoch, updated, stale = library.set_saved_item_pin(
         saved_id, pinned=pinned, client_epoch=memory_epoch
     )
@@ -117,11 +120,26 @@ def get_memory_summary() -> dict[str, int]:
 
 
 @router.delete("/memory")
-def delete_all_local_data(confirm: str = Query("")) -> dict:
-    ok, epoch = library.delete_all_local_data(confirm=confirm)
+async def delete_all_local_data(confirm: str = Query("")) -> dict:
+    ok, epoch = await asyncio.to_thread(library.delete_all_local_data, confirm=confirm)
     if not ok:
         raise HTTPException(
             400,
-            "confirmation required: DELETE_ALL_LOCAL_DATA (saved items, library history, FTS index)",
+            "confirmation required: DELETE_ALL_LOCAL_DATA"
+            " (saved items, library history, FTS index)",
         )
-    return {"memory_epoch": epoch, "message": "Local app memory cleared; browser Kept copies must sync."}
+    generation = await asyncio.to_thread(library.current_generation)
+    cancelled = []
+    for job in list(jobs.JOBS.values()):
+        if job.memory_generation >= generation:
+            continue  # A job started after the reset belongs to the new memory generation.
+        if job.task is not None and not job.task.done():
+            job.task.cancel()
+            cancelled.append(job.task)
+        jobs.JOBS.pop(job.job_id, None)
+    await asyncio.gather(*cancelled, return_exceptions=True)
+    jobs.EGRESS_LOG.clear()
+    return {
+        "memory_epoch": epoch,
+        "message": "Local app memory cleared; browser Kept copies must sync.",
+    }

@@ -3,6 +3,18 @@ import concert from '../api/fixtures/concert_flyer.result.json'
 import type { JobResult, StageEvent } from '../types'
 
 const mocks = vi.hoisted(() => ({ start: vi.fn(), setOffline: vi.fn(), action: vi.fn() }))
+vi.mock('./saved', async () => {
+  const { readKept, writeKept } = await import('./kept')
+  return {
+    initialSaved: readKept,
+    keepSaved: async (item: import('./messages').KeptItem) => {
+      writeKept([item, ...readKept()])
+      return { items: readKept(), blocked: [], notice: '' }
+    },
+    syncSaved: async () => ({ items: readKept(), blocked: [], notice: '' }),
+    resolvePending: vi.fn(), deleteMemory: vi.fn(),
+  }
+})
 vi.mock('../state/useJob', () => ({ start: mocks.start }))
 vi.mock('../api/privacy', () => ({ getOffline: vi.fn().mockResolvedValue(false), setOffline: mocks.setOffline }))
 vi.mock('../components/cards/cardActions', () => ({ runAction: mocks.action }))
