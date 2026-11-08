@@ -19,12 +19,14 @@ export interface VoiceCaptureProps {
   onClose?: () => void
   /** Optional (#67): open the read-only Outlook agent with the reviewed text. */
   onOutlook?: (text: string) => void
+  /** Optional (#68): open the read-only Teams agent with the reviewed text. */
+  onTeams?: (text: string) => void
 }
 
 const LIMIT_S = 30
 const clock = (s: number) => `0:${String(s).padStart(2, '0')}`
 
-export function VoiceCapture({ onJob, disabled = false, onBusyChange, autoStart = false, onClose, onOutlook }: VoiceCaptureProps) {
+export function VoiceCapture({ onJob, disabled = false, onBusyChange, autoStart = false, onClose, onOutlook, onTeams }: VoiceCaptureProps) {
   const voice = useVoice(onJob, onBusyChange)
   const [items, setItems] = useState<LibraryItem[]>([])
   const [context, setContext] = useState<{ id: string; summary: string } | null>(null)
@@ -133,7 +135,8 @@ export function VoiceCapture({ onJob, disabled = false, onBusyChange, autoStart 
       <TranscriptReview text={voice.text} busy={busy} disabled={disabled} items={items} context={context} loading={loading} libraryError={libraryError}
         onText={voice.setText} onLoad={() => { void load() }} onSelect={(id) => { void select(id) }} onRemove={clearContext}
         onAction={(action) => { void act(action) }} onRerecord={record} onDiscard={discard}
-        onOutlook={onOutlook ? () => { const text = voice.text.trim(); if (!text) return; cancel(); clearContext(); onOutlook(text); onClose?.() } : undefined} />
+        onOutlook={onOutlook ? () => { const text = voice.text.trim(); if (!text) return; cancel(); clearContext(); onOutlook(text); onClose?.() } : undefined}
+        onTeams={onTeams ? () => { const text = voice.text.trim(); if (!text) return; cancel(); clearContext(); onTeams(text); onClose?.() } : undefined} />
       {voice.phase === 'submitting' && <p role="status" className="voice-hint">Starting…</p>}
     </>}
 

@@ -40,6 +40,7 @@
 .voice-review { display: grid; gap: 8px; }
 .voice-review textarea { width: 100%; min-height: 64px; max-height: 30vh; resize: vertical; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--v-border); background: var(--v-field); line-height: 1.45; font-size: 0.98rem; }
 .voice-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.voice-agents { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 .voice-spacer { flex: 1; }
 .voice-chip { display: flex; align-items: center; gap: 8px; padding: 6px 6px 6px 10px; border-radius: 10px; background: var(--v-field); font-size: 0.85rem; overflow-wrap: anywhere; }
 .voice-chip > span { flex: 1; }
