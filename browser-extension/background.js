@@ -61,21 +61,23 @@ async function verifySource(source) {
   var probe = await inTab(source.tabId, function () { return globalThis.__latentOutlook.probe() })
   if (!probe || probe.origin !== source.origin) return { error: 'wrong_origin' }
   if (probe.signedOut) return { error: 'login_required' }
-  if (source.account && core.fingerprint(probe.account) !== source.account) return { error: 'account_changed' }
+  // Fail closed: a tab whose account cannot be identified is never treated as the same account.
+  if (!probe.account || core.fingerprint(probe.account) !== source.account) return { error: 'account_changed' }
   return { tab: tab }
 }
 
 async function read(jobId, nonce) {
   var source = await getSource()
   if (!source) { await report(jobId, nonce, 'no_source_selected'); return }
-  var claim
-  try {
-    claim = await backend('/claim', jobId, nonce, { provider: source.provider, origin: source.origin })
-  } catch (e) { return } // backend unreachable: the page shows its own error
-  if (!claim.ok) return // refused (air-gap, wrong origin, replay): backend already recorded it
+  // Registered before the claim so a cancel that arrives mid-claim is honoured.
   // The nonce stays in worker memory only while this read runs (for progress reports).
   var job = running[jobId] = { tabId: source.tabId, cancelled: false, nonce: nonce }
   try {
+    var claim
+    try {
+      claim = await backend('/claim', jobId, nonce, { provider: source.provider, origin: source.origin })
+    } catch (e) { return } // backend unreachable: the page shows its own error
+    if (!claim.ok || job.cancelled) return // refused (air-gap, wrong origin, replay) or stopped
     var check = await verifySource(source)
     if (check.error) { await report(jobId, nonce, check.error); return }
     if (job.cancelled) return
@@ -85,15 +87,17 @@ async function read(jobId, nonce) {
     if (job.cancelled) return
     if (!out) { await report(jobId, nonce, 'read_failed'); return }
     if (out.origin !== source.origin) { await report(jobId, nonce, 'wrong_origin'); return }
-    if (source.account && core.fingerprint(out.account) !== source.account) { await report(jobId, nonce, 'account_changed'); return }
+    if (!out.account || core.fingerprint(out.account) !== source.account) { await report(jobId, nonce, 'account_changed'); return }
     if (out.error) { await report(jobId, nonce, out.error); return }
-    await backend('/content', jobId, nonce, {
+    var sent = await backend('/content', jobId, nonce, {
       provider: source.provider,
       origin: source.origin,
       mode: scope.mode,
       items: out.result.items,
       coverage: out.result.coverage,
     })
+    // A refused upload (size, schema, scope) must not leave the page waiting on "reading".
+    if (!sent.ok && sent.status !== 404 && sent.status !== 410) await report(jobId, nonce, 'read_failed')
   } catch (e) {
     if (!job.cancelled) await report(jobId, nonce, 'read_failed')
   } finally {
@@ -136,15 +140,17 @@ chrome.runtime.onMessageExternal.addListener(function (message, sender, sendResp
 // Popup (select/forget) and the in-tab reader (progress) are this extension's own contexts.
 chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
   if (sender.id !== chrome.runtime.id || !message || typeof message !== 'object') return false
-  if (message.type === 'latent.select' && Number.isInteger(message.tabId)) {
+  // select/pending/unselect come only from the popup (no tab); progress only from the reader in the tab.
+  var fromPopup = !sender.tab
+  if (message.type === 'latent.select' && fromPopup && Number.isInteger(message.tabId)) {
     selectTab(message.tabId).then(sendResponse, function () { sendResponse({ ok: false, error: 'permission_denied' }) })
     return true
   }
-  if (message.type === 'latent.pending' && Number.isInteger(message.tabId)) {
+  if (message.type === 'latent.pending' && fromPopup && Number.isInteger(message.tabId)) {
     chrome.storage.session.set({ pending: { tabId: message.tabId, at: Date.now() } }).then(function () { sendResponse({ ok: true }) })
     return true
   }
-  if (message.type === 'latent.unselect') { setSource(null).then(function () { sendResponse({ ok: true }) }); return true }
+  if (message.type === 'latent.unselect' && fromPopup) { setSource(null).then(function () { sendResponse({ ok: true }) }); return true }
   if (message.type === 'latent.progress' && sender.tab && typeof message.jobId === 'string') {
     var job = running[message.jobId]
     if (job && job.tabId === sender.tab.id && Number.isInteger(message.inspected)) void progress(message.jobId, message.inspected)
@@ -170,11 +176,12 @@ async function selectTab(tabId) {
   var probe = await inTab(tabId, function () { return globalThis.__latentOutlook.probe() })
   if (!probe || probe.origin !== match.origin) return { ok: false, error: 'wrong_origin' }
   if (probe.signedOut) return { ok: false, error: 'login_required' }
+  if (!probe.account) return { ok: false, error: 'unsupported_layout' } // account switches must be detectable
   await setSource({
     provider: match.provider,
     origin: match.origin,
     tabId: tabId,
-    account: probe.account ? core.fingerprint(probe.account) : '',
+    account: core.fingerprint(probe.account),
     accountLabel: probe.account,
   })
   return { ok: true, origin: match.origin, accountLabel: probe.account }

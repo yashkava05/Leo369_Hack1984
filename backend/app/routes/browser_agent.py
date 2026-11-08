@@ -120,7 +120,9 @@ def _view(job: bridge.BrowserJob) -> dict[str, Any]:
         "receipt": {
             "browser_reads": job.inspected if job.submitted else 0,
             "backend_internet_requests": 0,  # this flow never calls egress.internet_post
-            "local_model_calls": 1 if job.status == "done" and job.inspected else 0,
+            "local_model_calls": 1
+            if job.status == "done" and job.inspected and not get_settings().latent_mock
+            else 0,
         },
     }
 
@@ -191,6 +193,7 @@ async def claim(job_id: str, request: Request) -> dict[str, Any]:
     job = _ext(request, job_id)
     _airgap(job)
     body = _parse(bridge.ClaimRequest, await _json(request, 1024))
+    _airgap(job)
     provider = PROVIDERS.get(body.provider)
     try:
         if provider is None or body.provider != job.provider:
@@ -210,6 +213,7 @@ async def progress(job_id: str, request: Request) -> Response:
     job = _ext(request, job_id)
     _airgap(job)
     body = _parse(bridge.ProgressRequest, await _json(request, 256))
+    _airgap(job)
     try:
         bridge.progress(job, body.inspected)
     except bridge.BridgeError as exc:
@@ -226,6 +230,14 @@ async def content(job_id: str, request: Request) -> dict[str, Any]:
         raise HTTPException(409, "bad_state")
     _airgap(job)
     body = _parse(bridge.ContentRequest, await _json(request, bridge.MAX_CONTENT_BYTES))
+    # The body may take a while to arrive: Stop, replacement or air-gap may have landed since.
+    try:
+        bridge.ensure_open(job)
+    except bridge.BridgeError as exc:
+        _raise(exc)
+    if job.submitted:
+        raise HTTPException(409, "replay")
+    _airgap(job)
     provider = PROVIDERS[job.provider]
     try:
         if body.provider != job.provider or body.origin != job.origin:
@@ -265,15 +277,7 @@ async def content(job_id: str, request: Request) -> dict[str, Any]:
 async def fail(job_id: str, request: Request) -> Response:
     job = _ext(request, job_id)
     body = _parse(bridge.FailRequest, await _json(request, 256))
+    if job.status in bridge.TERMINAL:
+        return Response(status_code=204)
     bridge.fail(job, body.code)
     return Response(status_code=204)
-
-
-@router.get("/audit")
-async def audit(request: Request) -> list[dict[str, Any]]:
-    """Coarse operation/count/timing/provider metadata only; never content or URLs."""
-    try:
-        bridge.require_ui_origin(request.headers.get("origin"))
-    except bridge.BridgeError as exc:
-        _raise(exc)
-    return bridge.audit_log()

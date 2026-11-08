@@ -17,6 +17,7 @@ from app import egress, library, outlook
 from app.browser_bridge import BrowserJob, Scope, SourceItem
 from app.config import get_settings
 from app.main import app
+from app.routes import browser_agent
 
 EXT_ID = "kemjkilbmidnkohlldbohmgjaljbkdcc"
 EXT = f"chrome-extension://{EXT_ID}"
@@ -588,7 +589,7 @@ def test_no_email_content_in_logs_disk_or_public_storage(client, caplog, tmp_pat
     submit(client, job, INBOX)
     body = wait(client, job)
     assert body["status"] == "done" and "Northwind" in json.dumps(body["result"])
-    audit = client.get("/api/browser/audit", headers={"origin": UI}).json()
+    audit = bridge.audit_log()
     assert {a["op"] for a in audit} >= {"job_created", "claimed", "read_tab", "analyzed_locally"}
     serialized = json.dumps(audit)
     for secret in (
@@ -629,3 +630,53 @@ def test_jobs_expire_and_store_is_bounded():
     jobs[-1].items = [SourceItem(**INBOX[0])]
     bridge._sweep(now=time.time() + bridge.JOB_TTL_S + 1)
     assert bridge._jobs == {} and jobs[-1].items is None
+
+
+@pytest.mark.parametrize("route", ["claim", "content"])
+def test_cancel_or_replace_while_body_arrives_wins(client, monkeypatch, route):
+    """Stop/replace can land between authentication and the end of a slow upload."""
+    job = create(client)
+    if route == "content":
+        claim(client, job)
+    real = browser_agent._json
+
+    async def slow_body(request, limit):
+        data = await real(request, limit)
+        # The user confirmed a new request meanwhile: the old job is cancelled and wiped.
+        bridge.create_job("outlook", Scope("latest", 5), "newer request")
+        return data
+
+    monkeypatch.setattr(browser_agent, "_json", slow_body)
+    if route == "claim":
+        resp = claim(client, job)
+    else:
+        resp = submit(client, job, INBOX)
+    assert resp.status_code == 410
+    body = view(client, job).json()
+    assert body["status"] == "cancelled" and body["result"] is None
+    time.sleep(0.05)
+    assert view(client, job).json()["status"] == "cancelled"
+
+
+def test_airgap_turned_on_while_body_arrives_blocks(client, monkeypatch):
+    job = create(client)
+    claim(client, job)
+    real = browser_agent._json
+
+    async def slow_body(request, limit):
+        data = await real(request, limit)
+        egress.set_offline(True)
+        return data
+
+    monkeypatch.setattr(browser_agent, "_json", slow_body)
+    assert submit(client, job, INBOX).status_code == 423
+    assert view(client, job).json()["result"] is None
+
+
+async def test_summary_cannot_invent_a_deadline(monkeypatch):
+    sources = {"m1": SourceItem(**INBOX[1])}
+    output = outlook._ModelOutput(
+        emails=[{"source_id": "m1", "summary": "Tomas needs an answer by Friday."}]
+    )
+    result = outlook.ground(sources, output)
+    assert result["emails"][0]["summary"] == "Lunch?"

@@ -61,7 +61,13 @@ export function createOutlookSession(driver: OutlookDriver, request: string, opt
     const gen = ++generation
     update({ phase: 'running', error: null, job: null })
     try {
-      active = await driver.start(state.request, state.scope)
+      const started = await driver.start(state.request, state.scope)
+      if (gen !== generation) {
+        // Stop (or close) was pressed while the job was being created: cancel it right away.
+        await driver.cancel(started.jobId, started.viewToken).catch(() => {})
+        return
+      }
+      active = started
       for (let polls = 0; polls < MAX_POLLS; polls++) {
         if (gen !== generation || !active) return
         const view = await driver.poll(active.jobId, active.viewToken)

@@ -48,7 +48,12 @@
 
   stop.addEventListener('click', async function () {
     await chrome.runtime.sendMessage({ type: 'latent.unselect' })
-    if (match) { try { await chrome.permissions.remove({ origins: [match.origin + '/*'] }) } catch (e) { /* already removed */ } }
+    // Revoke the grant for the shared tab's site (and this tab's, if it is another Outlook site).
+    var origins = [source && source.origin, match && match.origin].filter(Boolean)
+    for (var i = 0; i < origins.length; i++) {
+      try { await chrome.permissions.remove({ origins: [origins[i] + '/*'] }) } catch (e) { /* already removed */ }
+    }
+    source = null
     show('Stopped sharing.', 'Latent can no longer read this tab.')
     stop.hidden = true
     share.hidden = !match

@@ -217,6 +217,9 @@ def ground(sources: dict[str, SourceItem], output: _ModelOutput) -> dict[str, An
     for position, (source_id, item) in enumerate(sources.items(), start=1):
         model = summaries.get(source_id)
         summary = _strip_links(model.summary)[:200] if model and model.summary.strip() else ""
+        source_text = _norm(_text(item))
+        if any(_norm(m.group(0)) not in source_text for m in _DEADLINE.finditer(summary)):
+            summary = ""  # a summary may not state a date/deadline the email does not contain
         flagged = _flagged(item)
         emails.append(
             {

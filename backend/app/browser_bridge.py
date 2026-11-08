@@ -34,7 +34,8 @@ from app.config import get_settings
 
 MAX_JOBS = 4
 JOB_TTL_S = 15 * 60
-MAX_CONTENT_BYTES = 64 * 1024
+# Field limits are in characters; 20 full list items of non-ASCII text stay under this.
+MAX_CONTENT_BYTES = 160 * 1024
 MAX_ITEMS = 20
 MAX_AUDIT = 200
 
@@ -255,9 +256,15 @@ def require_extension(origin: str | None, job: BrowserJob | None, nonce: str | N
         raise BridgeError("unknown_job", 404)
     if not nonce or not hmac.compare_digest(nonce.encode(), job.nonce.encode()):
         raise BridgeError("bad_nonce", 403)
-    if job.status == "cancelled" or job.status in TERMINAL:
+    if job.status in TERMINAL:
         raise BridgeError("job_closed", 410)
     return job
+
+
+def ensure_open(job: BrowserJob) -> None:
+    """Re-check after any await: a cancel/replace may have landed while a body was arriving."""
+    if _jobs.get(job.job_id) is not job or job.status in TERMINAL:
+        raise BridgeError("job_closed", 410)
 
 
 def require_viewer(job: BrowserJob | None, token: str | None) -> BrowserJob:
@@ -282,6 +289,7 @@ def require_ui_origin(origin: str | None) -> None:
 def claim(job: BrowserJob, origin_ok: bool) -> None:
     if job.claimed:
         raise BridgeError("replay", 409)
+    ensure_open(job)
     if not origin_ok:
         job.status, job.error = "error", "wrong_origin"
         job.wipe()
@@ -293,6 +301,7 @@ def claim(job: BrowserJob, origin_ok: bool) -> None:
 def progress(job: BrowserJob, inspected: int) -> None:
     if not job.claimed or job.submitted:
         raise BridgeError("bad_state", 409)
+    ensure_open(job)
     job.inspected = min(inspected, job.scope.count)
 
 

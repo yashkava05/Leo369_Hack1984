@@ -113,6 +113,24 @@ describe('cancel and failures', () => {
     expect(session.getSnapshot().job).toBeNull()
   })
 
+  it('Stop pressed while the job is still being created cancels that job once it exists', async () => {
+    let finishStart!: (v: { jobId: string; viewToken: string }) => void
+    const cancel = vi.fn(async () => {})
+    const poll = vi.fn(async () => view('reading'))
+    const driver = fakeDriver({ start: () => new Promise((resolve) => { finishStart = resolve }), cancel, poll })
+    const session = createOutlookSession(driver, 'check my email', { sleep: instant })
+    await session.check()
+    const running = session.confirm()
+    await vi.waitFor(() => expect(finishStart).toBeTypeOf('function'))
+    await session.cancel()
+    expect(cancel).not.toHaveBeenCalled()
+    finishStart({ jobId: 'b_late', viewToken: 'tl' })
+    await running
+    expect(cancel).toHaveBeenCalledWith('b_late', 'tl')
+    expect(poll).not.toHaveBeenCalled()
+    expect(session.getSnapshot().phase).toBe('cancelled')
+  })
+
   it('dispose (closing the panel) cancels a running read', async () => {
     const cancel = vi.fn(async () => {})
     const driver = fakeDriver({ poll: async () => view('reading'), cancel })
