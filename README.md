@@ -5,12 +5,17 @@ A local-first memory agent built for HACK1984.
 
 Drop a screenshot. A vision model running on your machine (Ollama + Qwen2.5-VL) works out what you
 meant to do and pulls out the public facts; a deterministic scrubber removes anything private; only
-short text queries built from public facts go to Tavily (and Exa); the results bloom as action
-cards (tickets, a map pin, Add to calendar) while a live terminal tags every step LOCAL or NET.
+short text queries built from public facts go to Tavily (and Exa). Latent answers in a chat: its
+work steps tag every stage On device or Internet, then it replies with action cards (tickets, a map
+pin, a calendar file it makes only after you say yes) and a privacy receipt of what left.
 
 ## Demo
 
 [TBD: demo GIF, recorded from a real run; put it at `docs/demo.gif` and embed it here.]
+
+The demo runs on the chat screen: drop a concert screenshot, follow the work steps, approve **Add to
+calendar**, then turn on **Air-gap**, drop an internal email, choose **Turn off and finish** and
+open **Receipts**. Record the GIF from that screen; the classic layout stays at `?view=classic`.
 
 - Backup video (90 s): [TBD: link to the recorded backup video]
 - Demo script, checklist and fallback plan: [`docs/DEMO.md`](docs/DEMO.md)
@@ -56,7 +61,9 @@ failure blocks it:
    are redacted from every record, log line and event.
 
 Every attempt, sent or blocked, is recorded with its exact byte count and a payload preview: in the
-**Audit log** drawer, at `GET /api/egress`, and in `backend/egress.log`.
+chat's **Receipts** drawer (query text and size; the receipt under each reply opens that turn's
+requests), in the classic view's **Audit log** drawer (with the payload preview), at
+`GET /api/egress`, and in `backend/egress.log`.
 
 **Scrubber policy** (`backend/app/pipeline/scrub.py`, runs locally on everything the model
 returns):
@@ -88,13 +95,13 @@ git clone https://github.com/yashkava05/Leo369_Hack1984.git latent && cd latent
 ```
 
 Put your `TAVILY_API_KEY` (and optionally `EXA_API_KEY`) in `.env`, open http://localhost:5173 and
-drop `eval/screenshots/concert_ig.png`.
+drop `eval/screenshots/concert_ig.png` on the chat (or click **Try a concert flyer**).
 
 ## Track alignment
 
 | Track | How Latent meets it |
 | --- | --- |
-| **Privacy-First** | Vision runs locally; one egress module with six rules; air-gap switch; audit log of every outbound request and its size; leak eval on fake-PII screenshots. |
+| **Privacy-First** | Vision runs locally; one egress module with six rules; work steps tagged On device or Internet; air-gap switch; a privacy receipt per reply and a log of every outbound request and its size; leak eval on fake-PII screenshots. |
 | **SURGE (Tavily & Exa)** | Tavily search turns scrubbed public entities into ticket, shop, book and insight cards (calendar and map cards are built on-device); Exa adds related-reading cards for books, charts and documents when a key with credits is set. |
 | **Most Startup-able** | A problem everyone has; free for consumers with an affiliate share on tickets, products and books (one hook, `affiliate.tag_url`, passes through today); a planned enterprise tier with an on-prem model, admin policy and audit-log export. |
 
@@ -208,8 +215,9 @@ All settings live in one repo-root `.env` (copy `.env.example`). The backend rea
 ## Auto-ingest from the screenshot folder
 
 Opt-in and off by default. Set `LATENT_WATCH_DIR` to a folder and every new screenshot saved there
-starts a job within about a second; the open UI shows a "Watching ~/Desktop" pill and follows the
-newest job unless you are in the middle of one.
+starts a job within about a second; the classic view (`?view=classic`) shows a "Watching
+~/Desktop" pill and follows the newest job unless you are in the middle of one. The chat screen
+does not show watched jobs yet.
 
 ```bash
 LATENT_WATCH_DIR=~/Desktop uvicorn app.main:app --port 8000   # from backend/
@@ -232,7 +240,7 @@ result: the intent summary, the public entities and the cards, with the egress r
 Screenshot thumbnails (256 px JPEG) are stored only when `LATENT_KEEP_THUMBS=1`. The file is not
 encrypted; it relies on your user account's file permissions.
 
-The **Library** drawer in the UI searches saved intents by performer, product, place or any
+The **Library** drawer in the classic view (`?view=classic`) searches saved intents by performer, product, place or any
 other public entity (SQLite FTS5), filters by type, reopens a result's cards in the dashboard,
 and deletes one entry or everything ("Delete everything" also runs `VACUUM`). The same data is
 under `GET /api/library?q=&type=&limit=50`, `GET /api/library/{id}`, `DELETE /api/library/{id}`
