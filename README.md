@@ -37,8 +37,14 @@ cd backend && source .venv/bin/activate && uvicorn app.main:app --reload --port 
 cd frontend && npm run dev
 ```
 
-Open http://localhost:5173 and drop a screenshot (try `eval/screenshots/concert_ig.png`). The Vite dev
-server proxies `/api` to the backend; banners appear if the local model is down or no Tavily key is set.
+Open http://localhost:5173 for the chat: attach or paste a screenshot, follow the on-device/web
+steps, then review its cards and privacy receipt. Try the four sample chips with
+`cd frontend && VITE_MOCK=1 npm run dev` to use fixtures without a backend or API keys.
+Explicitly kept cards live in this browser's `localStorage` under `latent:kept`; screenshots
+and the conversation are never persisted by the chat. Fonts are served locally too.
+
+The original Terminal + Dashboard layout remains at http://localhost:5173/?view=classic,
+including health banners. The Vite dev server proxies `/api` to the backend.
 
 <details><summary>Manual setup (instead of scripts/setup.sh)</summary>
 
