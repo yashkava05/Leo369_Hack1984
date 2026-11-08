@@ -592,6 +592,7 @@ def get_item(item_id: str) -> FeedItemDetail | None:
 def feedback(item_id: str, action: FeedFeedbackAction) -> bool:
     """Persist feedback. Negative feedback hides this item; less-like also suppresses topics."""
     with _connect() as conn:
+        conn.execute("BEGIN IMMEDIATE")  # A concurrent reset must not resurrect old preferences.
         row = conn.execute(
             """
             SELECT topic_keys_json, detail_json, feedback_json

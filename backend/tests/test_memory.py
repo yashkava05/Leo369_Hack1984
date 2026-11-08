@@ -418,3 +418,48 @@ async def test_merged_voice_save_paths_keep_job_generation_fence(monkeypatch, ac
     if action == "save":
         assert job.result.error == "local_save_unavailable"
     jobs.JOBS.pop(job.job_id, None)
+
+
+def test_feed_feedback_serializes_with_delete_all(monkeypatch):
+    from contextlib import contextmanager
+
+    from app import feed
+
+    feed._replace(feed._mock_candidates(), expected_generation=0)
+    item_id = feed.list_items().items[0].id
+    reading, release = threading.Event(), threading.Event()
+    connect = feed._connect
+
+    @contextmanager
+    def paused_connect():
+        with connect() as conn:
+
+            def trace(statement):
+                if (
+                    threading.current_thread().name.startswith("feedback")
+                    and "SELECT topic_keys_json" in statement
+                ):
+                    reading.set()
+                    assert release.wait(5)
+
+            conn.set_trace_callback(trace)
+            yield conn
+
+    monkeypatch.setattr(feed, "_connect", paused_connect)
+    with (
+        ThreadPoolExecutor(1, thread_name_prefix="feedback") as feedback_writer,
+        ThreadPoolExecutor(1) as resetter,
+    ):
+        feedback = feedback_writer.submit(feed.feedback, item_id, "less_like_this")
+        assert reading.wait(5)
+        reset = resetter.submit(library.delete_all_local_data, confirm="DELETE_ALL_LOCAL_DATA")
+        with sqlite3.connect(library.db_path(), timeout=0) as probe:
+            with pytest.raises(sqlite3.OperationalError, match="locked"):
+                probe.execute("BEGIN IMMEDIATE")
+        release.set()
+        assert feedback.result(5)
+        assert reset.result(5) == (True, 1)
+    assert feed.list_items().items == []
+    with connect() as conn:
+        assert conn.execute("SELECT COUNT(*) FROM feed_suppressions").fetchone()[0] == 0
+    assert not feed.feedback(item_id, "less_like_this")
