@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     tavily_api_key: str = ""
     exa_api_key: str = ""
     latent_mock: bool = False
+    latent_watch_dir: str = ""  # opt-in screenshot folder (issue #20); empty = watcher off
     cors_origins: list[str] = ["http://localhost:5173"]
 
 

@@ -12,7 +12,7 @@ vi.mock('../api/events', () => ({
   },
 }))
 
-const { endsJob, reset, start, useJob } = await import('./useJob')
+const { endsJob, follow, reset, start, useJob } = await import('./useJob')
 
 // Read the shared store the way components do (server render uses the current snapshot).
 function Probe() {
@@ -75,5 +75,37 @@ describe('job store', () => {
   it('still fails on a local stage error', () => {
     emit(event({ stage: 'extract', status: 'error', message: 'extract: model crashed' }))
     expect(read().status).toBe('error')
+  })
+})
+
+describe('follow (folder watcher)', () => {
+  beforeEach(() => {
+    vi.stubGlobal('URL', Object.assign(Object.create(URL), { createObjectURL: () => 'blob:x', revokeObjectURL: () => {} }))
+    reset()
+  })
+  afterEach(() => {
+    reset()
+    vi.unstubAllGlobals()
+  })
+
+  it('switches an idle page to the new job and streams it', () => {
+    expect(follow('j_watched')).toBe(true)
+    expect(read()).toEqual({ status: 'running', events: 0, cards: null })
+    emit(event({ job_id: 'j_watched', stage: 'done', status: 'ok', data: { job_id: 'j_watched', status: 'done', cards: [] } }))
+    expect(read()).toEqual({ status: 'done', events: 1, cards: 0 })
+  })
+
+  it('switches again once the previous job has finished', () => {
+    follow('j_one')
+    emit(event({ stage: 'done', status: 'ok', data: { job_id: 'j_one', status: 'done', cards: [] } }))
+    expect(follow('j_two')).toBe(true)
+    expect(read()).toEqual({ status: 'running', events: 0, cards: null })
+  })
+
+  it('does not interrupt a job the user is in the middle of', async () => {
+    await start(new File([new Uint8Array([1])], 'flyer.png', { type: 'image/png' }))
+    emit(event({ stage: 'extract' }))
+    expect(follow('j_watched')).toBe(false)
+    expect(read()).toEqual({ status: 'running', events: 1, cards: null })
   })
 })

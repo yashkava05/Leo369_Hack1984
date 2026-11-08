@@ -85,8 +85,28 @@ All settings live in one repo-root `.env` (copy `.env.example`). The backend rea
 | `TAVILY_API_KEY` | empty | backend |
 | `EXA_API_KEY` | empty | backend |
 | `LATENT_MOCK` | `0` | backend |
+| `LATENT_WATCH_DIR` | empty (off) | backend, see [Auto-ingest](#auto-ingest-from-the-screenshot-folder) |
 | `VITE_API_URL` | `http://localhost:8000` | frontend |
 | `VITE_MOCK` | `0` | frontend |
+
+## Auto-ingest from the screenshot folder
+
+Opt-in and off by default. Set `LATENT_WATCH_DIR` to a folder and every new screenshot saved there
+starts a job within about a second; the open UI shows a "Watching ~/Desktop" pill and follows the
+newest job unless you are in the middle of one.
+
+```bash
+LATENT_WATCH_DIR=~/Desktop uvicorn app.main:app --port 8000   # from backend/
+```
+
+- Find the macOS screenshot folder with `defaults read com.apple.screencapture location`. If that
+  prints "does not exist", screenshots go to the default, `~/Desktop`.
+- Only new `.png`, `.jpg`, `.jpeg` and `.webp` files are picked up (including the macOS
+  temp-name-then-rename save); hidden and temp files, files over 10 MB and files already in the
+  folder are ignored. A file must stop growing for 500 ms before it is read, so half-written
+  files never start a job.
+- Latent only reads the file. It never moves, edits or deletes anything in the folder, and the
+  image bytes stay on this machine exactly as with a dropped screenshot.
 
 ## Checks
 

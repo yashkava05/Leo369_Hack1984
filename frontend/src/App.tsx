@@ -8,6 +8,7 @@ import { DropZone } from './components/DropZone'
 import { LeftDeviceSummary } from './components/LeftDeviceSummary'
 import { StageStrip } from './components/StageStrip'
 import { Terminal } from './components/Terminal'
+import { WatchPill } from './components/WatchPill'
 import type { HealthResponse } from './types'
 import { useJob } from './state/useJob'
 
@@ -26,6 +27,7 @@ function App() {
     <main>
       <h1>Latent</h1>
       <AirGapToggle />
+      <WatchPill />
       <AuditDrawer />
       <DropZone />
       <StageStrip />

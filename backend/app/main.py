@@ -6,11 +6,12 @@ from contextlib import asynccontextmanager
 from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app import egress, ollama
+from app import egress, ollama, watch
 from app.api import router as pipeline_router
 from app.config import get_settings
 from app.pipeline import scrub
 from app.routes.offline import router as offline_router
+from app.routes.watch import router as watch_router
 
 settings = get_settings()
 
@@ -25,9 +26,11 @@ async def lifespan(app: FastAPI):
         warmup = asyncio.create_task(ollama.warm_up(egress.local_client(), current.latent_model))
         # The PII analyzer loads a spaCy model (a few seconds); mock mode never scrubs.
         await asyncio.to_thread(scrub.warm_up)
+    watch.start(asyncio.get_running_loop())  # opt-in: no-op unless LATENT_WATCH_DIR is set
     try:
         yield
     finally:
+        await asyncio.to_thread(watch.stop)
         if warmup is not None:
             warmup.cancel()
             await asyncio.gather(warmup, return_exceptions=True)
@@ -60,3 +63,4 @@ async def health() -> dict:
 app.include_router(api)
 app.include_router(pipeline_router, prefix="/api")
 app.include_router(offline_router, prefix="/api")
+app.include_router(watch_router, prefix="/api")
