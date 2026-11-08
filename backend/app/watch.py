@@ -131,6 +131,20 @@ class Broadcaster:
 broadcaster = Broadcaster()
 
 
+def _initial_files(folder: Path) -> dict[Path, tuple[int, int]]:
+    """Snapshot existing candidates so replayed OS events cannot import them."""
+    out = {}
+    for path in folder.iterdir():
+        if not is_candidate(path):
+            continue
+        try:
+            stat = path.stat()
+        except OSError:
+            continue
+        out[path] = (stat.st_size, stat.st_mtime_ns)
+    return out
+
+
 class _Handler(FileSystemEventHandler):
     """Runs on watchdog's thread: hand each candidate path over to the asyncio loop."""
 
@@ -155,6 +169,7 @@ class FolderWatcher:
         self.folder = folder
         self.loop = loop
         self._observer = Observer()
+        self._initial = _initial_files(folder)
         self._pending: set[Path] = set()  # paths currently waiting to settle
         self._seen: set[tuple[Path, int, int]] = set()  # (path, size, mtime) already ingested
         self.started: list[dict] = []  # {job_id, filename} for every job this watcher began
@@ -173,6 +188,12 @@ class FolderWatcher:
         path = Path(raw_path)
         if path.parent != self.folder or not is_candidate(path):
             return
+        try:
+            stat = path.stat()
+        except OSError:
+            return
+        if self._initial.get(path) == (stat.st_size, stat.st_mtime_ns):
+            return  # FSEvents may replay a create event for a file present before start().
         try:
             future = asyncio.run_coroutine_threadsafe(self.handle(path), self.loop)
         except RuntimeError:  # loop already closed during shutdown
