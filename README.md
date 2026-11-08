@@ -108,6 +108,22 @@ eval/                   screenshots/, expected.json, run_eval.py
 scripts/setup.sh        one-shot local setup
 ```
 
+## Pitch deck
+
+- [`docs/pitch.pdf`](docs/pitch.pdf): the 6-slide deck for the submission.
+- [`docs/pitch-notes.pdf`](docs/pitch-notes.pdf): the same slides with speaker notes under each one.
+- [`docs/pitch.html`](docs/pitch.html): the source. Open it in any browser to present
+  (arrow keys or click to move, `F` fullscreen, `N` speaker notes). Edit the text in the file; no
+  build step and no network needed.
+
+Every `[TBD: ...]` in the deck must be filled before presenting: the eval numbers come from
+`eval/results.md`, the stills from a real run. To re-export, open `docs/pitch.html` in Chrome and print
+to PDF with margins "None" and background graphics on (`docs/pitch.html?notes` for the notes copy), or:
+
+```bash
+chrome --headless --no-pdf-header-footer --print-to-pdf=docs/pitch.pdf docs/pitch.html
+```
+
 ## Team rules
 
 - One branch per issue, named `<number>-<slug>` (for example `1-repo-scaffold`).

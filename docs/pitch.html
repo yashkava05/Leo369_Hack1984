@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Latent pitch</title>
+<!--
+  Latent pitch deck: 6 slides, one <section class="slide"> each, speaker notes in <aside class="notes">.
+  Present: open this file in any browser. Arrow keys / space / click = next, F = fullscreen, N = notes.
+  Edit: change the text in this file; no build step, no network needed.
+  PDF: docs/pitch.pdf (slides) and docs/pitch-notes.pdf (open with ?notes, then print). Export steps: README.md, "Pitch deck".
+  Anything marked [TBD: ...] must be filled from eval/results.md or a real screenshot before presenting.
+-->
+<style>
+  :root {
+    --bg: #0b0f14; --panel: #121821; --ink: #e8edf3; --muted: #93a1b2; --line: #263241;
+    --local: #3ddc97; --net: #f5a524; --block: #ff5d5d; --tbd: #ff7ad9;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  .deck { height: 100%; display: grid; place-items: center; overflow: hidden; }
+  .slide { display: none; width: 1280px; height: 720px; padding: 56px 72px; position: relative;
+    background: radial-gradient(1200px 600px at 85% -10%, #16314a 0%, transparent 60%), var(--bg);
+    transform-origin: center center; flex-direction: column; }
+  .slide.active { display: flex; }
+  .kicker { font: 600 16px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin-bottom: 14px; }
+  h1 { font-size: 52px; line-height: 1.08; margin: 0 0 22px; letter-spacing: -.01em; }
+  h2 { font-size: 40px; line-height: 1.12; margin: 0 0 24px; }
+  p, li { font-size: 24px; line-height: 1.4; color: var(--ink); }
+  ul { margin: 0; padding-left: 26px; } li { margin: 6px 0; }
+  .muted { color: var(--muted); }
+  .local { color: var(--local); } .net { color: var(--net); } .block { color: var(--block); }
+  .tag { font: 700 14px/1 ui-monospace, Menlo, Consolas, monospace; padding: 5px 8px; border-radius: 4px;
+    border: 1px solid currentColor; vertical-align: middle; }
+  .tbd { color: var(--tbd); font-weight: 600; }
+  .ph { border: 2px dashed var(--tbd); border-radius: 12px; display: grid; place-items: center;
+    color: var(--tbd); font: 600 20px/1.3 ui-monospace, Menlo, Consolas, monospace; text-align: center; padding: 20px; }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; flex: 1; min-height: 0; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 22px 26px; }
+  .card h3 { margin: 0 0 10px; font-size: 22px; }
+  .card p, .card li { font-size: 19px; }
+  .foot { position: absolute; left: 72px; right: 72px; bottom: 26px; display: flex; justify-content: space-between;
+    font: 14px/1 ui-monospace, Menlo, Consolas, monospace; color: var(--muted); }
+  .big { font-size: 34px; line-height: 1.3; }
+  table { border-collapse: collapse; width: 100%; }
+  td, th { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--line); font-size: 19px; vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; font-size: 15px; text-transform: uppercase; letter-spacing: .08em; }
+  ol.rules { margin: 0; padding-left: 24px; } ol.rules li { font-size: 17px; margin: 3px 0; }
+  code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .9em; color: #b9d7ff; }
+  .notes { display: none; }
+  #notes-pane { display: none; position: fixed; left: 0; right: 0; bottom: 0; max-height: 40vh; overflow: auto;
+    background: #fffbe6; color: #222; font-size: 20px; line-height: 1.45; padding: 14px 24px; z-index: 10; }
+  body.show-notes #notes-pane { display: block; }
+  .hint { position: fixed; right: 12px; top: 10px; font: 12px ui-monospace, Menlo, Consolas, monospace; color: var(--muted); }
+
+  @media print {
+    @page { size: 1280px 720px; margin: 0; }
+    html, body { height: auto; background: var(--bg); }
+    .deck { display: block; height: auto; }
+    .slide { display: flex !important; transform: none !important; page-break-after: always; break-after: page; }
+    .hint, #notes-pane { display: none !important; }
+    @page withnotes { size: 1280px 1000px; margin: 0; }
+    body.print-notes .slide { page: withnotes; height: 1000px; }
+    body.print-notes .notes { display: block; position: static; transform: none; margin-top: auto;
+      background: #fffbe6; color: #222; font-size: 18px; line-height: 1.45; padding: 14px 20px; border-radius: 8px; }
+    body.print-notes .foot { position: static; margin-top: 14px; }
+  }
+</style>
+</head>
+<body>
+<main class="deck">
+
+<!-- 1 · Problem -->
+<section class="slide">
+  <div class="kicker">01 · Problem</div>
+  <h1>Your camera roll is a graveyard of intentions.</h1>
+  <div class="cols">
+    <div>
+      <p>We screenshot the concert we want to go to, the book a friend loved, the chart we meant to read up on.
+        Then nothing happens. The screenshot sits there.</p>
+      <p class="muted">Turning a screenshot into an action today means retyping it, or uploading it to someone's cloud.</p>
+    </div>
+    <div class="card">
+      <h3>Cloud assistants don't work on a work laptop</h3>
+      <ul>
+        <li>The whole image goes to a remote server: names, emails, internal numbers and all.</li>
+        <li>NDAs and compliance policies often forbid sending internal material to outside services.</li>
+        <li>So the screenshots that matter most at work are the ones you can't send anywhere.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="foot"><span>Latent · HACK1984</span><span>1 / 6</span></div>
+  <aside class="notes">Everyone screenshots things they mean to act on, then never does. Cloud assistants could help, but they upload the whole image, with names, emails and internal numbers. On a work laptop that can break an NDA or a compliance policy, so the screenshots that matter most at work can't go to them.</aside>
+</section>
+
+<!-- 2 · Latent -->
+<section class="slide">
+  <div class="kicker">02 · Latent</div>
+  <h1>Drop a screenshot. Get actions back.<br><span class="local">The image never leaves your laptop.</span></h1>
+  <div class="cols" style="grid-template-columns: 1.4fr 1fr;">
+    <div class="ph">[TBD: still of cards blooming on the dashboard<br>(concert flyer → tickets, calendar, map)]</div>
+    <div>
+      <p>A local vision model reads the screenshot on your machine. Private details are removed. Only a few short
+        public text queries go to the web.</p>
+      <p>Results come back as cards you can act on: <b>Add to calendar</b>, buy tickets, open in Maps.</p>
+    </div>
+  </div>
+  <div class="foot"><span>Latent · HACK1984</span><span>2 / 6 · then live demo</span></div>
+  <aside class="notes">Latent turns a screenshot into actions without the image leaving your laptop. A local model reads it, private details are stripped, and only short public text queries go to the web. Results bloom as cards you can act on. HAND-OFF: switch to the live demo now (concert flyer, then air-gap). Come back for slide 3.</aside>
+</section>
+
+<!-- 3 · Architecture -->
+<section class="slide">
+  <div class="kicker">03 · Architecture</div>
+  <h2>Two zones. One door between them.</h2>
+  <svg viewBox="0 0 1136 470" width="1136" height="470" role="img" aria-label="Local zone: screenshot to Qwen2.5-VL, PII scrubber and query builder. Arrow labelled text queries only, at most 4 KB, to the egress guard, then Tavily in the network zone. Results return as action cards.">
+    <defs>
+      <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="#e8edf3"/>
+      </marker>
+      <marker id="ahn" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="#f5a524"/>
+      </marker>
+    </defs>
+    <!-- zones -->
+    <rect x="2" y="20" width="640" height="440" rx="18" fill="#0f2a20" stroke="#3ddc97" stroke-width="2"/>
+    <text x="24" y="54" fill="#3ddc97" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="18" font-weight="700">LOCAL · your laptop</text>
+    <rect x="760" y="20" width="374" height="440" rx="18" fill="#2a2110" stroke="#f5a524" stroke-width="2"/>
+    <text x="782" y="54" fill="#f5a524" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="18" font-weight="700">NET · internet</text>
+
+    <g font-family="system-ui,Segoe UI,Roboto,Arial,sans-serif" fill="#e8edf3">
+      <!-- local boxes -->
+      <rect x="30" y="80" width="250" height="70" rx="10" fill="#121821" stroke="#263241"/>
+      <text x="155" y="112" text-anchor="middle" font-size="20" font-weight="600">Screenshot</text>
+      <text x="155" y="136" text-anchor="middle" font-size="15" fill="#93a1b2">bytes stay in memory</text>
+
+      <rect x="360" y="80" width="250" height="70" rx="10" fill="#121821" stroke="#3ddc97"/>
+      <text x="485" y="112" text-anchor="middle" font-size="20" font-weight="600">Qwen2.5-VL</text>
+      <text x="485" y="136" text-anchor="middle" font-size="15" fill="#93a1b2">via Ollama, loopback only</text>
+
+      <rect x="360" y="200" width="250" height="70" rx="10" fill="#121821" stroke="#3ddc97"/>
+      <text x="485" y="232" text-anchor="middle" font-size="20" font-weight="600">PII scrubber</text>
+      <text x="485" y="256" text-anchor="middle" font-size="15" fill="#93a1b2">Presidio + rules</text>
+
+      <rect x="360" y="320" width="250" height="70" rx="10" fill="#121821" stroke="#3ddc97"/>
+      <text x="485" y="352" text-anchor="middle" font-size="20" font-weight="600">Query builder</text>
+      <text x="485" y="376" text-anchor="middle" font-size="15" fill="#93a1b2">public entities only</text>
+
+      <rect x="30" y="320" width="250" height="70" rx="10" fill="#121821" stroke="#263241"/>
+      <text x="155" y="352" text-anchor="middle" font-size="20" font-weight="600">Action cards</text>
+      <text x="155" y="376" text-anchor="middle" font-size="15" fill="#93a1b2">calendar · tickets · maps</text>
+
+      <!-- net boxes -->
+      <rect x="800" y="200" width="300" height="70" rx="10" fill="#121821" stroke="#f5a524"/>
+      <text x="950" y="232" text-anchor="middle" font-size="20" font-weight="600">Egress guard</text>
+      <text x="950" y="256" text-anchor="middle" font-size="15" fill="#93a1b2">6 rules · every attempt logged</text>
+
+      <rect x="800" y="340" width="300" height="70" rx="10" fill="#121821" stroke="#f5a524"/>
+      <text x="950" y="372" text-anchor="middle" font-size="20" font-weight="600">Tavily search</text>
+      <text x="950" y="396" text-anchor="middle" font-size="15" fill="#93a1b2">api.tavily.com (https)</text>
+    </g>
+
+    <!-- local arrows -->
+    <line x1="280" y1="115" x2="356" y2="115" stroke="#e8edf3" stroke-width="2.5" marker-end="url(#ah)"/>
+    <line x1="485" y1="150" x2="485" y2="196" stroke="#e8edf3" stroke-width="2.5" marker-end="url(#ah)"/>
+    <line x1="485" y1="270" x2="485" y2="316" stroke="#e8edf3" stroke-width="2.5" marker-end="url(#ah)"/>
+    <!-- the one crossing -->
+    <path d="M610,355 C700,355 700,235 796,235" fill="none" stroke="#f5a524" stroke-width="3.5" marker-end="url(#ahn)"/>
+    <rect x="626" y="262" width="152" height="54" rx="8" fill="#0b0f14" stroke="#f5a524"/>
+    <text x="702" y="285" text-anchor="middle" fill="#f5a524" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="15" font-weight="700">text queries only</text>
+    <text x="702" y="305" text-anchor="middle" fill="#f5a524" font-family="ui-monospace,Menlo,Consolas,monospace" font-size="15" font-weight="700">≤ 4 KB</text>
+    <line x1="950" y1="270" x2="950" y2="336" stroke="#f5a524" stroke-width="2.5" marker-end="url(#ahn)"/>
+    <!-- results back -->
+    <path d="M800,395 C700,440 400,440 284,372" fill="none" stroke="#93a1b2" stroke-width="2" stroke-dasharray="6 6" marker-end="url(#ah)"/>
+    <text x="540" y="448" text-anchor="middle" fill="#93a1b2" font-family="system-ui,Segoe UI,Roboto,Arial,sans-serif" font-size="15">search results come back as text</text>
+  </svg>
+  <div class="foot"><span>Latent · HACK1984</span><span>3 / 6</span></div>
+  <aside class="notes">Green is your laptop: Qwen2.5-VL reads the image through Ollama on loopback, the scrubber strips PII, the query builder keeps only public entities. One arrow crosses: up to three short text queries, each request at most 4 KB. The egress guard is the only module allowed to open a connection, and it logs every attempt.</aside>
+</section>
+
+<!-- 4 · Proof -->
+<section class="slide">
+  <div class="kicker">04 · Proof</div>
+  <h2>No image or raw text leaves the device — enforced by code and shown in the audit log.</h2>
+  <div class="cols" style="grid-template-columns: 1fr 1.15fr 1fr; gap: 28px;">
+    <div class="card">
+      <h3>Eval · <code>eval/results.md</code></h3>
+      <table>
+        <tr><td>Images</td><td><b>10</b> synthetic, fake PII</td></tr>
+        <tr><td>Intent accuracy</td><td class="tbd">[TBD: from eval/results.md]</td></tr>
+        <tr><td>Leaks</td><td class="tbd">[TBD: exact count, do not round]</td></tr>
+        <tr><td>Scrubber off</td><td class="tbd">[TBD: leaks with --no-scrub]</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <h3>Egress guard · first failure blocks</h3>
+      <ol class="rules">
+        <li>Air-gap on (<code>LATENT_OFFLINE</code>) blocks everything</li>
+        <li>Allow-listed host, https, default port</li>
+        <li>Body ≤ 4096 bytes (an image cannot fit)</li>
+        <li>No base64-looking run of 200+ chars</li>
+        <li>No PII found in any string in the body</li>
+        <li>No API key in the body (headers only)</li>
+      </ol>
+      <p class="muted" style="font-size:15px;margin:10px 0 0">Source: <code>backend/app/egress.py</code>; a test fails if any other module opens a network client.</p>
+    </div>
+    <div class="ph" style="font-size:17px">[TBD: air-gap demo still<br>internal email: extraction done locally, search ✕ blocked in the audit log]</div>
+  </div>
+  <div class="foot"><span>Latent · HACK1984</span><span>4 / 6</span></div>
+  <aside class="notes">We don't claim magic, we show it. Ten fake-PII screenshots: intent accuracy [TBD], leaks [TBD exact]. Six egress rules in egress.py, and a test fails if any other module opens a connection. You saw air-gap: extraction finished locally, search blocked, and the audit log lists every outbound request with its byte count.</aside>
+</section>
+
+<!-- 5 · Business model -->
+<section class="slide">
+  <div class="kicker">05 · Business model</div>
+  <h2>Free for people. Paid for companies.</h2>
+  <div class="cols">
+    <div class="card">
+      <h3><span class="tag local">B2C</span>&nbsp; Affiliate share on the action</h3>
+      <ul>
+        <li>Ticket, shopping and book cards are where intent turns into a purchase.</li>
+        <li>Every commercial link already passes through one hook, <code>affiliate.tag_url</code>, where a partner tag goes.</li>
+        <li>Revenue only on links the user chooses to click; the app stays free.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3><span class="tag net">B2B</span>&nbsp; Enterprise tier (planned)</h3>
+      <ul>
+        <li><b>On-prem model</b>: the vision model runs on company hardware.</li>
+        <li><b>Policy controls</b>: admins set the egress allow-list, scrubber rules and air-gap defaults.</li>
+        <li><b>Audit-log export</b>: every outbound request, sent or blocked, for compliance review.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="foot"><span>Latent · HACK1984</span><span>5 / 6</span></div>
+  <aside class="notes">Two lines of revenue. Consumers get it free; when they buy tickets, products or books from a card, an affiliate tag earns a share. The hook, affiliate.tag_url, exists today and is a pass-through. Companies would pay for a planned enterprise tier: on-prem model, admin policy controls and audit-log export for compliance.</aside>
+</section>
+
+<!-- 6 · Tracks + ask -->
+<section class="slide">
+  <div class="kicker">06 · Tracks + ask</div>
+  <h2>Why Latent fits each track</h2>
+  <table>
+    <tr><th style="width:24%">Track</th><th>How we meet it</th></tr>
+    <tr><td><b>Privacy-First</b></td><td>Vision runs locally; one egress module with six rules; air-gap switch; audit log of every outbound request and its size; leak eval on fake-PII screenshots.</td></tr>
+    <tr><td><b>SURGE · Tavily &amp; Exa</b></td><td>Tavily search turns scrubbed public entities into ticket, shop, book and map cards. Exa related-content cards are our stretch goal (issue #19).</td></tr>
+    <tr><td><b>Most Startup-able</b></td><td>A problem everyone has, a free consumer app with affiliate revenue, and an enterprise tier for teams that can't use cloud assistants.</td></tr>
+  </table>
+  <div class="cols" style="grid-template-columns: 1fr 1.3fr 1fr; gap: 28px; margin-top: 22px; flex: 0 0 auto;">
+    <div class="card"><h3>Team</h3><p class="tbd" style="margin:0">[TBD: names and roles]</p></div>
+    <div class="card"><h3>What's next</h3><p style="margin:0">Opt-in auto-ingest from the screenshot folder, a local intent library, Exa related-content cards.</p></div>
+    <div class="card"><h3>Our ask</h3><p class="tbd" style="margin:0">[TBD: the ask, e.g. pilot teams or feedback]</p></div>
+  </div>
+  <div class="foot"><span>Latent · HACK1984</span><span>6 / 6</span></div>
+  <aside class="notes">Privacy-First: local vision, one guarded door, air-gap, audit log, leak eval. SURGE: Tavily turns scrubbed entities into real actions; Exa is our stretch. Startup: everyone has this problem, consumers are free, enterprises pay. Next: opt-in auto-ingest, a local intent library, Exa cards. Our ask: [TBD]. Thank you.</aside>
+</section>
+
+</main>
+<div id="notes-pane"></div>
+<div class="hint">← → navigate · F fullscreen · N notes</div>
+<script>
+  (function () {
+    var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+    var params = new URLSearchParams(location.search);
+    if (params.has('notes')) document.body.classList.add('print-notes');
+    var i = Math.max(0, Math.min(slides.length - 1, (parseInt(location.hash.slice(1), 10) || 1) - 1));
+    function fit() {
+      var s = Math.min(window.innerWidth / 1280, window.innerHeight / 720);
+      slides.forEach(function (el) { el.style.transform = 'scale(' + s + ')'; });
+    }
+    function show(n) {
+      i = Math.max(0, Math.min(slides.length - 1, n));
+      slides.forEach(function (el, k) { el.classList.toggle('active', k === i); });
+      history.replaceState(null, '', '#' + (i + 1));
+      var n = slides[i].querySelector('.notes');
+      document.getElementById('notes-pane').textContent = (i + 1) + ' / ' + slides.length + ' · ' + (n ? n.textContent : '');
+    }
+    document.addEventListener('keydown', function (e) {
+      if (['ArrowRight', 'PageDown', ' ', 'Enter'].indexOf(e.key) >= 0) { e.preventDefault(); show(i + 1); }
+      else if (['ArrowLeft', 'PageUp', 'Backspace'].indexOf(e.key) >= 0) { e.preventDefault(); show(i - 1); }
+      else if (e.key === 'Home') show(0);
+      else if (e.key === 'End') show(slides.length - 1);
+      else if (e.key === 'n' || e.key === 'N') document.body.classList.toggle('show-notes');
+      else if (e.key === 'f' || e.key === 'F') {
+        if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen();
+      }
+    });
+    document.addEventListener('click', function (e) { show(e.clientX < window.innerWidth / 3 ? i - 1 : i + 1); });
+    window.addEventListener('resize', fit);
+    fit(); show(i);
+  })();
+</script>
+</body>
+</html>
