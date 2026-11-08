@@ -1,3 +1,5 @@
+import { useState } from 'react'
+import { VoiceCapture } from './components/voice/VoiceCapture'
 import { AirGapToggle } from './components/AirGapToggle'
 import { AuditDrawer } from './components/AuditDrawer'
 import { ActionCard } from './components/cards/ActionCard'
@@ -10,7 +12,7 @@ import { StageStrip } from './components/StageStrip'
 import { Terminal } from './components/Terminal'
 import { WatchPill } from './components/WatchPill'
 import { dropDisabledReason, healthBanners, useHealth } from './state/useHealth'
-import { useJob } from './state/useJob'
+import { reserveVoiceSlot, useJob } from './state/useJob'
 import { ChatApp } from './chat/ChatApp'
 import './App.css'
 
@@ -18,6 +20,7 @@ import './App.css'
 function ClassicApp() {
   const health = useHealth()
   const job = useJob()
+  const [voicePending, setVoicePending] = useState(false)
 
   return (
     <div className="app">
@@ -33,7 +36,8 @@ function ClassicApp() {
       <HealthBanner banners={healthBanners(health)} />
       <main className="app-main">
         <section className="app-left" aria-label="Input and live log">
-          <DropZone disabledReason={dropDisabledReason(health)} />
+          <DropZone disabledReason={voicePending ? 'Finish or cancel voice capture first.' : dropDisabledReason(health)} />
+          <VoiceCapture disabled={job.status === 'uploading' || job.status === 'running'} onBusyChange={(busy) => { if (!reserveVoiceSlot(busy)) return false; setVoicePending(busy); return true }} onJob={(jobId) => { job.followVoice(jobId) }} />
           <StageStrip />
           <Terminal />
           <LeftDeviceSummary />
@@ -47,7 +51,7 @@ function ClassicApp() {
           {job.status === 'done' && job.result && job.result.cards.length === 0 && (
             <p className="app-results-note" role="status">
               {job.result.queries.length === 0
-                ? 'No action cards: nothing public to look up in this screenshot.'
+                ? 'No action cards: saved locally or no public details to look up.'
                 : job.result.egress.length > 0 && job.result.egress.every((r) => r.blocked)
                   ? 'No action cards: every web search was blocked, so nothing left this device.'
                   : 'No action cards: the web search returned nothing usable.'}

@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import concert from '../api/fixtures/concert_flyer.result.json'
 import type { JobResult, StageEvent } from '../types'
 
-const mocks = vi.hoisted(() => ({ start: vi.fn(), setOffline: vi.fn(), action: vi.fn() }))
-vi.mock('../state/useJob', () => ({ start: mocks.start }))
+const mocks = vi.hoisted(() => ({ start: vi.fn(), followVoice: vi.fn(() => true), reserveVoiceSlot: vi.fn(() => true), setOffline: vi.fn(), action: vi.fn() }))
+vi.mock('../state/useJob', () => ({ start: mocks.start, followVoice: mocks.followVoice, reserveVoiceSlot: mocks.reserveVoiceSlot }))
 vi.mock('../api/privacy', () => ({ getOffline: vi.fn().mockResolvedValue(false), setOffline: mocks.setOffline }))
 vi.mock('../components/cards/cardActions', () => ({ runAction: mocks.action }))
 
@@ -146,4 +146,56 @@ describe('conversation turns', () => {
     store.syncJob({ status: 'done', result: degraded, events: [event({ stage: 'search', local: false, status: 'error', message: 'TAVILY_API_KEY not set' })] })
     expect(replies().join(' ')).toContain('TAVILY_API_KEY')
   })
+})
+
+
+describe('reviewed voice results in chat', () => {
+  it('follows an accepted save with no raw transcript or screenshot prompt', () => {
+    store.beginVoiceJob('j_voice_save', 'save')
+    expect(mocks.followVoice).toHaveBeenCalledWith('j_voice_save')
+    const saved = { ...result(), queries: [], cards: [], egress: [] }
+    store.syncJob({ status: 'done', result: saved, events: [] })
+    expect(store.chatSnapshot().busy).toBe(false)
+    expect(replies().at(-1)).toContain('saved in the local library')
+    expect(asks()).toHaveLength(0)
+    expect(store.chatSnapshot().messages.some((m) => m.type === 'user-text' || m.type === 'user-image')).toBe(false)
+    expect(storage.size).toBe(0)
+  })
+  it('shows blocked voice searches without offering a screenshot retry', () => {
+    store.beginVoiceJob('j_voice_event', 'explore')
+    const blocked = result()
+    blocked.egress = blocked.egress.map((r) => ({ ...r, blocked: true, reason: 'offline mode' }))
+    store.syncJob({ status: 'done', result: blocked, events: [] })
+    expect(asks()).toHaveLength(0)
+    expect(replies().at(-1)).toContain('submit your reviewed thought again')
+    expect(mocks.start).not.toHaveBeenCalled()
+  })
+})
+
+
+it('reserves voice capture and submission against screenshot uploads', async () => {
+  expect(store.setVoiceBusy(true)).toBe(true)
+  await store.sendImage(image())
+  expect(mocks.start).not.toHaveBeenCalled()
+  expect(store.chatSnapshot().voicePending).toBe(true)
+  store.setVoiceBusy(false)
+  await store.sendImage(image())
+  expect(mocks.start).toHaveBeenCalledOnce()
+  expect(store.setVoiceBusy(true)).toBe(false)
+  expect(store.chatSnapshot().voicePending).toBe(false)
+})
+
+
+it('does not resume an old screenshot while voice owns the shared slot', async () => {
+  await store.sendImage(image())
+  const blocked = result()
+  blocked.egress = blocked.egress.map((r) => ({ ...r, blocked: true, reason: 'offline mode' }))
+  store.syncJob({ status: 'done', result: blocked, events: [] })
+  const resume = asks()[0]
+  expect(store.setVoiceBusy(true)).toBe(true)
+  await store.chooseAsk(resume.id, true)
+  expect(mocks.setOffline).not.toHaveBeenCalled()
+  expect(mocks.start).toHaveBeenCalledTimes(1)
+  expect(store.chatSnapshot().voicePending).toBe(true)
+  expect(store.chatSnapshot().busy).toBe(false)
 })

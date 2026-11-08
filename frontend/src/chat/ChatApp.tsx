@@ -2,11 +2,12 @@ import { ArrowUp, Bookmark, Check, ChevronRight, ImagePlus, LockKeyhole, Message
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { DragEvent, FormEvent } from 'react'
 import { MOCK } from '../api/client'
+import { VoiceCapture } from '../components/voice/VoiceCapture'
 import { ActionCard } from '../components/cards/ActionCard'
 import { useJob } from '../state/useJob'
 import type { EgressRecord } from '../types'
 import type { ChatMessage } from './messages'
-import { chooseAsk, loadOffline, releaseImages, reopenKept, say, sendImage, sendText, syncJob, toggleOffline, useChat } from './store'
+import { beginVoiceJob, chooseAsk, loadOffline, releaseImages, reopenKept, say, sendImage, sendText, setVoiceBusy, syncJob, toggleOffline, useChat } from './store'
 import { receiptLabel } from './receipts'
 import { ReceiptsDrawer } from './ReceiptsDrawer'
 import { WorkSteps } from './WorkSteps'
@@ -38,6 +39,7 @@ export function ChatApp() {
   const [dragging, setDragging] = useState(false)
   const [sampleLoading, setSampleLoading] = useState<string | null>(null)
   const [drawer, setDrawer] = useState(false)
+  const [voiceOpen, setVoiceOpen] = useState(false)
   const [selectedReceipt, setSelectedReceipt] = useState<EgressRecord[] | null>(null)
   const attach = useRef<HTMLInputElement>(null)
   const scroller = useRef<HTMLDivElement>(null)
@@ -72,7 +74,7 @@ export function ChatApp() {
   }, [chat.messages])
 
   async function sample(name: string) {
-    if (chat.busy || loadingSample.current) { say("Give me a second, I'm still on the last one."); return }
+    if (chat.busy || chat.voicePending || loadingSample.current) { say("Give me a second, I'm still on the last one."); return }
     loadingSample.current = true
     setSampleLoading(name)
     try {
@@ -114,9 +116,9 @@ export function ChatApp() {
       case 'typing': return <div className="chat-agent-message"><Orb small /><div className="chat-typing" role="status" aria-label="Latent is reading your screenshot"><i /><i /><i /></div></div>
       case 'work-steps': return <div className="chat-agent-content"><WorkSteps message={message} /></div>
       case 'cards': return <div className="chat-agent-content"><Cards message={message} /></div>
-      case 'receipt': return <div className="chat-agent-content"><button type="button" className="chat-receipt-pill" onClick={() => openReceipt(message.records)}>{receiptLabel(message.records)}<ChevronRight size={13} aria-hidden="true" /></button></div>
+      case 'receipt': return <div className="chat-agent-content"><button type="button" className="chat-receipt-pill" onClick={() => openReceipt(message.records)}>{receiptLabel(message.records, message.source)}<ChevronRight size={13} aria-hidden="true" /></button></div>
       case 'ask': return <div className="chat-agent-message"><Orb small /><div className="chat-bubble chat-agent-bubble chat-ask"><p>{message.question}</p><div>
-        <button className="chat-primary" type="button" disabled={!!message.choice || (message.kind === 'resume' && chat.busy)} onClick={() => { void chooseAsk(message.id, true) }}>{message.choice === message.primary && <Check size={14} aria-hidden="true" />}{message.primary}</button>
+        <button className="chat-primary" type="button" disabled={!!message.choice || (message.kind === 'resume' && (chat.busy || chat.voicePending))} onClick={() => { void chooseAsk(message.id, true) }}>{message.choice === message.primary && <Check size={14} aria-hidden="true" />}{message.primary}</button>
         <button className="chat-secondary" type="button" disabled={!!message.choice} onClick={() => { void chooseAsk(message.id, false) }}>Not now</button>
       </div></div></div>
     }
@@ -159,6 +161,9 @@ export function ChatApp() {
         </div>
         <div className="chat-composer-area">
           {MOCK && <p className="chat-demo-note"><span /> Demo mode · Sample results, no web searches sent</p>}
+          <details className="chat-voice-panel" onToggle={(event) => setVoiceOpen(event.currentTarget.open)}><summary>Speak or type a thought · LOCAL</summary>
+            {voiceOpen && <VoiceCapture disabled={chat.busy} onBusyChange={setVoiceBusy} onJob={beginVoiceJob} />}
+          </details>
           <form className="chat-composer" onSubmit={submit} aria-label="Message composer">
             <button type="button" className="chat-attach" aria-label="Attach a screenshot" onClick={() => attach.current?.click()}><Plus size={21} aria-hidden="true" /></button>
             <input type="file" ref={attach} accept="image/png,image/jpeg,image/webp" hidden onChange={(event) => { const file = event.currentTarget.files?.[0]; event.currentTarget.value = ''; if (file) { following.current = true; void sendImage(file) } }} />

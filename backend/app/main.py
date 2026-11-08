@@ -13,6 +13,7 @@ from app.pipeline import scrub
 from app.routes.library import router as library_router
 from app.routes.mode import router as mode_router
 from app.routes.offline import router as offline_router
+from app.routes.voice import router as voice_router
 from app.routes.watch import router as watch_router
 
 settings = get_settings()
@@ -68,3 +69,4 @@ app.include_router(offline_router, prefix="/api")
 app.include_router(mode_router, prefix="/api")
 app.include_router(watch_router, prefix="/api")
 app.include_router(library_router, prefix="/api")
+app.include_router(voice_router, prefix="/api")

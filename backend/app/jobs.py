@@ -111,6 +111,12 @@ def start_job(job: JobState, filename: str | None, image_bytes: bytes | None = N
     job.task = asyncio.create_task(runner)
 
 
+def start_voice_job(job: JobState, text: str, action, context: JobResult | None = None) -> None:
+    from app.pipeline.voice_runner import run_voice_job
+
+    job.task = asyncio.create_task(run_voice_job(job.job_id, text, action, context))
+
+
 def offline_replay(
     events: list[StageEvent], result: JobResult
 ) -> tuple[list[StageEvent], JobResult]:

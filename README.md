@@ -250,6 +250,53 @@ and `DELETE /api/library`. To inspect it directly:
 sqlite3 ~/.latent/latent.db 'select intent_type, summary from intents order by created_at desc limit 5;'
 ```
 
+## Local voice and reviewed text
+
+Open **Speak or type a thought · LOCAL** in chat (or the microphone panel beside the
+classic screenshot drop zone). Record up to 30 seconds, stop, review/edit the text,
+then choose **Explore**, **Save locally**, or **Find related**. Typed input uses the
+same review and local interpretation without microphone access. Find related requires
+one selected library item and searches only that item's scrubbed public details.
+Save locally stores a scrubbed intent in the library without any internet request.
+
+Voice is optional. With the backend environment activated:
+
+```bash
+cd backend
+python -m pip install -e '.[voice]'
+cd ..
+./scripts/setup_voice.sh
+```
+
+The script explicitly installs the pinned `Systran/faster-whisper-base.en` model
+(about 150 MB; additional Python dependencies need extra space) and runs an offline,
+in-memory smoke transcription. Set `LATENT_VOICE_PYTHON` if your Python environment
+is outside `backend/.venv`. Runtime never downloads a model. Defaults:
+
+```env
+LATENT_STT_MODEL_PATH=~/.latent/models/faster-whisper-base.en
+LATENT_STT_DEVICE=cpu
+LATENT_STT_COMPUTE_TYPE=int8
+```
+
+Transcription is English-only, CPU int8 by default; the first request loads the model
+and can take longer. Latency depends on CPU and recording length. Browser recording
+requires localhost or HTTPS and permission, and chooses WebM/Opus, MP4, then Ogg/Opus
+according to browser support. The backend also accepts WAV, validates container bytes,
+and caps uploads at 8 MiB and decoded audio at 30 seconds. Unsupported recording,
+permission denial, missing models, and silence offer a typed fallback.
+
+Audio is decoded only in memory and never stored or logged. Raw/edited transcripts
+are review-only and never enter job events, the local library, or audit records.
+Only local Ollama receives reviewed text; only provenance-checked queries from scrubbed
+public entities can reach Tavily/Exa. No Gradium/cloud transcription key is used.
+Air-gap mode allows transcription, local interpretation, and save while blocking
+external searches. Install the STT and Ollama models before going offline.
+
+`VITE_MOCK=1 npm run dev` in `frontend/` provides event, save-only, selected-context
+related, silence, and permission-denied demos without a microphone or backend.
+`LATENT_MOCK=1` replays local voice results without loading Whisper or Ollama.
+
 ## Checks
 
 ```bash

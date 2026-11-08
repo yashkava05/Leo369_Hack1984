@@ -1,0 +1,17 @@
+.voice-capture { color: var(--chat-text, #eeeae5); background: var(--chat-surface, #24232b); border: 1px solid var(--chat-border, #615d70); border-radius: 16px; padding: 16px; max-width: 100%; min-width: 0; font: inherit; }
+.voice-capture * { box-sizing: border-box; }
+.voice-capture .voice-heading, .voice-capture .voice-actions, .voice-capture .voice-record-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.voice-capture .voice-heading { justify-content: space-between; }
+.voice-capture .voice-note { font-size: 0.82rem; line-height: 1.5; color: var(--chat-muted, #c2bdce); }
+.voice-capture .voice-provenance { font-size: 0.7rem; letter-spacing: 0.08em; border: 1px solid currentColor; border-radius: 4px; padding: 2px 5px; }
+.voice-capture button, .voice-capture select, .voice-capture textarea { font: inherit; color: inherit; background: var(--chat-bg, #17161e); border: 1px solid var(--chat-border, #81798e); border-radius: 8px; padding: 10px; min-height: 44px; }
+.voice-capture button { cursor: pointer; }
+.voice-capture button:disabled, .voice-capture select:disabled, .voice-capture textarea:disabled { opacity: 0.55; cursor: default; }
+.voice-capture :is(button, textarea, select):focus-visible { outline: 3px solid var(--chat-accent, #cab3ff); outline-offset: 3px; }
+.voice-capture textarea { width: 100%; resize: vertical; margin-top: 8px; }
+.voice-capture select { width: 100%; min-width: 0; text-overflow: ellipsis; }
+.voice-capture .voice-context, .voice-capture .voice-demo { display: grid; gap: 8px; margin: 12px 0; }
+.voice-capture .voice-chip { display: flex; gap: 8px; align-items: center; justify-content: space-between; overflow-wrap: anywhere; background: var(--chat-bg, #17161e); padding: 8px; border-radius: 8px; }
+.voice-capture .voice-error { color: #ffbdbd; }
+@media (max-width: 420px) { .voice-capture { padding: 12px; } .voice-capture .voice-actions > button { flex: 1 1 40%; } }
+@media (prefers-reduced-motion: reduce) { .voice-capture *, .voice-capture *::before, .voice-capture *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }

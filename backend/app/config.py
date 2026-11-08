@@ -28,6 +28,9 @@ class Settings(BaseSettings):
     latent_keep_thumbs: bool = False  # store a 256 px JPEG thumbnail per saved job
     # Demo safety net (issue #17): a failed Tavily call is answered from recorded responses.
     demo_fallback: bool = False
+    latent_stt_model_path: str = "~/.latent/models/faster-whisper-base.en"
+    latent_stt_device: str = "cpu"
+    latent_stt_compute_type: str = "int8"
     cors_origins: list[str] = ["http://localhost:5173"]
 
 
