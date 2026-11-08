@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react'
 import { API_URL, getHealth } from './api/client'
+import { AirGapToggle } from './components/AirGapToggle'
+import { AuditDrawer } from './components/AuditDrawer'
 import { ActionCard } from './components/cards/ActionCard'
 import { Dashboard } from './components/Dashboard'
 import { DropZone } from './components/DropZone'
+import { LeftDeviceSummary } from './components/LeftDeviceSummary'
 import { StageStrip } from './components/StageStrip'
 import { Terminal } from './components/Terminal'
 import type { HealthResponse } from './types'
@@ -22,8 +25,11 @@ function App() {
   return (
     <main>
       <h1>Latent</h1>
+      <AirGapToggle />
+      <AuditDrawer />
       <DropZone />
       <StageStrip />
+      <LeftDeviceSummary />
       <Terminal />
       <p>
         Backend health from <code>{API_URL}/api/health</code>:
