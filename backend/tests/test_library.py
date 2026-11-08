@@ -196,6 +196,15 @@ def assert_marker_gone():
     assert MARKER.lower().encode() not in data
 
 
+def disable_fts_secure_delete():
+    """Act like SQLite < 3.42, where FTS5 only marks deleted terms and the index is rebuilt."""
+    library.init_db()
+    conn = sqlite3.connect(library.db_path())
+    conn.execute("INSERT INTO intents_fts (intents_fts, rank) VALUES ('secure-delete', 0)")
+    conn.commit()
+    conn.close()
+
+
 def test_delete_leaves_no_text_in_stored_bytes():
     library.save(marked("j_marked01"))
     library.save(product())
@@ -207,11 +216,7 @@ def test_delete_leaves_no_text_in_stored_bytes():
 
 
 def test_delete_without_fts_secure_delete_rebuilds_index():
-    library.init_db()
-    conn = sqlite3.connect(library.db_path())
-    conn.execute("INSERT INTO intents_fts (intents_fts, rank) VALUES ('secure-delete', 0)")
-    conn.commit()
-    conn.close()
+    disable_fts_secure_delete()
     library.save(marked("j_marked01"))
     library.save(product())
     assert library.delete("j_marked01")
@@ -219,7 +224,10 @@ def test_delete_without_fts_secure_delete_rebuilds_index():
     assert [i.id for i in library.search("Sonora")] == ["j_product01"]
 
 
-def test_resave_leaves_no_old_text_in_stored_bytes():
+@pytest.mark.parametrize("fts_secure_delete", [True, False])
+def test_resave_leaves_no_old_text_in_stored_bytes(fts_secure_delete):
+    if not fts_secure_delete:
+        disable_fts_secure_delete()
     library.save(marked("j_marked01"))
     library.save(concert("j_marked01"))
     assert library.search(MARKER) == []

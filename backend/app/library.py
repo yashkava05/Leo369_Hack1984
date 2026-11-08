@@ -86,7 +86,7 @@ def _make_private(path: Path) -> None:
     parent = path.parent
     missing = [d for d in (parent, *parent.parents) if not d.exists()]
     for d in reversed(missing):
-        d.mkdir(mode=0o700)
+        d.mkdir(mode=0o700, exist_ok=True)
         d.chmod(0o700)  # mkdir's mode is narrowed by the umask but never widened; be exact
     if parent == Path.home() / ".latent":
         parent.chmod(0o700)
@@ -132,6 +132,13 @@ def _fts_secure_delete_on(conn: sqlite3.Connection) -> bool:
     return bool(row and row[0])
 
 
+def _delete_fts_row(conn: sqlite3.Connection, job_id: str) -> None:
+    """Remove a job's FTS row so its terms leave the index segments, not just search results."""
+    conn.execute("DELETE FROM intents_fts WHERE id = ?", (job_id,))
+    if not _fts_secure_delete_on(conn):
+        conn.execute("INSERT INTO intents_fts (intents_fts) VALUES ('rebuild')")
+
+
 @contextmanager
 def _connect() -> Iterator[sqlite3.Connection]:
     conn = sqlite3.connect(init_db(), timeout=5)
@@ -168,7 +175,7 @@ def save(result: JobResult, thumb: bytes | None = None) -> bool:
     stored = result.model_copy(update={"egress": []})
     entities = " ".join(e.value for e in intent.public_entities)
     with _connect() as conn:
-        conn.execute("DELETE FROM intents_fts WHERE id = ?", (result.job_id,))
+        _delete_fts_row(conn, result.job_id)
         conn.execute(
             "INSERT OR REPLACE INTO intents"
             " (id, created_at, intent_type, summary, result_json, thumb)"
@@ -262,11 +269,9 @@ def delete(job_id: str) -> bool:
     takes the terms out of the index segments; the checkpoint flushes old pages out of the WAL.
     """
     with _connect() as conn:
-        conn.execute("DELETE FROM intents_fts WHERE id = ?", (job_id,))
+        _delete_fts_row(conn, job_id)
         cur = conn.execute("DELETE FROM intents WHERE id = ?", (job_id,))
         existed = cur.rowcount > 0
-        if not _fts_secure_delete_on(conn):
-            conn.execute("INSERT INTO intents_fts (intents_fts) VALUES ('rebuild')")
     _checkpoint()
     return existed
 
@@ -274,9 +279,11 @@ def delete(job_id: str) -> bool:
 def _checkpoint() -> None:
     conn = sqlite3.connect(init_db(), timeout=5)
     try:
-        conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+        busy = conn.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchone()[0]
     finally:
         conn.close()
+    if busy:  # a reader held the WAL; the old pages leave it at the next checkpoint
+        log.warning("library WAL checkpoint was busy; deleted pages remain in the WAL for now")
 
 
 def wipe() -> None:
