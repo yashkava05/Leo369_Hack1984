@@ -1,5 +1,6 @@
 """Phase 1 regressions use only temporary databases and fabricated public data."""
 
+import asyncio
 import sqlite3
 import threading
 from concurrent.futures import ThreadPoolExecutor
@@ -35,7 +36,15 @@ def saved(item_id="sample"):
         updated_at=1,
         label="Lumen Festival",
         intent_type="event",
-        cards=[],
+        cards=[
+            {
+                "id": "sample-card",
+                "kind": "link",
+                "title": "Lumen Festival",
+                "source": "example.test",
+                "url": "https://example.test/festival",
+            }
+        ],
     )
 
 
@@ -242,3 +251,26 @@ async def test_saved_api_validation_and_confirmed_reset():
         assert (await client.post("/api/saved/import", json=body)).status_code == 409
         body["items"][0]["cards"] = [{"private_transcript": "fabricated private value"}]
         assert (await client.post("/api/saved/import", json=body)).status_code == 422
+
+
+async def test_reset_cancels_old_jobs_but_keeps_jobs_created_after_the_reset(monkeypatch):
+    old_job = jobs.create_job()
+    old_job.task = asyncio.create_task(asyncio.Event().wait())
+    reset = library.delete_all_local_data
+    created = []
+
+    def reset_then_create(**kwargs):
+        response = reset(**kwargs)
+        created.append(jobs.create_job())
+        return response
+
+    monkeypatch.setattr(library, "delete_all_local_data", reset_then_create)
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        response = await client.delete("/api/memory?confirm=DELETE_ALL_LOCAL_DATA")
+    assert response.status_code == 200
+    assert old_job.task.cancelled()
+    assert old_job.job_id not in jobs.JOBS
+    assert created[0].job_id in jobs.JOBS
+    jobs.JOBS.pop(created[0].job_id)
