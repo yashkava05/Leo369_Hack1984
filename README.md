@@ -1,12 +1,5 @@
 # Latent
 
-Local-first memory agent that turns screenshots into actions. Built for HACK1984.
-
-Drop a screenshot; a local vision model (Ollama + Qwen2.5-VL) extracts the intent, PII is
-stripped, a sanitized text query goes to Tavily, and the results render as action cards.
-
-# Latent
-
 **Your screenshots, turned into actions, without your screenshots leaving your laptop.**
 A local-first memory agent built for HACK1984.
 
@@ -47,7 +40,8 @@ Privacy in Latent is **enforced and auditable**, not mathematically guaranteed: 
 code with tests, and every outbound request is recorded so you can check what left.
 
 **One door to the network.** Only `backend/app/egress.py` opens network connections
-(`backend/tests/test_single_egress.py` fails the build if any other module does). Ollama is reached
+(`backend/tests/test_single_egress.py` fails if any other module in `backend/app` opens a
+network client). Ollama is reached
 only through a loopback-only client. Every internet request passes these rules in order; the first
 failure blocks it:
 

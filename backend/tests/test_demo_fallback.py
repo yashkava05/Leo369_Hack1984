@@ -25,9 +25,14 @@ def scenario():
     return queries, raw["responses"], allow
 
 
-def save(directory: Path, query: str, response: dict) -> None:
-    saved = {"query": query, "recorded_at": "2026-11-07T12:00:00Z", "response": response}
-    (directory / f"{query_slug(query)}.json").write_text(json.dumps(saved))
+def save(directory: Path, q: SearchQuery, response: dict) -> None:
+    saved = {
+        "query": q.text,
+        "recorded_at": "2026-11-07T12:00:00Z",
+        "request": search_mod.request_body(q),
+        "response": response,
+    }
+    (directory / f"{query_slug(q.text)}.json").write_text(json.dumps(saved))
 
 
 def messages(job) -> list[str]:
@@ -79,7 +84,7 @@ def test_query_slug():
 async def test_network_down_serves_recorded_with_label(monkeypatch, guard):
     queries, responses, allow = scenario()
     for q in queries:
-        save(guard, q.text, responses[q.text])
+        save(guard, q, responses[q.text])
     network(monkeypatch, wifi_off)
     job = jobs.create_job()
 
@@ -97,7 +102,7 @@ async def test_network_down_serves_recorded_with_label(monkeypatch, guard):
 async def test_timeout_and_http_errors_fall_back(monkeypatch, guard):
     queries, responses, allow = scenario()
     for q in queries:
-        save(guard, q.text, responses[q.text])
+        save(guard, q, responses[q.text])
 
     def flaky(request: httpx.Request) -> httpx.Response:
         if json.loads(request.content)["query"] == queries[0].text:
@@ -113,7 +118,7 @@ async def test_timeout_and_http_errors_fall_back(monkeypatch, guard):
 
 async def test_live_success_is_not_replaced(monkeypatch, guard):
     queries, responses, allow = scenario()
-    save(guard, queries[0].text, {"results": [{"title": "old", "url": "https://x.example"}]})
+    save(guard, queries[0], {"results": [{"title": "old", "url": "https://x.example"}]})
     network(
         monkeypatch,
         lambda r: httpx.Response(200, json=responses[json.loads(r.content)["query"]]),
@@ -127,7 +132,7 @@ async def test_live_success_is_not_replaced(monkeypatch, guard):
 async def test_air_gap_block_is_never_replaced(monkeypatch, guard):
     queries, responses, allow = scenario()
     for q in queries:
-        save(guard, q.text, responses[q.text])
+        save(guard, q, responses[q.text])
     seen = network(monkeypatch, wifi_off)
     egress.set_offline(True)
     job = jobs.create_job()
@@ -145,7 +150,7 @@ async def test_off_by_default(monkeypatch, guard):
     )
     queries, responses, allow = scenario()
     for q in queries:
-        save(guard, q.text, responses[q.text])
+        save(guard, q, responses[q.text])
     network(monkeypatch, wifi_off)
     job = jobs.create_job()
     assert await search(queries, job_id=job.job_id, allow_terms=allow) == {}
@@ -160,12 +165,17 @@ async def test_missing_recording_reports_and_skips(monkeypatch, guard):
     assert any(m.startswith("search ✕ no recorded result for") for m in messages(job))
 
 
-def test_recording_for_another_query_is_ignored(guard):
-    path = guard / f"{query_slug('Lumen Drift tickets')}.json"
-    path.write_text(json.dumps({"query": "Lumen-Drift tickets", "response": {"results": []}}))
-    assert load_recorded("Lumen Drift tickets") is None
+def test_recording_for_another_request_is_ignored(guard):
+    q = SearchQuery(text="Lumen Drift tickets", purpose="tickets", include_domains=["dice.fm"])
+    path = guard / f"{query_slug(q.text)}.json"
+    save(guard, q, {"results": [{"title": "t", "url": "https://dice.fm/x"}]})
+    assert load_recorded(q).results
+    # Same text, other domains: a different search, so not served.
+    assert load_recorded(q.model_copy(update={"include_domains": []})) is None
+    path.write_text(json.dumps({"query": "Lumen-Drift tickets", "request": {}, "response": {}}))
+    assert load_recorded(q) is None
     path.write_text("not json")
-    assert load_recorded("Lumen Drift tickets") is None
+    assert load_recorded(q) is None
 
 
 # --- scripts/record_tavily.py -----------------------------------------------------
@@ -180,37 +190,39 @@ def load_script():
     return module
 
 
-async def test_record_script_round_trip(monkeypatch, guard, capsys):
+async def test_record_script_records_pipeline_queries_from_the_library(monkeypatch, guard, capsys):
+    """Queries come from query.py over a saved scrubbed intent, never from the command line."""
+    from app import library
+    from app.models import JobResult
+    from app.pipeline import scrub as scrub_mod
+    from tests.test_runner import INTENT, tavily_response
+
+    monkeypatch.setattr(egress, "_pii_checker", lambda: scrub_mod.contains_pii)
+    scrub_mod.warm_up()
     script = load_script()
-    queries, responses, allow = scenario()
-    seen = network(
-        monkeypatch,
-        lambda r: httpx.Response(200, json=responses[json.loads(r.content)["query"]]),
-    )
-    args = [queries[1].text, *(a for term in allow for a in ("--allow", term))]
-    assert await script.main(args) == 0
+    scrubbed, _ = scrub_mod.scrub_intent(INTENT)
+    assert library.save(JobResult(job_id="j_rehearsal", status="done", intent=scrubbed))
+    seen = network(monkeypatch, tavily_response)
 
-    saved = json.loads((guard / f"{query_slug(queries[1].text)}.json").read_text())
-    assert saved["query"] == queries[1].text and saved["request"]["query"] == queries[1].text
-    assert KEY not in json.dumps(saved) and KEY not in capsys.readouterr().out
-    assert seen[0].headers["authorization"] == f"Bearer {KEY}"
-    assert load_recorded(queries[1].text).results  # what the fallback will serve
-    assert [r.host for r in egress.records()] == ["api.tavily.com"]  # audited like the pipeline
+    assert await script.main(["--last", "1"]) == 0
+
+    expected, allow = script.queries_for(scrubbed)
+    assert allow == {"Tame Impala"}  # kept performer only, as in the runner
+    assert expected and [json.loads(r.content)["query"] for r in seen] == [q.text for q in expected]
+    for q in expected:
+        saved = json.loads((guard / f"{query_slug(q.text)}.json").read_text())
+        assert saved["request"] == search_mod.request_body(q)
+        assert KEY not in json.dumps(saved)
+        assert load_recorded(q).results  # what the fallback will serve
+    assert KEY not in capsys.readouterr().out
+    assert all(r.headers["authorization"] == f"Bearer {KEY}" for r in seen)
+    assert {r.host for r in egress.records()} == {"api.tavily.com"}  # audited like the pipeline
 
 
-def test_record_script_reads_sent_queries_from_egress_log(tmp_path):
+def test_record_script_takes_no_free_text_queries():
     script = load_script()
-    body = {"query": "Lumen Drift tickets", "topic": "general", "include_domains": ["dice.fm"]}
-    lines = [
-        {"host": "api.tavily.com", "blocked": False, "payload_preview": json.dumps(body)},
-        {"host": "api.tavily.com", "blocked": True, "payload_preview": json.dumps({"query": "x"})},
-        {"host": "api.exa.ai", "blocked": False, "payload_preview": json.dumps({"query": "y"})},
-        {"host": "api.tavily.com", "blocked": False, "payload_preview": '{"query": "cut off'},
-    ]
-    log = tmp_path / "egress.log"
-    log.write_text("\n".join(json.dumps(line) for line in lines) + "\nnot json\n")
-    queries = script.queries_from_egress_log(log)
-    assert [(q.text, q.include_domains) for q in queries] == [("Lumen Drift tickets", ["dice.fm"])]
+    with pytest.raises(SystemExit):
+        script.asyncio.run(script.main(["Lumen Drift tickets"]))
 
 
 # --- whole pipeline with the Wi-Fi off ----------------------------------------------
@@ -234,7 +246,7 @@ async def test_pipeline_with_wifi_off_completes_on_recorded_results(monkeypatch,
     queries = build_queries(scrub_mod.scrub_intent(INTENT)[0])
     assert queries
     for q in queries:
-        save(guard, q.text, recorded)
+        save(guard, q, recorded)
     network(monkeypatch, wifi_off)
 
     job = jobs.create_job()

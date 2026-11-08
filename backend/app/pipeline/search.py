@@ -68,15 +68,17 @@ def recorded_path(text: str) -> Path:
     return RECORDED_DIR / f"{query_slug(text)}.json"
 
 
-def load_recorded(text: str) -> TavilyResponse | None:
-    """The recorded Tavily response for exactly this query text, or None."""
+def load_recorded(q: SearchQuery) -> TavilyResponse | None:
+    """The recorded Tavily response for exactly this request (text, topic, domains), or None."""
     try:
-        saved = json.loads(recorded_path(text).read_text(encoding="utf-8"))
+        saved = json.loads(recorded_path(q.text).read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return None
-    if not isinstance(saved, dict) or saved.get("query") != text:
+    if not isinstance(saved, dict) or saved.get("query") != q.text:
         return None  # slug collision or hand-edited file: never serve another query's results
-    return parse_response(text, saved.get("response"))
+    if saved.get("request") != request_body(q):
+        return None  # recorded with another topic or domain list: not the same search
+    return parse_response(q.text, saved.get("response"))
 
 
 def request_body(q: SearchQuery) -> dict:
@@ -195,7 +197,7 @@ async def _one_or_recorded(
         return None  # the guard said no (air-gap, PII, ...): never paper over that
     if resp is not None or not demo_fallback():
         return resp
-    recorded = load_recorded(q.text)
+    recorded = load_recorded(q)
     if recorded is None:
         await errors.report(f"no recorded result for '{q.text}'")
         return None

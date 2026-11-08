@@ -128,21 +128,28 @@ What it never does:
 Line to say if it happens: "The venue Wi-Fi just dropped, so these are Tavily results we recorded
 earlier for this exact query, and the terminal labels them as recorded."
 
+Limits to know:
+
+- The label is in the terminal only. The cards, the saved library entry and the audit log (which
+  shows the failed attempt as a sent row) do not mark the results as recorded, so the narrator must
+  say it.
+- On a slow (not dead) network the fallback starts only after the 15 s egress timeout. If Wi-Fi is
+  flaky, turn it off before the demo so the call fails at once.
+
 **Record the fallbacks (once, on good Wi-Fi, on the demo laptop):**
 
-1. Run a live rehearsal of the whole script with `DEMO_FALLBACK` unset, so every demo query goes to
-   Tavily for real and lands in `backend/egress.log`. The exact query text comes from the model,
-   which is why we record from a real run instead of typing queries by hand.
-2. Record every query that went out:
+1. Run a live rehearsal of the whole script with `DEMO_FALLBACK` unset, so every demo screenshot
+   finishes and is saved in the local library (`~/.latent/latent.db`).
+2. Record the queries for those runs:
    ```bash
-   backend/.venv/bin/python scripts/record_tavily.py --from-egress-log --allow "<performer>"
+   backend/.venv/bin/python scripts/record_tavily.py --last 3   # or --job <id> per run
    ```
-   `--allow` takes the performer or author name in the concert query (the egress guard only lets a
-   kept performer or author name through, exactly as in the pipeline). The script sends each query
-   through the egress guard and saves the response with the query text; the API key is never
+   The script never takes query text by hand: it rebuilds each run's queries with the pipeline's own
+   scrubber and query builder from the saved scrubbed intent, sends them through the egress guard
+   (same allow rule as the pipeline) and saves each response with its request. The API key is never
    written.
-3. Check `backend/fixtures/tavily_recorded/`: one `.json` per demo query. Commit them (they hold
-   public search results only).
+3. Check `backend/fixtures/tavily_recorded/`: one `.json` per demo query. These files are
+   git-ignored on purpose (real web results); keep them on the demo laptop and do not commit them.
 4. Test it: turn Wi-Fi off, `DEMO_FALLBACK=1 ./scripts/dev.sh`, run the script end to end and
    confirm the "(recorded result)" lines and the cards. Note the result in the rehearsal log.
 
