@@ -102,6 +102,15 @@ class SavedItem(BaseModel):
     source_job_id: str | None = None
 
 
+class LibraryRecord(BaseModel):
+    """A scrubbed saved result with its library timestamp, for local derived features."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    created_at: float
+    result: JobResult
+
+
 _init_lock = threading.Lock()
 _initialized: set[Path] = set()
 
@@ -358,6 +367,27 @@ def get(job_id: str) -> JobResult | None:
     return JobResult.model_validate(json.loads(row["result_json"])) if row else None
 
 
+def records(limit: int = MAX_LIMIT) -> list[LibraryRecord]:
+    """Return recent scrubbed records for on-device derivation.
+
+    This deliberately exposes neither thumbnails nor FTS internals. Stored results already
+    have their egress records removed by ``save``.
+    """
+    limit = max(1, min(int(limit), MAX_LIMIT))
+    with _connect() as conn:
+        rows = conn.execute(
+            "SELECT created_at, result_json FROM intents ORDER BY created_at DESC LIMIT ?",
+            (limit,),
+        ).fetchall()
+    return [
+        LibraryRecord(
+            created_at=row["created_at"],
+            result=JobResult.model_validate(json.loads(row["result_json"])),
+        )
+        for row in rows
+    ]
+
+
 def delete(job_id: str) -> bool:
     """Delete one intent and its FTS row, leaving none of its text in the file. Returns whether
     it existed.
@@ -369,6 +399,10 @@ def delete(job_id: str) -> bool:
         _delete_fts_row(conn, job_id)
         cur = conn.execute("DELETE FROM intents WHERE id = ?", (job_id,))
         existed = cur.rowcount > 0
+    if existed:
+        from app import feed  # local import: feed reads library records
+
+        feed.remove_source(job_id)
     _checkpoint()
     return existed
 
@@ -392,6 +426,9 @@ def wipe() -> None:
         )
         conn.execute("DELETE FROM intents_fts")
         conn.execute("DELETE FROM intents")
+    from app import feed  # local import: feed stores derived rows in this same private DB
+
+    feed.wipe()
     conn = sqlite3.connect(init_db(), timeout=5)
     try:
         conn.execute("INSERT INTO intents_fts (intents_fts) VALUES ('optimize')")

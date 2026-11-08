@@ -5,7 +5,7 @@ Do not rename or add fields without updating types.ts and the fixtures.
 
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 IntentType = Literal["event", "product", "book", "place", "chart", "document", "other"]
 EntityType = Literal[
@@ -100,6 +100,56 @@ class Card(BaseModel):
     snippet: str | None = None  # <= 240 chars
     score: float = 0
     actions: list[CardAction] = []
+
+
+FeedItemKind = Literal["discovery", "connection", "follow_up", "pattern"]
+FeedFeedbackAction = Literal["save", "useful", "not_useful", "dismiss", "less_like_this"]
+FeedProvenance = Literal["local", "web"]
+
+
+class FeedHero(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    url: str
+    alt: str
+
+
+class FeedSource(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    title: str
+    url: str | None = None
+    job_id: str | None = None
+
+
+class FeedItem(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    kind: FeedItemKind
+    title: str
+    teaser: str
+    hero: FeedHero | None = None
+    source_job_ids: list[str]
+    why: str
+    created_at: float
+    provenance: FeedProvenance
+    actions: list[CardAction] = Field(default_factory=list)
+    feedback: list[FeedFeedbackAction] = Field(default_factory=list)
+
+
+class FeedItemDetail(FeedItem):
+    body: str
+    sources: list[FeedSource] = Field(default_factory=list)
+    cards: list[Card] = Field(default_factory=list)
+
+
+class FeedResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    items: list[FeedItem]
+    next_cursor: str | None = None
+    generated_at: float
 
 
 Stage = Literal["ingest", "extract", "scrub", "query", "search", "cards", "done", "error"]

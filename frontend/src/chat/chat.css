@@ -85,7 +85,10 @@ body.chat-mode { margin: 0; padding: 0; background: var(--chat-bg); }
 .chat-sidebar-section { margin-bottom: 27px; }
 .chat-sidebar-section h2 { display: flex; align-items: center; gap: 7px; font: 500 12px 'Figtree', sans-serif; color: var(--chat-muted); padding: 0 12px; margin-bottom: 12px; }
 .chat-sidebar-section h2 > span { margin-left: auto; }
-.chat-nav-item { display: flex; align-items: center; gap: 11px; width: 100%; padding: 13px 15px; border: 1px solid #5b61f01a; border-radius: 11px; background: color-mix(in srgb, var(--chat-me) 7%, var(--chat-bg)); text-align: left; font-weight: 600 !important; }
+.chat-nav-item { display: flex; align-items: center; gap: 11px; width: 100%; padding: 13px 15px; border: 1px solid transparent; border-radius: 11px; background: transparent; color: var(--chat-muted); text-align: left; text-decoration: none; font-weight: 600 !important; }
+.chat-nav-item + .chat-nav-item { margin-top: 6px; }
+.chat-nav-item:hover { background: color-mix(in srgb, var(--chat-me) 4%, var(--chat-bg)); }
+.chat-nav-item.is-selected { border-color: #5b61f01a; background: color-mix(in srgb, var(--chat-me) 7%, var(--chat-bg)); color: var(--chat-ink); }
 .chat-nav-item > svg { color: var(--chat-me); }
 .chat-online-dot, .chat-status-dot, .chat-demo-note > span { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--chat-local); }
 .chat-online-dot { margin-left: auto; }

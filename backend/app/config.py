@@ -1,4 +1,4 @@
-"""Runtime settings loaded from the environment and the repo-root `.env`."""
+"""Runtime settings loaded from the environment and local dotenv files."""
 
 from functools import lru_cache
 from pathlib import Path
@@ -11,8 +11,13 @@ _REPO_ROOT = _BACKEND_DIR.parent
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        # Later files win: a backend/.env overrides the shared repo-root .env.
-        env_file=(_REPO_ROOT / ".env", _BACKEND_DIR / ".env"),
+        # Local secrets override shared defaults; backend-specific files win within each tier.
+        env_file=(
+            _REPO_ROOT / ".env",
+            _BACKEND_DIR / ".env",
+            _REPO_ROOT / ".env.local",
+            _BACKEND_DIR / ".env.local",
+        ),
         env_file_encoding="utf-8",
         extra="ignore",
     )

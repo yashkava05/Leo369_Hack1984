@@ -10,6 +10,7 @@ from app import egress, ollama, watch
 from app.api import router as pipeline_router
 from app.config import get_settings
 from app.pipeline import scrub
+from app.routes.feed import router as feed_router
 from app.routes.library import router as library_router
 from app.routes.memory import router as memory_router
 from app.routes.mode import router as mode_router
@@ -70,3 +71,4 @@ app.include_router(mode_router, prefix="/api")
 app.include_router(watch_router, prefix="/api")
 app.include_router(library_router, prefix="/api")
 app.include_router(memory_router, prefix="/api")
+app.include_router(feed_router, prefix="/api")

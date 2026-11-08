@@ -1,4 +1,4 @@
-import { ArrowUp, Bookmark, Check, ChevronRight, ImagePlus, LockKeyhole, MessageCircle, Plus, ShieldCheck, Sparkles } from 'lucide-react'
+import { ArrowUp, Bookmark, Check, ChevronRight, Compass, ImagePlus, LockKeyhole, MessageCircle, Plus, ShieldCheck, Sparkles } from 'lucide-react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { DragEvent, FormEvent } from 'react'
 import { MOCK } from '../api/client'
@@ -144,6 +144,7 @@ export function ChatApp() {
         <div className="chat-brand"><Orb /><span>Latent<span className="chat-brand-dot">.</span></span></div>
         <div className="chat-sidebar-section"><h2>Chats</h2>
           <button className="chat-nav-item is-selected" type="button" aria-current="page" onClick={() => composer.current?.focus()}><MessageCircle size={17} aria-hidden="true" /><span>Latent</span><span className="chat-online-dot" /></button>
+          <a className="chat-nav-item" href="?view=feed"><Compass size={17} aria-hidden="true" /><span>Muse Feed</span></a>
         </div>
         <div className="chat-sidebar-section chat-kept"><h2><Bookmark size={13} aria-hidden="true" /> Kept for later <span>{chat.kept.length || ''}</span></h2>
           {chat.kept.length ? <ul>{chat.kept.map((item, index) => <li key={`${item.savedAt}-${index}`}><button type="button" onClick={() => { following.current = true; reopenKept(item) }}><span className="chat-kept-icon"><Bookmark size={14} aria-hidden="true" /></span><span>{item.label}<small>{new Date(item.savedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</small></span></button></li>)}</ul>
