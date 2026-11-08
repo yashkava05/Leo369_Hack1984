@@ -81,6 +81,23 @@ describe('card actions', () => {
     expect(writeText).toHaveBeenLastCalledWith(insight.snippet)
   })
 
+  it('falls back to the snippet when the action text is empty', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    vi.stubGlobal('navigator', { clipboard: { writeText } })
+    const insight = byId('c_insight')
+    await runAction({ label: 'Copy', type: 'copy', url: null, ics: null, text: '' }, insight)
+    expect(writeText).toHaveBeenLastCalledWith(insight.snippet)
+  })
+
+  it('renders two actions with the same type and label without key collisions', () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const card = byId('c_tickets')
+    const dup = { ...card, actions: [card.actions[0], { ...card.actions[0] }] }
+    renderToStaticMarkup(<ActionCard card={dup} />)
+    expect(error.mock.calls.filter((c) => String(c[0]).includes('same key'))).toEqual([])
+    error.mockRestore()
+  })
+
   it('downloads a text/calendar blob named after the event', async () => {
     const click = vi.fn()
     const anchor = { click, remove: vi.fn(), href: '', download: '', rel: '' }

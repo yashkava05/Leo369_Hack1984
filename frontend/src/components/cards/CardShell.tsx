@@ -42,7 +42,7 @@ export function CardShell({ card, icon: Icon, kindLabel, badge, hideSubtitle, ch
       {actions.length > 0 && (
         <div className="card-actions">
           {actions.map((action, i) => (
-            <ActionButton key={`${action.type}-${action.label}`} action={action} card={card} primary={i === 0} />
+            <ActionButton key={`${i}-${action.type}-${action.label}`} action={action} card={card} primary={i === 0} />
           ))}
         </div>
       )}

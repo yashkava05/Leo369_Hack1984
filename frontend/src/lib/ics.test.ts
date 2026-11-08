@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import concertFixture from '../api/fixtures/concert_flyer.result.json'
 import type { IcsEvent, JobResult } from '../types'
-import { buildIcs, escapeText, foldLine, icsFilename } from './ics'
+import { buildIcs, escapeText, foldLine, icsFilename, safeIcsUrl } from './ics'
 
 const NOW = new Date(Date.UTC(2026, 10, 7, 9, 30, 15))
 const octets = (s: string) => new TextEncoder().encode(s).length
@@ -135,6 +135,51 @@ describe('buildIcs', () => {
     expect(prop(ics, 'UID')).toBe('UID:c_calendar@latent.local')
     expect(prop(ics, 'DTSTART')).toBe('DTSTART:20261206T010000Z')
     expect(prop(ics, 'LOCATION')).toBe('LOCATION:Paradise Rock Club\\, 967 Commonwealth Ave\\, Boston\\, MA')
+  })
+})
+
+describe('review fixes (#32)', () => {
+  it('drops a URL containing line breaks instead of injecting properties', () => {
+    const ics = buildIcs(event({ url: 'https://x.com/\r\nATTENDEE:mailto:evil@x.com' }), 'u1', NOW)
+    expect(ics).not.toContain('ATTENDEE')
+    expect(prop(ics, 'URL')).toBeUndefined()
+  })
+
+  it('drops non-http URLs and keeps http(s) ones', () => {
+    expect(prop(buildIcs(event({ url: 'javascript:alert(1)' }), 'u1', NOW), 'URL')).toBeUndefined()
+    expect(safeIcsUrl('https://example.com/a')).toBe('https://example.com/a')
+    expect(prop(buildIcs(event({ url: 'https://example.com/a' }), 'u1', NOW), 'URL')).toBe('URL:https://example.com/a')
+  })
+
+  it('falls back to the default duration when start is UTC and end is floating', () => {
+    const ics = buildIcs(event({ start: '2026-12-05T20:00:00-05:00', end: '2026-12-05T23:00:00' }), 'u1', NOW)
+    expect(prop(ics, 'DTSTART')).toBe('DTSTART:20261206T010000Z')
+    expect(prop(ics, 'DTEND')).toBe('DTEND:20261206T040000Z')
+  })
+
+  it('falls back when a date-only start has a date-time end', () => {
+    const ics = buildIcs(event({ start: '2026-12-05', end: '2026-12-05T23:00:00' }), 'u1', NOW)
+    expect(prop(ics, 'DTEND')).toBe('DTEND;VALUE=DATE:20261206')
+  })
+
+  it('falls back when the end is not after the start', () => {
+    const ics = buildIcs(event({ start: '2026-12-05T20:00:00', end: '2026-12-05T19:00:00' }), 'u1', NOW)
+    expect(prop(ics, 'DTEND')).toBe('DTEND:20261205T230000')
+  })
+
+  it('uses start + 1 day when a date-only end equals the start', () => {
+    const ics = buildIcs(event({ start: '2026-12-05', end: '2026-12-05' }), 'u1', NOW)
+    expect(prop(ics, 'DTEND')).toBe('DTEND;VALUE=DATE:20261206')
+  })
+
+  it('rejects impossible calendar dates instead of rolling over', () => {
+    expect(() => buildIcs(event({ start: '2026-02-30' }), 'u1', NOW)).toThrow()
+    expect(() => buildIcs(event({ start: '2026-12-05T25:00:00' }), 'u1', NOW)).toThrow()
+  })
+
+  it('accepts an hour-only offset', () => {
+    const ics = buildIcs(event({ start: '2026-12-05T20:00:00+05' }), 'u1', NOW)
+    expect(prop(ics, 'DTSTART')).toBe('DTSTART:20261205T150000Z')
   })
 })
 
