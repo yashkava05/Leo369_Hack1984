@@ -124,6 +124,24 @@ credits.
 
 Do not say "mathematically guaranteed" or "zero risk". Say "enforced and auditable".
 
+## Windows demo laptop
+
+On the Windows demo laptop, use the Windows clone (on `C:`, not the WSL file system) and
+`scripts\start-windows.cmd` instead of `./scripts/dev.sh`. Double-click it, or run it from
+PowerShell with flags. It never prints key values and never overwrites `.env` or `.env.local`.
+
+| Command | Use it for |
+| --- | --- |
+| `scripts\start-windows.cmd -Check` | Readiness report only (Python, Node, Ollama running, `qwen2.5vl:3b` pulled, spaCy model, optional voice model, keys set, ports free). Changes nothing; exit code 1 if something needs fixing. |
+| `scripts\start-windows.cmd` | Set up what is missing, start Ollama if needed, the backend and the frontend, wait for `/api/health` and open the chat. Ctrl+C or closing the window stops both servers; Ollama keeps running. |
+| `scripts\start-windows.cmd -Mock` | Fallback layer 2: the backend replays fixtures, no Ollama and no network needed. |
+| `scripts\start-windows.cmd -AirGap` | Rehearse with the backend starting in air-gap (`LATENT_OFFLINE=1`). The **Air-gap** switch can still turn it off. For the real demo, start without it: the demo script above starts with air-gap off. |
+| `scripts\start-windows.cmd -Wsl` | Bind the backend and frontend to `0.0.0.0` so a WSL shell on the same laptop can reach them. Ollama is bound to `0.0.0.0` only if the script starts it; if the Ollama app is already running, the script tells you how to rebind it. This also exposes the app to the local network, so do not use it on venue Wi-Fi. |
+
+For `DEMO_FALLBACK=1`, put `DEMO_FALLBACK=1` in `.env.local` before starting. The rest of the
+checklist below applies unchanged; replace `./scripts/dev.sh` with `scripts\start-windows.cmd`, and
+check health with `curl.exe -s localhost:8000/api/health` (the script also prints it once at start).
+
 ## Demo-laptop checklist
 
 Five minutes before:
