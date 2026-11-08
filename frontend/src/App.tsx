@@ -6,6 +6,7 @@ import { ActionCard } from './components/cards/ActionCard'
 import { Dashboard } from './components/Dashboard'
 import { DropZone } from './components/DropZone'
 import { LeftDeviceSummary } from './components/LeftDeviceSummary'
+import { LibraryDrawer } from './components/LibraryDrawer'
 import { StageStrip } from './components/StageStrip'
 import { Terminal } from './components/Terminal'
 import { WatchPill } from './components/WatchPill'
@@ -29,6 +30,7 @@ function App() {
       <AirGapToggle />
       <WatchPill />
       <AuditDrawer />
+      <LibraryDrawer />
       <DropZone />
       <StageStrip />
       <LeftDeviceSummary />

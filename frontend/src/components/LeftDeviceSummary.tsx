@@ -5,8 +5,9 @@ import './privacy.css'
 // Post-job proof card. Reads the finished job from useJob() and shows exactly what left the
 // device: request/byte counts (blocked attempts excluded) and every query string verbatim.
 export function LeftDeviceSummary() {
-  const { status, result } = useJob()
-  if (status !== 'done' || !result) return null
+  const { status, result, reopened } = useJob()
+  // A result reopened from the library keeps no egress records, so it can't prove what left.
+  if (status !== 'done' || !result || reopened) return null
 
   const summary = summarizeJob(result)
 

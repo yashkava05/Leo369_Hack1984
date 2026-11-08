@@ -23,6 +23,9 @@ class Settings(BaseSettings):
     exa_api_key: str = ""
     latent_mock: bool = False
     latent_watch_dir: str = ""  # opt-in screenshot folder (issue #20); empty = watcher off
+    # Local intent library (issue #21): SQLite file, default ~/.latent/latent.db.
+    latent_db_path: str = ""
+    latent_keep_thumbs: bool = False  # store a 256 px JPEG thumbnail per saved job
     cors_origins: list[str] = ["http://localhost:5173"]
 
 
