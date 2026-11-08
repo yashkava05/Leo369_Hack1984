@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Latent pitch</title>
 <!--
-  Latent pitch deck: 6 slides, one <section class="slide"> each, speaker notes in <aside class="notes">.
+  Latent pitch deck: 7 slides, one <section class="slide"> each, speaker notes in <aside class="notes">.
   Present: open this file in any browser. Arrow keys / space / click = next, F = fullscreen, N = notes.
   Edit: change the text in this file; no build step, no network needed.
   PDF: docs/pitch.pdf (slides) and docs/pitch-notes.pdf (open with ?notes, then print). Export steps: README.md, "Pitch deck".
@@ -49,6 +49,12 @@
   th { color: var(--muted); font-weight: 600; font-size: 15px; text-transform: uppercase; letter-spacing: .08em; }
   ol.rules { margin: 0; padding-left: 24px; } ol.rules li { font-size: 17px; margin: 3px 0; }
   code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .9em; color: #b9d7ff; }
+  .path { display: flex; align-items: stretch; gap: 10px; margin-bottom: 20px; }
+  .path .step { flex: 1; background: var(--panel); border: 1px solid var(--local); border-radius: 12px; padding: 12px 14px; }
+  .path .step b { display: block; font-size: 18px; margin-bottom: 4px; }
+  .path .step span { font-size: 15px; line-height: 1.35; color: var(--muted); }
+  .path .arrow { align-self: center; color: var(--muted); font-size: 22px; }
+  ul.tight li { margin: 3px 0; font-size: 17px; line-height: 1.35; }
   .notes { display: none; }
   #notes-pane { display: none; position: fixed; left: 0; right: 0; bottom: 0; max-height: 40vh; overflow: auto;
     background: #fffbe6; color: #222; font-size: 20px; line-height: 1.45; padding: 14px 24px; z-index: 10; }
@@ -91,7 +97,7 @@
       </ul>
     </div>
   </div>
-  <div class="foot"><span>Latent · HACK1984</span><span>1 / 6</span></div>
+  <div class="foot"><span>Latent · HACK1984</span><span>1 / 7</span></div>
   <aside class="notes">Everyone screenshots things they mean to act on, then never does. Cloud assistants could help, but they upload the whole image, with names, emails and internal numbers. On a work laptop that can break an NDA or a compliance policy, so the screenshots that matter most at work can't go to them.</aside>
 </section>
 
@@ -110,7 +116,7 @@
       <p>Results come back as cards you can act on: <b>Add to calendar</b>, buy tickets, open in Maps.</p>
     </div>
   </div>
-  <div class="foot"><span>Latent · HACK1984</span><span>2 / 6 · then live demo</span></div>
+  <div class="foot"><span>Latent · HACK1984</span><span>2 / 7 · then live demo</span></div>
   <aside class="notes">Latent turns a screenshot into actions without the image leaving your laptop. A local model reads it, private details are stripped, and only short public text queries go to the web. Results bloom as cards you can act on. HAND-OFF: switch to the live demo now (concert flyer, then air-gap). Come back for slide 3.</aside>
 </section>
 
@@ -180,7 +186,7 @@
     <path d="M985,230 C985,450 420,450 254,372" fill="none" stroke="#93a1b2" stroke-width="2" stroke-dasharray="6 6" marker-end="url(#ah)"/>
     <text x="560" y="446" text-anchor="middle" fill="#93a1b2" font-family="system-ui,Segoe UI,Roboto,Arial,sans-serif" font-size="15">search results come back as text</text>
   </svg>
-  <div class="foot"><span>Latent · HACK1984</span><span>3 / 6</span></div>
+  <div class="foot"><span>Latent · HACK1984</span><span>3 / 7</span></div>
   <aside class="notes">Green is your laptop: Qwen2.5-VL reads the image through Ollama on loopback, the scrubber strips PII, the query builder keeps only public entities. One arrow crosses: up to three short text queries, each request at most 4 KB. The egress guard runs on your laptop, right at the boundary: it is the only module allowed to open a connection, it logs every attempt, and the request crosses only after it passes.</aside>
 </section>
 
@@ -212,7 +218,7 @@
     </div>
     <div class="ph" style="font-size:17px">[TBD: air-gap demo still<br>internal email: extraction done locally, search ✕ blocked in the audit log]</div>
   </div>
-  <div class="foot"><span>Latent · HACK1984</span><span>4 / 6</span></div>
+  <div class="foot"><span>Latent · HACK1984</span><span>4 / 7</span></div>
   <aside class="notes">We don't claim magic, we show it. Ten fake-PII screenshots: intent accuracy [TBD], leaks [TBD exact]. Six egress rules in egress.py, and a test fails if any other module opens a connection. You saw air-gap: extraction finished locally, search blocked, and the audit log lists every outbound request with its byte count.</aside>
 </section>
 
@@ -238,13 +244,60 @@
       </ul>
     </div>
   </div>
-  <div class="foot"><span>Latent · HACK1984</span><span>5 / 6</span></div>
+  <div class="foot"><span>Latent · HACK1984</span><span>5 / 7</span></div>
   <aside class="notes">Two lines of revenue. Consumers get it free; when they buy tickets, products or books from a card, an affiliate tag earns a share. The hook, affiliate.tag_url, exists today and is a pass-through. Companies would pay for a planned enterprise tier: on-prem model, admin policy controls and audit-log export for compliance.</aside>
 </section>
 
-<!-- 6 · Tracks + ask -->
+<!-- 6 · Scale -->
 <section class="slide">
-  <div class="kicker">06 · Tracks + ask</div>
+  <div class="kicker">06 · Scale</div>
+  <h2>Millions of users, and still no screenshot on our servers.</h2>
+  <p style="margin:0 0 18px;font-size:21px">Inference runs on each user's own device, so what we host grows only with the
+    <b>search proxy, accounts and billing</b>, never with GPUs or anyone's images.</p>
+  <div class="path">
+    <div class="step"><b>1 · Desktop app</b><span>bundled local runtime, model download sized to RAM</span></div>
+    <div class="arrow">→</div>
+    <div class="step"><b>2 · Our search proxy</b><span>API keys off the device, no query logs, rate limits</span></div>
+    <div class="arrow">→</div>
+    <div class="step"><b>3 · Enterprise pilot</b><span>self-hosted proxy or full air-gap</span></div>
+    <div class="arrow">→</div>
+    <div class="step"><b>4 · On-device mobile</b><span>the same local-first pipeline on phones</span></div>
+  </div>
+  <div class="cols" style="grid-template-columns: 1fr 1fr 1.2fr; gap: 24px; flex: 0 0 auto;">
+    <div class="card">
+      <h3><span class="local">Trust at scale</span></h3>
+      <ul class="tight">
+        <li>One egress module; nothing else may open a connection</li>
+        <li>Outbound log the user can see</li>
+        <li>Leak-test eval on fake-PII screenshots</li>
+        <li>Planned: third-party audit, SOC 2</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3><span class="net">Revenue</span></h3>
+      <ul class="tight">
+        <li>Free tier with a search cap</li>
+        <li>Pro subscription</li>
+        <li>Affiliate links that carry no user data</li>
+        <li>Per-seat enterprise tier</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3><span class="block">Risks</span> → answers</h3>
+      <ul class="tight">
+        <li><b>Weak hardware</b> → smaller model tiers, OCR-only mode</li>
+        <li><b>Platform owners</b> → cross-platform, inspectable code, enterprise focus</li>
+        <li><b>Search cost</b> → result caching and per-tier caps</li>
+      </ul>
+    </div>
+  </div>
+  <div class="foot"><span>Latent · HACK1984</span><span>6 / 7</span></div>
+  <aside class="notes">How does this scale to millions? The expensive part, the vision model, runs on each user's own machine, so our servers only carry a thin search proxy, accounts and billing; we never pay for GPUs and we never hold anyone's screenshots. The path: an installable desktop app that bundles the local runtime and picks a model that fits the user's RAM; then our own search proxy, so API keys leave the device, with no query logs and rate limits; then enterprise pilots with a self-hosted proxy or a full air-gap; then on-device mobile. Trust has to scale too: one egress point, an outbound log users can read, the leak-test eval on fake-PII screenshots, and later a third-party audit and SOC 2. Revenue: a free tier with a search cap, a Pro subscription, affiliate links that carry no user data, and per-seat enterprise. Risks: weak laptops get smaller model tiers or an OCR-only mode; against platform owners we are cross-platform, inspectable and enterprise-first; search cost is handled with caching and caps.</aside>
+</section>
+
+<!-- 7 · Tracks + ask -->
+<section class="slide">
+  <div class="kicker">07 · Tracks + ask</div>
   <h2>Why Latent fits each track</h2>
   <table>
     <tr><th style="width:24%">Track</th><th>How we meet it</th></tr>
@@ -257,7 +310,7 @@
     <div class="card"><h3>What's next</h3><p style="margin:0">Opt-in auto-ingest from the screenshot folder, a local intent library, Exa related-content cards.</p></div>
     <div class="card"><h3>Our ask</h3><p class="tbd" style="margin:0">[TBD: the ask, e.g. pilot teams or feedback]</p></div>
   </div>
-  <div class="foot"><span>Latent · HACK1984</span><span>6 / 6</span></div>
+  <div class="foot"><span>Latent · HACK1984</span><span>7 / 7</span></div>
   <aside class="notes">Privacy-First: local vision, one guarded door, air-gap, audit log, leak eval. SURGE: Tavily turns scrubbed entities into real actions; Exa is our stretch. Startup: everyone has this problem, consumers are free, enterprises pay. Next: opt-in auto-ingest, a local intent library, Exa cards. Our ask: [TBD]. Thank you.</aside>
 </section>
 
