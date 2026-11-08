@@ -37,6 +37,16 @@ LONG_NUMBER = "LONG_NUMBER"
 DOCUMENT_POLICY = "DOCUMENT_POLICY"
 
 PERSON_TYPES = frozenset({"performer", "author"})
+# Public names the model labels (titles, products, brands, companies). spaCy often tags an
+# unfamiliar one as PERSON ("The Glass Orchard", "Quencher"); such a tag removes the entity only
+# if the tagged words could be a person's full name. Not applied to document intents.
+PUBLIC_NAME_TYPES = frozenset({"book_title", "product", "brand", "public_org"})
+_NAME_PARTICLES = frozenset(
+    {"al", "bin", "da", "de", "del", "der", "di", "du", "la", "le", "van", "von"}
+)
+_ARTICLES = frozenset({"the", "a", "an"})
+_NAME_WORD = re.compile(r"[A-Z][A-Za-z'’.-]*")
+_HONORIFICS = frozenset({"dr", "mr", "mrs", "ms", "mx", "prof", "sir", "dame"})
 DOCUMENT_KEEP = frozenset({"topic", "public_org", "product"})
 DIGIT_RUN_EXEMPT = frozenset({"date", "time", "price"})
 DIGIT_RUN = re.compile(r"\d{6,}")
@@ -138,6 +148,39 @@ def _lone_word_person(finding: RecognizerResult, text: str) -> bool:
     return finding.entity_type == PERSON and len(text.split()) == 1
 
 
+def _name_shaped(span: str) -> bool:
+    """True if a PERSON span could be someone's full name: two or more capitalized words.
+
+    A title ("Dr. Kowalski") makes it one. A leading article ("The Glass Orchard"), a digit
+    ("Pulse X2") or a lowercase word other than a name particle ("tumbler") rules it out; a single
+    word is a first name at most.
+    """
+    words = [re.sub(r"['’]s$", "", w) for w in span.split()]
+    if any(w.rstrip(".").casefold() in _HONORIFICS for w in words):
+        return True
+    if len(words) < 2 or words[0].casefold() in _ARTICLES:
+        return False
+    return all(_NAME_WORD.fullmatch(w) or w in _NAME_PARTICLES for w in words)
+
+
+def _widened(text: str, start: int, end: int) -> str:
+    """The span plus the capitalized words (or a title like "Dr.") right next to it.
+
+    spaCy may tag only "Kowalski" in "Dr. Kowalski" or "Delgado" in "Marcus Delgado lamp"; the
+    name shape is judged on the whole run of capitalized words, not the tagged part alone.
+    """
+    words = list(re.finditer(r"\S+", text))
+    idx = [i for i, m in enumerate(words) if m.start() < end and m.end() > start]
+    if not idx:
+        return text[start:end]
+    lo, hi = idx[0], idx[-1]
+    while lo > 0 and words[lo - 1].group()[:1].isupper():
+        lo -= 1
+    while hi + 1 < len(words) and words[hi + 1].group()[:1].isupper():
+        hi += 1
+    return " ".join(m.group() for m in words[lo : hi + 1])
+
+
 def _findings(text: str, allow: set[str] | None = None) -> list[RecognizerResult]:
     """Non-overlapping findings in text order, skipping allowed spans."""
     if not text.strip():
@@ -178,15 +221,28 @@ def _entity_removal(entity: Entity, intent_type: str, allow: set[str]) -> str | 
         return DOCUMENT_POLICY
     # `allow` holds only kept performer/author values, which carry no hard-block finding, so
     # skipping them here only lets a public name inside another entity (an event name) stay.
-    categories = [r.entity_type for r in _findings(entity.value, allow)]
-    hard = [c for c in categories if c != PERSON]
+    findings = _findings(entity.value, allow)
+    hard = [r.entity_type for r in findings if r.entity_type != PERSON]
     if hard:
         return hard[0]
-    if PERSON in categories and entity.type not in PERSON_TYPES:
-        return PERSON
+    persons = [_widened(entity.value, r.start, r.end) for r in findings if r.entity_type == PERSON]
+    if persons and entity.type not in PERSON_TYPES:
+        public_name = entity.type in PUBLIC_NAME_TYPES and intent_type != "document"
+        if not public_name or any(_name_shaped(span) for span in persons):
+            return PERSON
     if entity.type not in DIGIT_RUN_EXEMPT and DIGIT_RUN.search(entity.value):
         return LONG_NUMBER
     return None
+
+
+def allow_terms(intent: Intent) -> set[str]:
+    """Values of a scrubbed intent that the outbound PII check may let through.
+
+    These are the kept performer/author names and, outside document intents, the kept public
+    names (titles, products, brands, companies); each has already passed `scrub_intent`.
+    """
+    types = PERSON_TYPES if intent.intent_type == "document" else PERSON_TYPES | PUBLIC_NAME_TYPES
+    return {e.value for e in intent.public_entities if e.type in types}
 
 
 def _scrub_summary(summary: str, allow: set[str], removed: dict[str, int]) -> str:
