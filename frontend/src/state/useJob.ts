@@ -83,6 +83,12 @@ export async function start(file: File): Promise<void> {
   unsubscribeEvents = subscribe(jobId, (event) => onEvent(gen, event))
 }
 
+/** Show a saved result (from the local library) as if its job had just finished. */
+export function openResult(result: JobResult): void {
+  clear()
+  setState({ status: 'done', jobId: result.job_id, events: [], result })
+}
+
 export function reset(): void {
   clear()
   setState(IDLE)
