@@ -26,7 +26,7 @@ from contextlib import contextmanager
 from pathlib import Path
 
 from PIL import Image
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.config import get_settings
 from app.models import IntentType, JobResult
@@ -36,6 +36,20 @@ log = logging.getLogger(__name__)
 THUMB_PX = 256
 DEFAULT_LIMIT = 50
 MAX_LIMIT = 200
+DEFAULT_CACHE_POLICY_VERSION = "v1"
+DEFAULT_PROFILE_SCOPE = "default"
+DEFAULT_SOURCE_SCOPE = "public-web"
+LOW_USE_THRESHOLD = 1
+OLD_ENTRY_SECONDS = 30 * 60
+TTL_BY_INTENT: dict[IntentType, int] = {
+    "event": 60 * 60,
+    "product": 10 * 60,
+    "book": 6 * 60 * 60,
+    "place": 6 * 60 * 60,
+    "chart": 6 * 60 * 60,
+    "document": 6 * 60 * 60,
+    "other": 6 * 60 * 60,
+}
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS intents (
@@ -48,6 +62,39 @@ CREATE TABLE IF NOT EXISTS intents (
 );
 CREATE VIRTUAL TABLE IF NOT EXISTS intents_fts USING fts5(id UNINDEXED, summary, entities);
 CREATE INDEX IF NOT EXISTS intents_created_at ON intents (created_at DESC);
+CREATE TABLE IF NOT EXISTS cache_meta (
+  id TEXT PRIMARY KEY REFERENCES intents(id) ON DELETE CASCADE,
+  profile_scope TEXT NOT NULL DEFAULT 'default',
+  source_scope TEXT NOT NULL DEFAULT 'public-web',
+  cache_key TEXT NOT NULL DEFAULT '',
+  purpose TEXT NOT NULL DEFAULT '',
+  provider TEXT NOT NULL DEFAULT '',
+  policy_version TEXT NOT NULL DEFAULT 'v1',
+  fetched_at REAL NOT NULL,
+  fresh_until REAL NOT NULL,
+  expires_at REAL NOT NULL,
+  last_used_at REAL NOT NULL,
+  access_count INTEGER NOT NULL DEFAULT 0,
+  estimated_bytes INTEGER NOT NULL DEFAULT 0,
+  saved INTEGER NOT NULL DEFAULT 0,
+  pinned INTEGER NOT NULL DEFAULT 0
+ );
+CREATE INDEX IF NOT EXISTS cache_meta_expires_at ON cache_meta (expires_at);
+CREATE INDEX IF NOT EXISTS cache_meta_last_used_at ON cache_meta (last_used_at);
+CREATE TABLE IF NOT EXISTS interests (
+  topic_key TEXT PRIMARY KEY,
+  display_topic TEXT NOT NULL,
+  created_at REAL NOT NULL,
+  last_interacted_at REAL NOT NULL,
+  positive_signals INTEGER NOT NULL DEFAULT 0,
+  negative_signals INTEGER NOT NULL DEFAULT 0,
+  explicit_positive INTEGER NOT NULL DEFAULT 0,
+  explicit_negative INTEGER NOT NULL DEFAULT 0,
+  save_count INTEGER NOT NULL DEFAULT 0,
+  open_count INTEGER NOT NULL DEFAULT 0,
+  forgotten INTEGER NOT NULL DEFAULT 0
+ );
+CREATE INDEX IF NOT EXISTS interests_last_interacted_at ON interests (last_interacted_at DESC);
 """
 
 
@@ -61,6 +108,23 @@ class LibraryItem(BaseModel):
     intent_type: IntentType
     summary: str
     card_count: int
+
+
+class CacheCleanupPreview(BaseModel):
+    removable_entries: int
+    removable_bytes: int
+    kept_saved_items: int
+    kept_interests: int
+    candidate_ids: list[str] = Field(default_factory=list)
+
+
+class CacheCleanupResult(BaseModel):
+    removed_entries: int
+    removed_bytes: int
+    skipped_not_eligible: int
+    kept_saved_items: int
+    kept_interests: int
+    deleted_ids: list[str] = Field(default_factory=list)
 
 
 _init_lock = threading.Lock()
@@ -119,6 +183,7 @@ def init_db() -> Path:
         try:
             conn.execute("PRAGMA journal_mode=WAL")
             conn.executescript(SCHEMA)
+            _backfill_cache_meta(conn)
             _enable_fts_secure_delete(conn)
             conn.commit()
         finally:
@@ -132,11 +197,177 @@ def _fts_secure_delete_on(conn: sqlite3.Connection) -> bool:
     return bool(row and row[0])
 
 
+def _ttl_for_intent(intent_type: IntentType) -> int:
+    return TTL_BY_INTENT.get(intent_type, 6 * 60 * 60)
+
+
+def _normalize_topic(topic: str) -> str:
+    words = re.findall(r"\w+", topic.lower())
+    return " ".join(words).strip()
+
+
+def _backfill_cache_meta(conn: sqlite3.Connection) -> None:
+    rows = conn.execute(
+        "SELECT intents.id, intents.created_at, intents.intent_type, intents.result_json"
+        " FROM intents LEFT JOIN cache_meta ON cache_meta.id = intents.id"
+        " WHERE cache_meta.id IS NULL"
+    ).fetchall()
+    for row in rows:
+        intent_type = row["intent_type"] if isinstance(row, sqlite3.Row) else row[2]
+        created_at = float(row["created_at"] if isinstance(row, sqlite3.Row) else row[1])
+        ttl = _ttl_for_intent(intent_type)
+        result_json = row["result_json"] if isinstance(row, sqlite3.Row) else row[3]
+        est = len(result_json.encode()) if isinstance(result_json, str) else 0
+        conn.execute(
+            "INSERT OR REPLACE INTO cache_meta "
+            "(id, fetched_at, fresh_until, expires_at, last_used_at, estimated_bytes, policy_version)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (
+                row["id"] if isinstance(row, sqlite3.Row) else row[0],
+                created_at,
+                created_at + ttl,
+                created_at + (ttl * 2),
+                created_at,
+                est,
+                DEFAULT_CACHE_POLICY_VERSION,
+            ),
+        )
+
+
 def _delete_fts_row(conn: sqlite3.Connection, job_id: str) -> None:
     """Remove a job's FTS row so its terms leave the index segments, not just search results."""
     conn.execute("DELETE FROM intents_fts WHERE id = ?", (job_id,))
     if not _fts_secure_delete_on(conn):
         conn.execute("INSERT INTO intents_fts (intents_fts) VALUES ('rebuild')")
+
+
+def _upsert_cache_meta(
+    conn: sqlite3.Connection,
+    *,
+    job_id: str,
+    intent_type: IntentType,
+    fetched_at: float,
+    cache_key: str,
+    estimated_bytes: int,
+) -> None:
+    ttl = _ttl_for_intent(intent_type)
+    conn.execute(
+        "INSERT INTO cache_meta "
+        "(id, profile_scope, source_scope, cache_key, policy_version, fetched_at, fresh_until,"
+        " expires_at, last_used_at, access_count, estimated_bytes, saved, pinned)"
+        " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?,"
+        " COALESCE((SELECT saved FROM cache_meta WHERE id = ?), 0),"
+        " COALESCE((SELECT pinned FROM cache_meta WHERE id = ?), 0))"
+        " ON CONFLICT(id) DO UPDATE SET"
+        " cache_key = excluded.cache_key,"
+        " fetched_at = excluded.fetched_at,"
+        " fresh_until = excluded.fresh_until,"
+        " expires_at = excluded.expires_at,"
+        " estimated_bytes = excluded.estimated_bytes,"
+        " policy_version = excluded.policy_version",
+        (
+            job_id,
+            DEFAULT_PROFILE_SCOPE,
+            DEFAULT_SOURCE_SCOPE,
+            cache_key,
+            DEFAULT_CACHE_POLICY_VERSION,
+            fetched_at,
+            fetched_at + ttl,
+            fetched_at + (ttl * 2),
+            fetched_at,
+            estimated_bytes,
+            job_id,
+            job_id,
+        ),
+    )
+
+
+def _bump_interest(
+    conn: sqlite3.Connection,
+    topic: str,
+    *,
+    now: float,
+    positive: int = 0,
+    negative: int = 0,
+    explicit_positive: bool = False,
+    explicit_negative: bool = False,
+    save_delta: int = 0,
+    open_delta: int = 0,
+) -> None:
+    topic_key = _normalize_topic(topic)
+    if not topic_key:
+        return
+    existing = conn.execute(
+        "SELECT forgotten FROM interests WHERE topic_key = ?",
+        (topic_key,),
+    ).fetchone()
+    if existing and existing["forgotten"] and not (explicit_positive or explicit_negative):
+        return
+    conn.execute(
+        "INSERT INTO interests "
+        "(topic_key, display_topic, created_at, last_interacted_at, positive_signals, negative_signals,"
+        " explicit_positive, explicit_negative, save_count, open_count, forgotten)"
+        " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        " ON CONFLICT(topic_key) DO UPDATE SET"
+        " display_topic = excluded.display_topic,"
+        " last_interacted_at = excluded.last_interacted_at,"
+        " positive_signals = MIN(100, interests.positive_signals + excluded.positive_signals),"
+        " negative_signals = MIN(100, interests.negative_signals + excluded.negative_signals),"
+        " explicit_positive = MAX(interests.explicit_positive, excluded.explicit_positive),"
+        " explicit_negative = MAX(interests.explicit_negative, excluded.explicit_negative),"
+        " save_count = MIN(100, interests.save_count + excluded.save_count),"
+        " open_count = MIN(100, interests.open_count + excluded.open_count),"
+        " forgotten = CASE"
+        "   WHEN excluded.explicit_positive = 1 THEN 0"
+        "   WHEN excluded.explicit_negative = 1 THEN 1"
+        "   ELSE interests.forgotten"
+        " END",
+        (
+            topic_key,
+            topic.strip()[:200] or topic_key,
+            now,
+            now,
+            max(0, positive),
+            max(0, negative),
+            1 if explicit_positive else 0,
+            1 if explicit_negative else 0,
+            max(0, save_delta),
+            max(0, open_delta),
+            1 if explicit_negative else 0,
+        ),
+    )
+
+
+def _interest_topics_from_result(result: JobResult) -> set[str]:
+    if result.intent is None:
+        return set()
+    return {entity.value for entity in result.intent.public_entities if entity.value.strip()}
+
+
+def _touch_usage(conn: sqlite3.Connection, job_id: str, now: float) -> None:
+    conn.execute(
+        "UPDATE cache_meta"
+        " SET last_used_at = ?, access_count = MIN(1000, access_count + 1)"
+        " WHERE id = ?",
+        (now, job_id),
+    )
+
+
+def _protected_counts(conn: sqlite3.Connection) -> tuple[int, int]:
+    saved = conn.execute("SELECT COUNT(*) FROM cache_meta WHERE saved = 1 OR pinned = 1").fetchone()[0]
+    interests = conn.execute("SELECT COUNT(*) FROM interests WHERE forgotten = 0").fetchone()[0]
+    return int(saved), int(interests)
+
+
+def _eligible_cleanup_ids(conn: sqlite3.Connection, now: float) -> list[str]:
+    rows = conn.execute(
+        "SELECT id FROM cache_meta WHERE (saved = 0 AND pinned = 0) AND ("
+        " expires_at <= ?"
+        " OR (fresh_until <= ? AND access_count <= ? AND last_used_at <= ?)"
+        ") ORDER BY expires_at ASC, last_used_at ASC",
+        (now, now, LOW_USE_THRESHOLD, now - OLD_ENTRY_SECONDS),
+    ).fetchall()
+    return [str(row[0]) for row in rows]
 
 
 @contextmanager
@@ -174,6 +405,9 @@ def save(result: JobResult, thumb: bytes | None = None) -> bool:
     intent = result.intent
     stored = result.model_copy(update={"egress": []})
     entities = " ".join(e.value for e in intent.public_entities)
+    fetched_at = time.time()
+    cache_key = f"{intent.intent_type}:{_normalize_topic(intent.summary)}"
+    estimated_bytes = len(stored.model_dump_json().encode()) + len(entities.encode())
     with _connect() as conn:
         _delete_fts_row(conn, result.job_id)
         conn.execute(
@@ -182,7 +416,7 @@ def save(result: JobResult, thumb: bytes | None = None) -> bool:
             " VALUES (?, ?, ?, ?, ?, ?)",
             (
                 result.job_id,
-                time.time(),
+                fetched_at,
                 intent.intent_type,
                 intent.summary,
                 stored.model_dump_json(),
@@ -193,6 +427,16 @@ def save(result: JobResult, thumb: bytes | None = None) -> bool:
             "INSERT INTO intents_fts (id, summary, entities) VALUES (?, ?, ?)",
             (result.job_id, intent.summary, entities),
         )
+        _upsert_cache_meta(
+            conn,
+            job_id=result.job_id,
+            intent_type=intent.intent_type,
+            fetched_at=fetched_at,
+            cache_key=cache_key,
+            estimated_bytes=estimated_bytes,
+        )
+        for topic in _interest_topics_from_result(stored):
+            _bump_interest(conn, topic, now=fetched_at, positive=1)
     return True
 
 
@@ -258,6 +502,8 @@ def search(
 def get(job_id: str) -> JobResult | None:
     with _connect() as conn:
         row = conn.execute("SELECT result_json FROM intents WHERE id = ?", (job_id,)).fetchone()
+        if row:
+            _touch_usage(conn, job_id, now=time.time())
     return JobResult.model_validate(json.loads(row["result_json"])) if row else None
 
 
@@ -270,6 +516,7 @@ def delete(job_id: str) -> bool:
     """
     with _connect() as conn:
         _delete_fts_row(conn, job_id)
+        conn.execute("DELETE FROM cache_meta WHERE id = ?", (job_id,))
         cur = conn.execute("DELETE FROM intents WHERE id = ?", (job_id,))
         existed = cur.rowcount > 0
     _checkpoint()
@@ -289,8 +536,10 @@ def _checkpoint() -> None:
 def wipe() -> None:
     """Delete every saved intent, then VACUUM so the freed pages leave the file too."""
     with _connect() as conn:
+        conn.execute("DELETE FROM cache_meta")
         conn.execute("DELETE FROM intents_fts")
         conn.execute("DELETE FROM intents")
+        conn.execute("DELETE FROM interests")
     conn = sqlite3.connect(init_db(), timeout=5)
     try:
         conn.execute("INSERT INTO intents_fts (intents_fts) VALUES ('optimize')")
@@ -299,3 +548,108 @@ def wipe() -> None:
         conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
     finally:
         conn.close()
+
+
+def mark_saved(job_id: str, *, saved: bool, pinned: bool = False) -> bool:
+    now = time.time()
+    with _connect() as conn:
+        row = conn.execute("SELECT result_json FROM intents WHERE id = ?", (job_id,)).fetchone()
+        if row is None:
+            return False
+        conn.execute(
+            "UPDATE cache_meta SET saved = ?, pinned = ?, last_used_at = ? WHERE id = ?",
+            (1 if saved else 0, 1 if pinned else 0, now, job_id),
+        )
+        result = JobResult.model_validate(json.loads(row["result_json"]))
+        for topic in _interest_topics_from_result(result):
+            _bump_interest(
+                conn,
+                topic,
+                now=now,
+                explicit_positive=saved or pinned,
+                save_delta=1 if saved else 0,
+            )
+    return True
+
+
+def forget_interest(topic: str) -> None:
+    now = time.time()
+    with _connect() as conn:
+        _bump_interest(conn, topic, now=now, negative=1, explicit_negative=True)
+        topic_key = _normalize_topic(topic)
+        if topic_key:
+            rows = conn.execute(
+                "SELECT intents.id, intents.result_json FROM intents"
+                " JOIN cache_meta ON cache_meta.id = intents.id"
+                " WHERE cache_meta.saved = 0 AND cache_meta.pinned = 0"
+            ).fetchall()
+            for row in rows:
+                result = JobResult.model_validate(json.loads(row["result_json"]))
+                topics = {_normalize_topic(t) for t in _interest_topics_from_result(result)}
+                if topic_key in topics:
+                    _delete_fts_row(conn, row["id"])
+                    conn.execute("DELETE FROM cache_meta WHERE id = ?", (row["id"],))
+                    conn.execute("DELETE FROM intents WHERE id = ?", (row["id"],))
+    _checkpoint()
+
+
+def cleanup_preview(now: float | None = None) -> CacheCleanupPreview:
+    now = time.time() if now is None else now
+    with _connect() as conn:
+        ids = _eligible_cleanup_ids(conn, now)
+        removable_bytes = conn.execute(
+            "SELECT COALESCE(SUM(estimated_bytes), 0) FROM cache_meta WHERE id IN ("
+            + ",".join("?" for _ in ids)
+            + ")",
+            ids,
+        ).fetchone()[0] if ids else 0
+        saved_count, interests_count = _protected_counts(conn)
+    return CacheCleanupPreview(
+        removable_entries=len(ids),
+        removable_bytes=int(removable_bytes or 0),
+        kept_saved_items=saved_count,
+        kept_interests=interests_count,
+        candidate_ids=ids,
+    )
+
+
+def execute_cleanup(candidate_ids: list[str] | None = None, now: float | None = None) -> CacheCleanupResult:
+    now = time.time() if now is None else now
+    with _connect() as conn:
+        eligible = set(_eligible_cleanup_ids(conn, now))
+        if candidate_ids is None:
+            selected = eligible
+            skipped = 0
+        else:
+            selected = eligible.intersection(candidate_ids)
+            skipped = len(set(candidate_ids) - selected)
+        deleted = sorted(selected)
+        removed_bytes = 0
+        if deleted:
+            placeholders = ",".join("?" for _ in deleted)
+            removed_bytes = conn.execute(
+                f"SELECT COALESCE(SUM(estimated_bytes), 0) FROM cache_meta WHERE id IN ({placeholders})",
+                deleted,
+            ).fetchone()[0]
+            for job_id in deleted:
+                _delete_fts_row(conn, job_id)
+            conn.execute(f"DELETE FROM cache_meta WHERE id IN ({placeholders})", deleted)
+            conn.execute(f"DELETE FROM intents WHERE id IN ({placeholders})", deleted)
+        saved_count, interests_count = _protected_counts(conn)
+    if deleted:
+        _checkpoint()
+    return CacheCleanupResult(
+        removed_entries=len(deleted),
+        removed_bytes=int(removed_bytes or 0),
+        skipped_not_eligible=skipped,
+        kept_saved_items=saved_count,
+        kept_interests=interests_count,
+        deleted_ids=deleted,
+    )
+
+
+def wipe_all_local_data(confirm: str) -> bool:
+    if confirm != "DELETE_ALL_LOCAL_DATA":
+        return False
+    wipe()
+    return True
