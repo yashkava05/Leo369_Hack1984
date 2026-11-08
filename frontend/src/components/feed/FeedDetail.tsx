@@ -1,7 +1,9 @@
-import { Bookmark, Check, ExternalLink, Sparkles, ThumbsDown, ThumbsUp, X } from 'lucide-react'
+import { Bookmark, Check, ExternalLink, ThumbsDown, ThumbsUp, X } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import type { FeedFeedbackAction, FeedItemDetail } from '../../api/feed'
 import { ActionCard } from '../cards/ActionCard'
+import { PlacardArt } from './FeedCard'
+import { placardFaces } from './stills'
 
 interface FeedDetailProps {
   item: FeedItemDetail
@@ -57,26 +59,24 @@ export function FeedDetail({ item, feedback, onClose, onFeedback }: FeedDetailPr
   }, [onClose])
 
   const selected = (action: FeedFeedbackAction) => feedback.includes(action)
+  const faces = placardFaces(item)
 
   return (
     <div className="feed-detail-scrim" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
       <section ref={dialog} className="feed-detail" role="dialog" aria-modal="true" aria-labelledby="feed-detail-title">
         <header>
           <div>
-            <span className={`feed-provenance is-${item.provenance}`}>{item.provenance === 'local' ? 'LOCAL' : 'WEB'}</span>
+            <span className={`feed-provenance is-${item.provenance}`}>{item.provenance === 'local' ? 'On device' : 'From the web'}</span>
             <p>{item.kind.replace('_', ' ')}</p>
           </div>
           <button ref={closeButton} type="button" className="feed-icon-button" aria-label="Close story" onClick={onClose}><X size={19} /></button>
         </header>
-        <div className={`feed-detail-art feed-art-${item.kind}`} role="img" aria-label={item.hero?.alt ?? `Ambient artwork for ${item.title}`}>
-          <span /><span /><span />
-        </div>
+        <PlacardArt faces={faces} className="feed-detail-art" />
         <div className="feed-detail-copy">
           <h2 id="feed-detail-title">{item.title}</h2>
           <p className="feed-detail-body">{item.body}</p>
           <div className="feed-detail-why">
-            <Sparkles size={17} aria-hidden="true" />
-            <div><h3>Why this?</h3><p>{item.why}</p></div>
+            <div><h3>How this was chosen</h3><p>{item.why}</p></div>
           </div>
 
           <section className="feed-evidence" aria-labelledby="feed-evidence-title">

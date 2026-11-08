@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { JobResult, StageEvent } from '../../types'
 
-beforeEach(() => { vi.resetModules(); vi.useFakeTimers() })
+// Pin same-origin API paths so a VITE_API_URL set in the shell or .env cannot change the expected URLs.
+beforeEach(() => { vi.resetModules(); vi.useFakeTimers(); vi.stubEnv('VITE_API_URL', '') })
 afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); vi.useRealTimers() })
 async function mockAPI() {
   vi.stubEnv('VITE_MOCK', '1')
@@ -54,6 +55,18 @@ describe('voice mock privacy and provenance', () => {
     expect(result.cards).toEqual([])
     expect(result.egress.every((record) => record.blocked)).toBe(true)
     expect(JSON.stringify(events)).not.toContain('edited private thought')
+  })
+  it('labels the mock voice result as a demo and never claims a web search ran', async () => {
+    const api = await mockAPI()
+    const fetch = vi.fn(); vi.stubGlobal('fetch', fetch)
+    const { job_id } = await api.analyzeVoice('find tickets', 'explore')
+    const { events, result } = await collect(job_id, api.subscribeMockVoice)
+    expect(result.intent!.summary).toContain('(demo)')
+    expect(result.cards[0]).toMatchObject({ source: 'demo', subtitle: 'Demo result · no network request' })
+    const search = events.find((event) => event.stage === 'search')!
+    expect(search.message).toMatch(/^Demo/)
+    expect(search.message).toContain('no web request sent')
+    expect(fetch).not.toHaveBeenCalled()
   })
   it('unsubscribe prevents callbacks and local saving', async () => {
     const api = await mockAPI()

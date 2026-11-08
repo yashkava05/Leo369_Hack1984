@@ -12,7 +12,7 @@ import { deleteMemory, initialSaved, keepSaved, resolvePending, syncSaved } from
 import type { SavedView } from './saved'
 import type { ChatMessage, KeptItem } from './messages'
 
-export const WELCOME = "Hi, I'm PrismLocal. Tap the microphone and tell me what you're looking for. I'll transcribe it on this device, let you review it, then search the live web when you choose Search. You can also attach your own screenshot."
+export const WELCOME = "Hi, I'm PrismLocal—your entirely private, on-device AI assistant. We all save things for later—a quick screenshot, a voice note, a typed idea—and then completely forget about them. I'm here to give those scattered thoughts a purpose. I remember what matters to you and automatically turn your ideas into real next steps: booking tickets, finding products, or organizing a private feed just for you. Your personal data never leaves this computer; I only search the public web when you ask me to. Drop a screenshot, type a thought, or just say hello to get started."
 interface ChatState {
   messages: ChatMessage[]
   kept: KeptItem[]
@@ -85,7 +85,7 @@ export function sendText(text: string): void {
   if (state.busy || state.voicePending) { say("Give me a second, I'm still on the last one."); return }
   say(/privacy|air.?gap|send|receipt|private|leave/i.test(text)
     ? "I read your screenshot on this device. Only short text searches built from public details can leave; your image and private text stay here. Open Receipts to see exactly what was sent, or turn on air-gap to block searches."
-    : "I work best with screenshots. Send one of something you meant to come back to: an event, a product, a book, or a work doc.")
+    : "I can hunt tickets, compare products, pull a book, map a place, and connect what you've already saved. Drop a screenshot or speak the request — I'll do the rest on this device.")
 }
 
 export async function sendImage(file: File): Promise<void> {

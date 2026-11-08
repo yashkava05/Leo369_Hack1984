@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 440" width="780" height="440">
+  <rect width="780" height="440" fill="#efe3cc"/>
+  <rect width="780" height="44" fill="#2a2118"/>
+  <text x="22" y="28" fill="#efe3cc" font-family="system-ui, sans-serif" font-size="14" font-weight="600">9:41</text>
+  <text x="96" y="28" fill="#c9a15b" font-family="system-ui, sans-serif" font-size="11" letter-spacing="2.4">NORTHLINE</text>
+  <rect x="20" y="64" width="740" height="356" rx="18" fill="#f7edd8" stroke="#d8c39a"/>
+  <text x="48" y="112" fill="#8a6a3a" font-family="system-ui, sans-serif" font-size="12" letter-spacing="2">RAIL NOTE</text>
+  <text x="48" y="168" fill="#2a2118" font-family="Georgia, serif" font-size="34">Port Aurora</text>
+  <text x="48" y="208" fill="#5c4a34" font-family="system-ui, sans-serif" font-size="16">to Harbor</text>
+  <text x="48" y="248" fill="#8a6a3a" font-family="system-ui, sans-serif" font-size="14">Coastal weekend</text>
+  <rect x="420" y="96" width="300" height="248" rx="14" fill="#2a2118"/>
+  <text x="444" y="140" fill="#c9a15b" font-family="system-ui, sans-serif" font-size="12" letter-spacing="1.8">NORTHLINE</text>
+  <text x="444" y="186" fill="#efe3cc" font-family="Georgia, serif" font-size="32">Sat 9:40</text>
+  <text x="444" y="224" fill="#efe3cc" font-family="system-ui, sans-serif" font-size="15">Coach 4  |  Seat 12</text>
+  <text x="444" y="254" fill="#c9a15b" font-family="system-ui, sans-serif" font-size="13">Coastal weekend  |  one way</text>
+  <g transform="translate(444 286)">
+    <rect width="5" height="22" fill="#efe3cc"/><rect x="10" width="3" height="22" fill="#efe3cc"/>
+    <rect x="18" width="8" height="22" fill="#efe3cc"/><rect x="30" width="3" height="22" fill="#efe3cc"/>
+    <rect x="38" width="6" height="22" fill="#efe3cc"/><rect x="50" width="10" height="22" fill="#efe3cc"/>
+    <rect x="66" width="3" height="22" fill="#efe3cc"/><rect x="74" width="7" height="22" fill="#efe3cc"/>
+    <rect x="86" width="4" height="22" fill="#efe3cc"/><rect x="96" width="9" height="22" fill="#efe3cc"/>
+    <rect x="110" width="3" height="22" fill="#efe3cc"/><rect x="118" width="8" height="22" fill="#efe3cc"/>
+    <rect x="132" width="12" height="22" fill="#efe3cc"/><rect x="150" width="4" height="22" fill="#efe3cc"/>
+    <rect x="160" width="7" height="22" fill="#efe3cc"/><rect x="172" width="3" height="22" fill="#efe3cc"/>
+    <rect x="180" width="10" height="22" fill="#efe3cc"/><rect x="196" width="5" height="22" fill="#efe3cc"/>
+    <rect x="206" width="22" height="22" fill="#efe3cc"/>
+  </g>
+</svg>

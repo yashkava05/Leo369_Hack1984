@@ -51,7 +51,7 @@ export function VoiceCapture({ onJob, disabled = false, onBusyChange, autoStart 
     setLoading(true); setLibraryError(null); setContext(null)
     try {
       let found = await listLibrary()
-      if (MOCK && !found.length) found = [{ id: MOCK_VOICE_CONTEXT_ID, created_at: 0, intent_type: 'event', summary: `Demo: ${mockVoiceIntent.summary}`, card_count: 0 }]
+      if (MOCK && !found.length) found = [{ id: MOCK_VOICE_CONTEXT_ID, created_at: 0, intent_type: 'event', summary: mockVoiceIntent.summary, card_count: 0 }]
       if (gen === selection.current) { setItems(found); if (!found.length) setLibraryError('Nothing saved yet — use “Save for later” first.') }
     } catch { if (gen === selection.current) setLibraryError('Could not open your saved items. Try again.') }
     finally { if (gen === selection.current) setLoading(false) }

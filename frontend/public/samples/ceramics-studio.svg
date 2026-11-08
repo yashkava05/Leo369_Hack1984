@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 440" width="780" height="440">
+  <rect width="780" height="440" fill="#2b1d16"/>
+  <rect width="780" height="44" fill="#20150f"/>
+  <text x="22" y="28" fill="#f6eee2" font-family="system-ui, sans-serif" font-size="14" font-weight="600">9:41</text>
+  <text x="96" y="28" fill="#e2b48a" font-family="system-ui, sans-serif" font-size="11" letter-spacing="2">INDEPENDENT CERAMICS</text>
+  <text x="24" y="88" fill="#f6eee2" font-family="Georgia, serif" font-size="28">Three local saves</text>
+  <rect x="20" y="108" width="230" height="292" rx="16" fill="#7a5136"/>
+  <ellipse cx="135" cy="220" rx="48" ry="62" fill="#d9b08c"/>
+  <rect x="119" y="176" width="32" height="28" fill="#c48b63"/>
+  <text x="78" y="340" fill="#f6eee2" font-family="system-ui, sans-serif" font-size="16">Ember Clay</text>
+  <rect x="275" y="108" width="230" height="292" rx="16" fill="#8a5c3d"/>
+  <ellipse cx="390" cy="230" rx="56" ry="48" fill="#ead2b8"/>
+  <rect x="376" y="194" width="28" height="24" fill="#c49a72"/>
+  <text x="330" y="340" fill="#f6eee2" font-family="system-ui, sans-serif" font-size="16">Mora Studio</text>
+  <rect x="530" y="108" width="230" height="292" rx="16" fill="#6d4630"/>
+  <ellipse cx="645" cy="222" rx="38" ry="70" fill="#c9a07a"/>
+  <rect x="631" y="170" width="28" height="32" fill="#a97b55"/>
+  <text x="588" y="340" fill="#f6eee2" font-family="system-ui, sans-serif" font-size="16">Rill Forms</text>
+</svg>

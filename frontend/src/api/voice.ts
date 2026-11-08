@@ -76,7 +76,7 @@ export async function analyzeVoice(text: string, action: VoiceAction, contextLib
     ['scrub', 'Private details removed on-device', true],
     ...(action === 'save' ? [] : [
       ['query', 'Building queries from scrubbed public entities', true],
-      ['search', 'Demo web search using public details only', false],
+      ['search', 'Demo search · no web request sent', false],
       ['cards', 'Preparing voice result cards', true],
     ] as [StageEvent['stage'], string, boolean][]),
     ['done', action === 'save' ? 'Scrubbed interest saved locally; no web search' : 'Voice results ready', true],

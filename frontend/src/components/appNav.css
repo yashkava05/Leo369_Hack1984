@@ -1,0 +1,146 @@
+.app-chrome {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 80;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  height: 64px;
+  padding: 0 22px;
+  background: rgb(7 9 16 / 0.86);
+  border-bottom: 1px solid rgb(255 255 255 / 0.10);
+  backdrop-filter: blur(18px);
+  color: #f3f5f8;
+  font-family: 'Figtree', system-ui, sans-serif;
+}
+
+.app-chrome-brand {
+  justify-self: start;
+  color: inherit;
+  text-decoration: none;
+  font: 650 15px/1 'Figtree', system-ui, sans-serif;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.app-chrome-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.app-chrome-logo {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.app-chrome-brand > span > span {
+  font-weight: 400;
+  color: #b4bce6;
+}
+
+.app-chrome-end {
+  justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.app-chrome-status {
+  margin: 0;
+  color: #9aa3b2;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.app-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 4px;
+  border: 1px solid rgb(255 255 255 / 0.10);
+  border-radius: 999px;
+  background: rgb(0 0 0 / 0.32);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.04);
+}
+
+.app-nav-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  padding: 0 14px;
+  border-radius: 999px;
+  color: #9aa3b2;
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0;
+  text-decoration: none;
+  transition: color 160ms ease, background 160ms ease;
+}
+
+.app-nav-link:hover {
+  color: #f3f5f8;
+  background: rgb(255 255 255 / 0.035);
+}
+
+.app-nav-link.is-active {
+  color: #f3f5f8;
+  background: rgb(255 255 255 / 0.10);
+}
+
+.app-nav-link:focus-visible {
+  outline: 2px solid #8b7cff;
+  outline-offset: 2px;
+}
+
+.chat-app,
+.feed-app {
+  padding-top: 64px;
+}
+
+@media (max-width: 720px) {
+  .app-chrome-status {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+}
+
+@media (max-width: 540px) {
+  .app-chrome {
+    padding: 0 12px;
+  }
+
+  .app-chrome-brand {
+    font-size: 12px;
+    letter-spacing: 0.08em;
+  }
+
+  .app-chrome-brand > span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .app-nav-link {
+    min-height: 30px;
+    padding: 0 9px;
+    font-size: 11px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-nav-link {
+    transition: none;
+  }
+}

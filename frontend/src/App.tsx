@@ -15,7 +15,8 @@ import { WatchPill } from './components/WatchPill'
 import { dropDisabledReason, healthBanners, useHealth } from './state/useHealth'
 import { reserveVoiceSlot, useJob } from './state/useJob'
 import { ChatApp } from './chat/ChatApp'
-import { MuseFeed } from './components/feed/MuseFeed'
+import { ForYouPage } from './components/feed/MuseFeed'
+import { PrismDashboard } from './components/PrismDashboard'
 import './App.css'
 
 // The integrated dashboard remains available at ?view=classic.
@@ -72,6 +73,7 @@ function ClassicApp() {
 export default function App() {
   const view = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('view') : null
   if (view === 'classic') return <ClassicApp />
-  if (view === 'feed') return <MuseFeed />
-  return <ChatApp />
+  if (view === 'chat') return <ChatApp />
+  if (view === 'for-you' || view === 'feed') return <ForYouPage />
+  return <PrismDashboard />
 }

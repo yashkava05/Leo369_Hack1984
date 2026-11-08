@@ -1,13 +1,15 @@
-import { ArrowLeft, Compass, MessageCircle, RefreshCw, ShieldCheck, Sparkles } from 'lucide-react'
+import { Aperture, MessageCircle, RefreshCw, ShieldCheck, Sparkles } from 'lucide-react'
 import { useLayoutEffect } from 'react'
 import { MOCK } from '../../api/client'
 import { Orb, Wordmark } from '../../chat/ChatApp'
+import { AppChrome } from '../AppNav'
 import { useFeed } from '../../state/useFeed'
 import { FeedCard } from './FeedCard'
 import { FeedDetail } from './FeedDetail'
+import '../../chat/chat.css'
 import './feed.css'
 
-export function MuseFeed() {
+export function ForYouPage() {
   const feed = useFeed()
 
   useLayoutEffect(() => {
@@ -17,38 +19,41 @@ export function MuseFeed() {
 
   return (
     <div className="feed-app">
+      <AppChrome
+        current="for-you"
+        end={
+          <button type="button" className="feed-refresh" disabled={feed.refreshing} onClick={() => { void feed.refresh() }}>
+            <RefreshCw size={16} className={feed.refreshing ? 'is-spinning' : ''} aria-hidden="true" />
+            {feed.refreshing ? 'Refreshing…' : 'Refresh'}
+          </button>
+        }
+      />
       <aside className="chat-sidebar feed-sidebar" aria-label="PrismLocal navigation">
         <div className="chat-brand"><Orb /><Wordmark /></div>
         <nav className="chat-sidebar-section" aria-label="Main">
           <h2>Explore</h2>
-          <a className="chat-nav-item" href="/"><MessageCircle size={17} aria-hidden="true" /><span>Chat</span></a>
-          <a className="chat-nav-item is-selected" href="?view=feed" aria-current="page"><Compass size={17} aria-hidden="true" /><span>Muse Feed</span><span className="chat-online-dot" /></a>
+          <a className="chat-nav-item" href="/"><Aperture size={17} aria-hidden="true" /><span>Home</span></a>
+          <a className="chat-nav-item" href="?view=chat"><MessageCircle size={17} aria-hidden="true" /><span>Chat</span></a>
+          <a className="chat-nav-item is-selected" href="?view=for-you" aria-current="page"><Sparkles size={17} aria-hidden="true" /><span>For You</span><span className="chat-online-dot" /></a>
         </nav>
         <div className="feed-sidebar-note">
           <Sparkles size={19} aria-hidden="true" />
-          <p>A finite edit shaped from the public details in memories you saved.</p>
+          <p>A private edit from the public details in memories you chose to keep.</p>
         </div>
         <div className="chat-sidebar-footer"><ShieldCheck size={17} aria-hidden="true" /><div>Private by design.<span>Every suggestion explains itself.</span></div></div>
       </aside>
 
       <main className="feed-main">
         <header className="feed-header">
-          <div className="feed-mobile-nav">
-            <a href="/" aria-label="Back to chat"><ArrowLeft size={18} /></a>
-            <Orb small />
+          <div className="feed-heading">
+            <p className="feed-kicker">From what you kept</p>
+            <h1>For You</h1>
+            <p>Notes from screenshots PrismLocal already read on this computer.</p>
           </div>
-          <div>
-            <p className="feed-kicker">Your ambient edit</p>
-            <h1>Muse Feed</h1>
-            <p>Connections, loose threads, and new directions from what you chose to remember.</p>
-          </div>
-          <button type="button" className="feed-refresh" disabled={feed.refreshing} onClick={() => { void feed.refresh() }}>
-            <RefreshCw size={16} className={feed.refreshing ? 'is-spinning' : ''} aria-hidden="true" />
-            {feed.refreshing ? 'Refreshing…' : 'Refresh'}
-          </button>
         </header>
 
-        {MOCK && <p className="feed-demo"><span /> Demo edit · deterministic local fixtures</p>}
+        {MOCK && <p className="feed-demo"><span aria-hidden="true" />Demo edit · Sample stories, no web requests sent</p>}
+
         {feed.error && <div className="feed-error" role="alert"><p>{feed.error}</p><button type="button" onClick={() => { void feed.load() }}>Try again</button></div>}
 
         {feed.loading ? (
@@ -60,12 +65,12 @@ export function MuseFeed() {
           <section className="feed-empty">
             <Sparkles size={27} aria-hidden="true" />
             <h2>Nothing new just yet</h2>
-            <p>Save a few public events, places, or ideas in chat. Your feed will find the threads between them.</p>
-            <a href="/">Return to chat</a>
+            <p>Save a few events, places, or ideas in chat. PrismLocal will find the threads between them — still on this computer.</p>
+            <a href="?view=chat">Return to chat</a>
           </section>
         ) : (
           <>
-            <section className="feed-stream" aria-label="Muse feed">
+            <section className="feed-stream" aria-label="For You feed">
               {feed.items.map((item) => (
                 <FeedCard
                   key={item.id}
