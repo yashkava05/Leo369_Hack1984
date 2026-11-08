@@ -1,11 +1,18 @@
-# Latent
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/brand/lockup-dark.png">
+    <img src="docs/brand/lockup-light.png" alt="PrismLocal logo" width="440">
+  </picture>
+</p>
+
+# PrismLocal
 
 **Your screenshots, turned into actions, without your screenshots leaving your laptop.**
 A local-first memory agent built for HACK1984.
 
 Drop a screenshot. A vision model running on your machine (Ollama + Qwen2.5-VL) works out what you
 meant to do and pulls out the public facts; a deterministic scrubber removes anything private; only
-short text queries built from public facts go to Tavily (and Exa). Latent answers in a chat: its
+short text queries built from public facts go to Tavily (and Exa). PrismLocal answers in a chat: its
 work steps tag every stage On device or Internet, then it replies with action cards (tickets, a map
 pin, a calendar file it makes only after you say yes) and a privacy receipt of what left.
 
@@ -41,7 +48,7 @@ you opt in to library thumbnails (`LATENT_KEEP_THUMBS=1` stores a 256 px JPEG on
 
 ## How privacy is enforced
 
-Privacy in Latent is **enforced and auditable**, not mathematically guaranteed: the rules below are
+Privacy in PrismLocal is **enforced and auditable**, not mathematically guaranteed: the rules below are
 code with tests, and every outbound request is recorded so you can check what left.
 
 **One door to the network.** Only `backend/app/egress.py` opens network connections
@@ -103,7 +110,7 @@ a key. Keep keys unprefixed: never use `VITE_EXA_API_KEY`, which would expose a 
 
 ## Track alignment
 
-| Track | How Latent meets it |
+| Track | How PrismLocal meets it |
 | --- | --- |
 | **Privacy-First** | Vision runs locally; one egress module with six rules; work steps tagged On device or Internet; air-gap switch; a privacy receipt per reply and a log of every outbound request and its size; leak eval on fake-PII screenshots. |
 | **SURGE (Tavily & Exa)** | Tavily search turns scrubbed public entities into ticket, shop, book and insight cards (calendar and map cards are built on-device); Exa adds related-reading cards for books, charts and documents when a key with credits is set. |
@@ -248,7 +255,7 @@ LATENT_WATCH_DIR=~/Desktop uvicorn app.main:app --port 8000   # from backend/
   temp-name-then-rename save); hidden and temp files, files over 10 MB and files already in the
   folder are ignored (renaming one of them does not count as new). A file must stop growing for 500 ms before it is read, so half-written
   files never start a job.
-- Latent only reads the file. It never moves, edits or deletes anything in the folder, and the
+- PrismLocal only reads the file. It never moves, edits or deletes anything in the folder, and the
   image bytes stay on this machine exactly as with a dropped screenshot.
 
 ## Intent library

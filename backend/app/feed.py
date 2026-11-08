@@ -210,7 +210,9 @@ def _shared_entity_candidates(records: list[library.LibraryRecord]) -> list[_Can
             title=f"{value} keeps showing up",
             teaser=f"{len(matched)} saved memories connect through {value}.",
             source_job_ids=source_ids,
-            why=f"Latent found the same public {key[0].replace('_', ' ')} in these saved items.",
+            why=(
+                f"PrismLocal found the same public {key[0].replace('_', ' ')} in these saved items."
+            ),
             created_at=max(row.created_at for row in matched),
             provenance="local",
             actions=_dedupe_actions(shared_cards),
@@ -238,7 +240,7 @@ def _shared_entity_candidates(records: list[library.LibraryRecord]) -> list[_Can
                     "why": "This is a repeated public topic across at least three local memories.",
                     "body": (
                         f"{value} has appeared in {len(matched)} saved items. "
-                        "Latent surfaced the pattern locally without sending anything out."
+                        "PrismLocal surfaced the pattern locally without sending anything out."
                     ),
                 }
             )
@@ -277,7 +279,7 @@ def _follow_up_candidates(records: list[library.LibraryRecord]) -> list[_Candida
             provenance="local",
             actions=_dedupe_actions(useful),
             body=(
-                "Latent is resurfacing an available action, not claiming that you have or "
+                "PrismLocal is resurfacing an available action, not claiming that you have or "
                 "have not completed it."
             ),
             sources=_sources([record]),

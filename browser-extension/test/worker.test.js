@@ -107,7 +107,7 @@ test('an Outlook grant does not authorize sharing a Teams tab', async () => {
   assert.equal(sb.session.source, undefined)
 })
 
-test('sharing a Teams tab records only the open chat/channel and hello exposes it to Latent', async () => {
+test('sharing a Teams tab records only the open chat/channel and hello exposes it to PrismLocal', async () => {
   const sb = sandbox({ tabs: { 7: fakeTab(TEAMS_URL) }, granted: ['https://teams.microsoft.com/*'] })
   const res = await sb.popup({ type: 'latent.select', tabId: 7 })
   assert.equal(res.ok, true)

@@ -76,12 +76,12 @@ export function TeamsView({ state, session, onClose }: { state: TeamsState; sess
 
     <p className="outlook-request"><span>You asked</span>{state.request}</p>
 
-    {state.phase === 'checking' && <p role="status" className="outlook-hint"><LoaderCircle size={14} className="outlook-spin" aria-hidden="true" />Looking for the Latent extension and your shared Teams chat…</p>}
+    {state.phase === 'checking' && <p role="status" className="outlook-hint"><LoaderCircle size={14} className="outlook-spin" aria-hidden="true" />Looking for the PrismLocal extension and your shared Teams chat…</p>}
 
     {editable && conversation && <fieldset className="outlook-scope teams-scope">
-      <legend>What Latent will read</legend>
+      <legend>What PrismLocal will read</legend>
       <div className="teams-source">
-        {state.mismatch && state.named && <p className="teams-mismatch" role="alert">You mentioned “{state.named}”, but the shared {conversation.kind} is “{conversation.label}”. Latent will not search for another conversation: confirm this one, or open the right one in Teams, share it from the extension icon and check again.</p>}
+        {state.mismatch && state.named && <p className="teams-mismatch" role="alert">You mentioned “{state.named}”, but the shared {conversation.kind} is “{conversation.label}”. PrismLocal will not search for another conversation: confirm this one, or open the right one in Teams, share it from the extension icon and check again.</p>}
         <label className="teams-confirm">
           <input type="checkbox" checked={state.sourceConfirmed} onChange={(event) => session.confirmSource(event.target.checked)} />
           <span>Read only this {conversation.kind}: <strong>{conversation.label}</strong></span>
@@ -98,8 +98,8 @@ export function TeamsView({ state, session, onClose }: { state: TeamsState; sess
         onChange={(event) => setCountDraft(event.target.value)}
         onBlur={() => { if (countDraft !== null) session.setScope({ mode, count: clampCount(Number(countDraft)), replies }); setCountDraft(null) }} />
       {conversation.kind === 'channel' && <label className="teams-replies"><input type="checkbox" checked={replies} onChange={(event) => session.setScope({ mode, count, replies: event.target.checked })} />Include thread replies that are already expanded (they count toward the limit)</label>}
-      <p className="outlook-hint">Reads the author, time and text shown in this {conversation.kind}, newest first, and scrolls back when done. Latent never posts, replies, reacts, expands threads, opens links or files, or switches chats.</p>
-      <p className="outlook-hint teams-caveat"><ShieldAlert size={11} aria-hidden="true" /> Teams may mark messages read or send read receipts while a conversation is open or scrolled, depending on your settings. Latent cannot promise a silent read.</p>
+      <p className="outlook-hint">Reads the author, time and text shown in this {conversation.kind}, newest first, and scrolls back when done. PrismLocal never posts, replies, reacts, expands threads, opens links or files, or switches chats.</p>
+      <p className="outlook-hint teams-caveat"><ShieldAlert size={11} aria-hidden="true" /> Teams may mark messages read or send read receipts while a conversation is open or scrolled, depending on your settings. PrismLocal cannot promise a silent read.</p>
       <p className="outlook-hint"><LockKeyhole size={11} aria-hidden="true" /> Analysis runs on this device. Chat text is never saved, logged or web-searched.</p>
     </fieldset>}
 
@@ -140,12 +140,12 @@ export function TeamsView({ state, session, onClose }: { state: TeamsState; sess
         <ul>{result.messages.map((message) => <li key={message.source_id} className={message.flagged_instructions ? 'is-flagged' : ''}>
           <span className="outlook-meta">#{message.position} · {message.author || 'author not shown'}{message.time ? ` · ${message.time}` : ''}{message.is_reply ? ' · reply' : ''}{message.unread ? ' · unread' : ''}{message.needs_response ? ' · may need a response' : ''}</span>
           {!message.flagged_instructions && <span>{message.excerpt}</span>}
-          {message.flagged_instructions && <span className="outlook-flag"><ShieldAlert size={12} aria-hidden="true" />This message contains instructions aimed at an assistant. Latent treated it as text, did not act on it and took no tasks from it.</span>}
+          {message.flagged_instructions && <span className="outlook-flag"><ShieldAlert size={12} aria-hidden="true" />This message contains instructions aimed at an assistant. PrismLocal treated it as text, did not act on it and took no tasks from it.</span>}
           <Locator message={message} label={label} />
         </li>)}</ul>
       </details>
       {result.dropped_claims > 0 && <p className="outlook-hint">{result.dropped_claims} unsupported claim{result.dropped_claims === 1 ? ' was' : 's were'} dropped because the messages did not support them.</p>}
-      {receipt && <p className="outlook-receipt"><LockKeyhole size={11} aria-hidden="true" /> Receipt: browser read {receipt.browser_reads} message{receipt.browser_reads === 1 ? '' : 's'} from your shared tab · local model calls: {receipt.local_model_calls} · internet requests from Latent: {receipt.backend_internet_requests} · saved: nothing.</p>}
+      {receipt && <p className="outlook-receipt"><LockKeyhole size={11} aria-hidden="true" /> Receipt: browser read {receipt.browser_reads} message{receipt.browser_reads === 1 ? '' : 's'} from your shared tab · local model calls: {receipt.local_model_calls} · internet requests from PrismLocal: {receipt.backend_internet_requests} · saved: nothing.</p>}
     </div>}
 
     <div className="voice-actions outlook-actions teams-actions">

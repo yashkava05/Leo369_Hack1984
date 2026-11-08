@@ -1,6 +1,6 @@
 /*
  * Outlook on the web adapter (#67). Injected only into the one tab the user authorized, and
- * only after Latent's backend accepted a confirmed request. Read-only by construction: it reads
+ * only after PrismLocal's backend accepted a confirmed request. Read-only by construction: it reads
  * rendered text and scrolls the message list (then restores it). It never clicks, opens,
  * composes, follows links, downloads attachments or touches cookies/storage.
  *

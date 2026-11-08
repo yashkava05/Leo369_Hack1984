@@ -1,9 +1,9 @@
-# Latent — context for every coding agent
+# PrismLocal — context for every coding agent
 
 Read this whole file before changing anything. Then read your GitHub issue: it is your spec.
 
 ## What we're building
-Latent (HACK1984) is a local-first memory agent. A user drops a screenshot; a local vision model (Ollama, `qwen2.5vl:3b`) extracts the intent and public entities on-device; a deterministic PII scrubber removes anything private; a query builder turns only the public entities into short text queries; the egress guard sends those queries to Tavily (and Exa, stretch); the results arrive in a Muse-style chat thread: a live work-steps message tags every stage On device or Internet, then Latent replies with action cards, asks before acting, and shows a privacy receipt of exactly what left the device.
+PrismLocal (HACK1984) is a local-first memory agent. A user drops a screenshot; a local vision model (Ollama, `qwen2.5vl:3b`) extracts the intent and public entities on-device; a deterministic PII scrubber removes anything private; a query builder turns only the public entities into short text queries; the egress guard sends those queries to Tavily (and Exa, stretch); the results arrive in a Muse-style chat thread: a live work-steps message tags every stage On device or Internet, then PrismLocal replies with action cards, asks before acting, and shows a privacy receipt of exactly what left the device.
 
 Tracks: Privacy-First (main), SURGE (Tavily & Exa), Most Startup-able.
 Demo: drop a concert flyer → cards bloom → Add to calendar. Turn air-gap on, drop an internal email → extraction finishes locally, search is blocked; turn it off → market cards appear; the audit log shows exactly what left the device.

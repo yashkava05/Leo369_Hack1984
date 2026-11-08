@@ -46,7 +46,7 @@ async def lifespan(app: FastAPI):
         await egress.aclose()
 
 
-app = FastAPI(title="Latent", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="PrismLocal", version="0.1.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,

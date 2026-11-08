@@ -12,7 +12,7 @@ import { deleteMemory, initialSaved, keepSaved, resolvePending, syncSaved } from
 import type { SavedView } from './saved'
 import type { ChatMessage, KeptItem } from './messages'
 
-export const WELCOME = "Hi, I'm Prism—your entirely private, on-device AI assistant. We all save things for later—a quick screenshot, a voice note, a typed idea—and then completely forget about them. I'm here to give those scattered thoughts a purpose. I remember what matters to you and automatically turn your ideas into real next steps: booking tickets, finding products, or organizing a private feed just for you. Your personal data never leaves this computer; I only search the public web when you ask me to. Drop a screenshot, type a thought, or just say hello to get started."
+export const WELCOME = "Hi, I'm PrismLocal—your entirely private, on-device AI assistant. We all save things for later—a quick screenshot, a voice note, a typed idea—and then completely forget about them. I'm here to give those scattered thoughts a purpose. I remember what matters to you and automatically turn your ideas into real next steps: booking tickets, finding products, or organizing a private feed just for you. Your personal data never leaves this computer; I only search the public web when you ask me to. Drop a screenshot, type a thought, or just say hello to get started."
 interface ChatState {
   messages: ChatMessage[]
   kept: KeptItem[]

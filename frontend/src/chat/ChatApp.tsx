@@ -31,8 +31,16 @@ const SAMPLES = [
 const OUTLOOK_DRIVER = MOCK ? createDemoDriver() : liveDriver
 const TEAMS_DRIVER = MOCK ? createDemoTeamsDriver() : liveTeamsDriver
 
+const LOGO_SRC = '/brand/icon-128.png'
+
+/** The PrismLocal app icon, used as the brand mark and as the assistant's avatar. */
 export function Orb({ small = false }: { small?: boolean }) {
-  return <span aria-hidden="true" className={`chat-orb${small ? ' is-small' : ''}`}><span /></span>
+  return <span aria-hidden="true" className={`chat-orb${small ? ' is-small' : ''}`}><img src={LOGO_SRC} alt="" /></span>
+}
+
+/** "PrismLocal" set like the brand sheet: "Prism" bold, "Local" lighter. */
+export function Wordmark() {
+  return <span className="chat-wordmark">Prism<span>Local</span></span>
 }
 
 function Cards({ message }: { message: Extract<ChatMessage, { type: 'cards' }> }) {
@@ -140,7 +148,7 @@ export function ChatApp() {
       case 'user-image': return <div className="chat-user-image"><img src={message.url} alt={`Your screenshot: ${message.name}`} /><span><LockKeyhole size={11} aria-hidden="true" /> Stays on this device</span></div>
       case 'user-text': return <div className="chat-bubble chat-user-bubble">{message.text}</div>
       case 'agent-text': return <div className="chat-agent-message"><Orb small /><div className="chat-bubble chat-agent-bubble">{message.text}</div></div>
-      case 'typing': return <div className="chat-agent-message"><Orb small /><div className="chat-typing" role="status" aria-label="Prism is reading on this device"><i /><i /><i /></div></div>
+      case 'typing': return <div className="chat-agent-message"><Orb small /><div className="chat-typing" role="status" aria-label="PrismLocal is reading on this device"><i /><i /><i /></div></div>
       case 'work-steps': return <div className="chat-agent-content"><WorkSteps message={message} /></div>
       case 'cards': return <div className="chat-agent-content"><Cards message={message} /></div>
       case 'receipt': return <div className="chat-agent-content"><button type="button" className="chat-receipt-pill" onClick={() => openReceipt(message.records)}>{receiptLabel(message.records, message.source)}<ChevronRight size={13} aria-hidden="true" /></button></div>
@@ -170,9 +178,9 @@ export function ChatApp() {
         }
       />
       <aside className="chat-sidebar" aria-label="Your chats and saved items" inert={drawer}>
-        <div className="chat-brand"><Orb /><span>Prism</span></div>
+        <div className="chat-brand"><Orb /><Wordmark /></div>
         <div className="chat-sidebar-section"><h2>Chats</h2>
-          <a className="chat-nav-item" href="/"><Aperture size={17} aria-hidden="true" /><span>Prism</span></a>
+          <a className="chat-nav-item" href="/"><Aperture size={17} aria-hidden="true" /><span>Home</span></a>
           <button className="chat-nav-item is-selected" type="button" aria-current="page" onClick={() => composer.current?.focus()}><MessageCircle size={17} aria-hidden="true" /><span>Chat</span><span className="chat-online-dot" /></button>
           <a className="chat-nav-item" href="?view=for-you"><Sparkles size={17} aria-hidden="true" /><span>For You</span></a>
         </div>
@@ -188,19 +196,19 @@ export function ChatApp() {
           </div>)}
           <button type="button" onClick={() => { void refreshSaved() }}>Sync saved items</button>
           <button type="button" onClick={() => {
-            if (window.confirm('Delete all Latent local data? This removes saved items, library history, the search index, Muse feed items and preferences, and browser Kept copies from Latent. Copies outside the app (backups, other storage) are not affected.')) { setVoiceOpen(false); void clearMemory() }
+            if (window.confirm('Delete all PrismLocal local data? This removes saved items, library history, the search index, Muse feed items and preferences, and browser Kept copies from PrismLocal. Copies outside the app (backups, other storage) are not affected.')) { setVoiceOpen(false); void clearMemory() }
           }}>Delete all local data</button>
         </div>
         <div className="chat-sidebar-footer"><ShieldCheck size={17} aria-hidden="true" /><div>Private intelligence.<span>Secured on this computer.</span></div></div>
       </aside>
       <div className="chat-main" inert={drawer}>
         <div className="chat-scroll" ref={scroller} onScroll={() => { const el = scroller.current; if (el) following.current = el.scrollHeight - el.scrollTop - el.clientHeight < 100 }}>
-          <main className="chat-thread" aria-label="Conversation with Prism">
+          <main className="chat-thread" aria-label="Conversation with PrismLocal">
             <div className="chat-day"><span />Today<span /></div>
             {welcomeOnly && <div className="chat-intro"><span className="chat-intro-mark"><Sparkles size={18} strokeWidth={1.5} aria-hidden="true" /></span><h2>Your private mind, on this machine.</h2><p>A personal AI agent that sees, listens, remembers, and acts — without sending your life to the cloud.</p></div>}
             <div className="chat-messages" role="log" aria-label="Messages" aria-live="polite" aria-relevant="additions">
               {chat.messages.map((message, index) => <div key={message.id} className={`chat-message type-${message.type}`}>{messageView(message)}
-                {MOCK && index === 0 && <div className="chat-samples"><p>Give Prism something to work with</p><div>{SAMPLES.map((item) => <button key={item.name} type="button" onClick={() => { void sample(item.name) }} aria-busy={sampleLoading === item.name}>
+                {MOCK && index === 0 && <div className="chat-samples"><p>Give PrismLocal something to work with</p><div>{SAMPLES.map((item) => <button key={item.name} type="button" onClick={() => { void sample(item.name) }} aria-busy={sampleLoading === item.name}>
                   <span className="chat-sample-art"><img src={`/samples/${item.name}`} alt="" /><span>{item.icon}</span></span><span className="chat-sample-label">{item.title}<small>{sampleLoading === item.name ? 'Opening sample…' : item.hint}</small></span><Plus size={14} aria-hidden="true" /></button>)}</div></div>}
               </div>)}
             </div>
@@ -218,7 +226,7 @@ export function ChatApp() {
             <button type="button" className="chat-attach" aria-label="Attach a screenshot" onClick={() => attach.current?.click()}><Plus size={21} aria-hidden="true" /></button>
             <button type="button" className={`chat-attach chat-mic${voiceOpen ? ' is-active' : ''}`} aria-label={voiceOpen ? 'Close voice input' : 'Speak a thought'} aria-expanded={voiceOpen} aria-controls="chat-voice-controls" title={voiceOpen ? 'Close voice input' : 'Speak a thought'} disabled={chat.busy && !voiceOpen} onClick={() => setVoiceOpen(!voiceOpen)}><Mic size={18} aria-hidden="true" /></button>
             <input type="file" ref={attach} accept="image/png,image/jpeg,image/webp" hidden onChange={(event) => { const file = event.currentTarget.files?.[0]; event.currentTarget.value = ''; if (file) { following.current = true; void sendImage(file) } }} />
-            <input ref={composer} value={text} onChange={(event) => setText(event.target.value)} aria-label="Message Prism" placeholder="Ask Prism, or speak with the microphone" />
+            <input ref={composer} value={text} onChange={(event) => setText(event.target.value)} aria-label="Message PrismLocal" placeholder="Ask PrismLocal, or speak with the microphone" />
             <button type="submit" className="chat-send" aria-label="Send message" disabled={!text.trim()}><ArrowUp size={18} aria-hidden="true" /><span>Send</span></button>
           </form>
           <p className="chat-composer-hint"><LockKeyhole size={11} aria-hidden="true" /> Voice, screenshots, and memory stay on this computer.</p>

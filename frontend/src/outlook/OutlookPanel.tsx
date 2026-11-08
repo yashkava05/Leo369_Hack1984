@@ -77,10 +77,10 @@ export function OutlookView({ state, session, onClose }: { state: OutlookState; 
 
     <p className="outlook-request"><span>You asked</span>{state.request}</p>
 
-    {state.phase === 'checking' && <p role="status" className="outlook-hint"><LoaderCircle size={14} className="outlook-spin" aria-hidden="true" />Looking for the Latent extension and your shared tab…</p>}
+    {state.phase === 'checking' && <p role="status" className="outlook-hint"><LoaderCircle size={14} className="outlook-spin" aria-hidden="true" />Looking for the PrismLocal extension and your shared tab…</p>}
 
     {editable && <fieldset className="outlook-scope" disabled={!editable}>
-      <legend>What Latent will read</legend>
+      <legend>What PrismLocal will read</legend>
       <label htmlFor={`${id}-mode`}>Messages</label>
       <select id={`${id}-mode`} value={mode} onChange={(event) => session.setScope({ mode: event.target.value as ReadMode, count: state.scope.count })}>
         <option value="latest">Latest in the list</option>
@@ -91,7 +91,7 @@ export function OutlookView({ state, session, onClose }: { state: OutlookState; 
         <CountInput id={`${id}-count`} value={state.scope.count} onCommit={(count) => session.setScope({ mode, count })} /></>}
       <p className="outlook-hint">{mode === 'selected'
         ? 'Reads only the message already open in your reading pane. Opening it in Outlook may already have marked it read.'
-        : 'Reads the sender, time, subject and preview shown in the list. Latent does not open messages, so it does not mark them read. Scrolling may make Outlook load more mail from Microsoft.'}</p>
+        : 'Reads the sender, time, subject and preview shown in the list. PrismLocal does not open messages, so it does not mark them read. Scrolling may make Outlook load more mail from Microsoft.'}</p>
       <p className="outlook-hint"><LockKeyhole size={11} aria-hidden="true" /> Analysis runs on this device. Email text is never saved, logged or web-searched. No sending, replying, deleting or link opening.</p>
     </fieldset>}
 
@@ -129,11 +129,11 @@ export function OutlookView({ state, session, onClose }: { state: OutlookState; 
           <span className="outlook-meta">{email.position}. {email.sender}{email.time ? ` · ${email.time}` : ''}{email.unread ? ' · unread' : ''}</span>
           <strong>{email.subject || '(no subject)'}</strong>
           <span>{email.summary}</span>
-          {email.flagged_instructions && <span className="outlook-flag"><ShieldAlert size={12} aria-hidden="true" />This message contains instructions aimed at an assistant. Latent treated them as text and did not act on them.</span>}
+          {email.flagged_instructions && <span className="outlook-flag"><ShieldAlert size={12} aria-hidden="true" />This message contains instructions aimed at an assistant. PrismLocal treated them as text and did not act on them.</span>}
         </li>)}</ul>
       </details>
       {result.dropped_claims > 0 && <p className="outlook-hint">{result.dropped_claims} unsupported claim{result.dropped_claims === 1 ? ' was' : 's were'} dropped because no matching quote was found.</p>}
-      {state.job && <p className="outlook-receipt"><LockKeyhole size={11} aria-hidden="true" /> Receipt: browser read {state.job.receipt.browser_reads} message{state.job.receipt.browser_reads === 1 ? '' : 's'} from your shared tab · {state.job.receipt.local_model_calls ? 'analyzed by the local model' : state.demo ? 'demo analysis' : 'analyzed on this device'} · requests from Latent to Tavily/Exa: {state.job.receipt.backend_internet_requests} · saved: nothing.</p>}
+      {state.job && <p className="outlook-receipt"><LockKeyhole size={11} aria-hidden="true" /> Receipt: browser read {state.job.receipt.browser_reads} message{state.job.receipt.browser_reads === 1 ? '' : 's'} from your shared tab · {state.job.receipt.local_model_calls ? 'analyzed by the local model' : state.demo ? 'demo analysis' : 'analyzed on this device'} · requests from PrismLocal to Tavily/Exa: {state.job.receipt.backend_internet_requests} · saved: nothing.</p>}
     </div>}
 
     <span className="visually-hidden" role="status" aria-live="polite">{announce(state)}</span>

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Latent setup: zero to "local vision model loaded and answering about an image".
+# PrismLocal setup: zero to "local vision model loaded and answering about an image".
 # Creates .env, checks Ollama, pulls and smoke-tests the model, then installs
 # backend (backend/.venv, including the pinned spaCy model) and frontend deps. Run from anywhere:
 #
