@@ -1,3 +1,4 @@
+import { Mic } from 'lucide-react'
 import { useState } from 'react'
 import { VoiceCapture } from './components/voice/VoiceCapture'
 import { AirGapToggle } from './components/AirGapToggle'
@@ -21,6 +22,7 @@ function ClassicApp() {
   const health = useHealth()
   const job = useJob()
   const [voicePending, setVoicePending] = useState(false)
+  const [voiceOpen, setVoiceOpen] = useState(false)
 
   return (
     <div className="app">
@@ -37,7 +39,10 @@ function ClassicApp() {
       <main className="app-main">
         <section className="app-left" aria-label="Input and live log">
           <DropZone disabledReason={voicePending ? 'Finish or cancel voice capture first.' : dropDisabledReason(health)} />
-          <VoiceCapture disabled={job.status === 'uploading' || job.status === 'running'} onBusyChange={(busy) => { if (!reserveVoiceSlot(busy)) return false; setVoicePending(busy); return true }} onJob={(jobId) => { job.followVoice(jobId) }} />
+          <button type="button" className="voice-trigger" aria-label={voiceOpen ? 'Close voice input' : 'Open voice input'} aria-expanded={voiceOpen} aria-controls="classic-voice-controls" title="Speak a thought" onClick={() => setVoiceOpen(!voiceOpen)}><Mic size={22} aria-hidden="true" /></button>
+          <div id="classic-voice-controls" hidden={!voiceOpen}>
+          {voiceOpen && <VoiceCapture disabled={job.status === 'uploading' || job.status === 'running'} onBusyChange={(busy) => { if (!reserveVoiceSlot(busy)) return false; setVoicePending(busy); return true }} onJob={(jobId) => { job.followVoice(jobId) }} />}
+          </div>
           <StageStrip />
           <Terminal />
           <LeftDeviceSummary />

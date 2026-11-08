@@ -1,4 +1,4 @@
-import { ArrowUp, Bookmark, Check, ChevronRight, ImagePlus, LockKeyhole, MessageCircle, Plus, ShieldCheck, Sparkles } from 'lucide-react'
+import { ArrowUp, Bookmark, Check, ChevronRight, ImagePlus, LockKeyhole, MessageCircle, Mic, Plus, ShieldCheck, Sparkles } from 'lucide-react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { DragEvent, FormEvent } from 'react'
 import { MOCK } from '../api/client'
@@ -161,11 +161,12 @@ export function ChatApp() {
         </div>
         <div className="chat-composer-area">
           {MOCK && <p className="chat-demo-note"><span /> Demo mode · Sample results, no web searches sent</p>}
-          <details className="chat-voice-panel" onToggle={(event) => setVoiceOpen(event.currentTarget.open)}><summary>Speak or type a thought · LOCAL</summary>
+          <div id="chat-voice-controls" className="chat-voice-panel" hidden={!voiceOpen}>
             {voiceOpen && <VoiceCapture disabled={chat.busy} onBusyChange={setVoiceBusy} onJob={beginVoiceJob} />}
-          </details>
+          </div>
           <form className="chat-composer" onSubmit={submit} aria-label="Message composer">
             <button type="button" className="chat-attach" aria-label="Attach a screenshot" onClick={() => attach.current?.click()}><Plus size={21} aria-hidden="true" /></button>
+            <button type="button" className={`chat-attach chat-mic${voiceOpen ? ' is-active' : ''}`} aria-label={voiceOpen ? 'Close voice input' : 'Open voice input'} aria-expanded={voiceOpen} aria-controls="chat-voice-controls" title="Speak a thought" onClick={() => setVoiceOpen(!voiceOpen)}><Mic size={18} aria-hidden="true" /></button>
             <input type="file" ref={attach} accept="image/png,image/jpeg,image/webp" hidden onChange={(event) => { const file = event.currentTarget.files?.[0]; event.currentTarget.value = ''; if (file) { following.current = true; void sendImage(file) } }} />
             <input ref={composer} value={text} onChange={(event) => setText(event.target.value)} aria-label="Message Latent" placeholder="Message Latent, or paste a screenshot" />
             <button type="submit" className="chat-send" aria-label="Send message" disabled={!text.trim()}><ArrowUp size={18} aria-hidden="true" /><span>Send</span></button>

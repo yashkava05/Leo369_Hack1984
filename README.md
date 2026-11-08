@@ -252,8 +252,8 @@ sqlite3 ~/.latent/latent.db 'select intent_type, summary from intents order by c
 
 ## Local voice and reviewed text
 
-Open **Speak or type a thought · LOCAL** in chat (or the microphone panel beside the
-classic screenshot drop zone). Record up to 30 seconds, stop, review/edit the text,
+Click the **microphone icon** beside the screenshot attachment button in chat
+(or below the classic screenshot drop zone) to open voice input. Record up to 30 seconds, stop, review/edit the text,
 then choose **Explore**, **Save locally**, or **Find related**. Typed input uses the
 same review and local interpretation without microphone access. Find related requires
 one selected library item and searches only that item's scrubbed public details.

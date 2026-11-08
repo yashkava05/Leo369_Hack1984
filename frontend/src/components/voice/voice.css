@@ -15,3 +15,6 @@
 .voice-capture .voice-error { color: #ffbdbd; }
 @media (max-width: 420px) { .voice-capture { padding: 12px; } .voice-capture .voice-actions > button { flex: 1 1 40%; } }
 @media (prefers-reduced-motion: reduce) { .voice-capture *, .voice-capture *::before, .voice-capture *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
+
+.voice-trigger { display: inline-grid; place-items: center; width: 44px; height: 44px; border: 1px solid currentColor; border-radius: 50%; background: transparent; color: inherit; cursor: pointer; }
+.voice-trigger:focus-visible { outline: 3px solid currentColor; outline-offset: 3px; }
