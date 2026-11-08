@@ -7,8 +7,11 @@ the terminal) with the key only in the `x-api-key` header:
 - `/findSimilar` on the top Tavily result URL — a public web URL, never user data.
 
 `related_concurrent` starts `/search` at once and `/findSimilar` as soon as Tavily answers, so
-the runner can run Exa alongside Tavily. With no `EXA_API_KEY` nothing is sent: one local
-event says Exa is disabled and the result is `[]`. Failures never raise.
+the runner can run Exa alongside Tavily. After Tavily answers, Exa gets at most `budget`
+seconds more; whatever finished by then is kept. The top URL is percent-decoded and checked
+for PII on-device first, and skipped if anything private is found. With no `EXA_API_KEY`
+nothing is sent: one local event says Exa is disabled and the result is `[]`. Failures never
+raise, and every request task is cancelled and awaited before returning.
 """
 
 from __future__ import annotations
@@ -17,6 +20,7 @@ import asyncio
 import os
 import time
 from collections.abc import Awaitable, Set
+from urllib.parse import unquote_plus, urlsplit
 
 import httpx
 from pydantic import BaseModel, ValidationError
@@ -25,6 +29,7 @@ from app import egress
 from app.config import get_settings
 from app.models import Card, CardAction, SearchQuery, StageEvent
 from app.pipeline.cards import MAX_CARDS, card_id, clean_url, domain_of, snippet
+from app.pipeline.scrub import contains_pii
 from app.pipeline.search import TavilyResponse, _Errors
 
 EXA_SEARCH_URL = "https://api.exa.ai/search"
@@ -33,6 +38,9 @@ NUM_RESULTS = 5
 TEXT_CHARS = 300
 MAX_RELATED = 2
 DISABLED_MESSAGE = "Exa disabled (no key)"
+UNSAFE_URL_MESSAGE = "Exa findSimilar skipped: top result URL carries private data"
+# Extra time Exa may take once Tavily has answered (issue #19: < 1 s added latency).
+OPTIONAL_BUDGET_S = 0.5
 
 # (top Tavily result URL or None, cleaned URLs of every Tavily result)
 TavilyContext = tuple[str | None, Set[str]]
@@ -100,6 +108,54 @@ def tavily_context(queries: list[SearchQuery], results: dict[str, TavilyResponse
         if top is None and urls:
             top = clean_url(max(urls, key=lambda r: r.score).url)
     return top, seen
+
+
+def _fully_decoded(text: str) -> str | None:
+    """Undo percent/plus encoding, repeatedly, so `%2540` cannot hide an `@`.
+
+    None if the text is still changing after 5 passes (fail closed).
+    """
+    for _ in range(5):
+        decoded = unquote_plus(text)
+        if decoded == text:
+            return text
+        text = decoded
+    return None
+
+
+def safe_similar_url(url: str, allow_terms: Set[str] = frozenset()) -> str | None:
+    """The cleaned URL if it may be sent to `/findSimilar`, else None.
+
+    Runs on-device. The URL is decoded before checking, because the scrubber cannot see an
+    email written as `alex%40example.com`. Any `@`, userinfo or PII finding rejects it.
+    """
+    url = clean_url(url)
+    parts = urlsplit(url)
+    if parts.scheme not in ("https", "http") or not parts.hostname:
+        return None
+    if parts.username or parts.password:
+        return None
+    decoded = _fully_decoded(url)
+    if decoded is None or "@" in decoded:
+        return None
+    if contains_pii(decoded, allow=set(allow_terms)):
+        return None
+    return url
+
+
+def _task_result(task: asyncio.Task[list[ExaResult]] | None) -> list[ExaResult]:
+    if task is None or not task.done() or task.cancelled() or task.exception() is not None:
+        return []
+    return task.result()
+
+
+async def _cancel_and_wait(*tasks: asyncio.Task | None) -> None:
+    owned = [t for t in tasks if t is not None]
+    for t in owned:
+        if not t.done():
+            t.cancel()
+    if owned:
+        await asyncio.gather(*owned, return_exceptions=True)
 
 
 async def _emit_local(job_id: str | None, message: str) -> None:
@@ -207,43 +263,59 @@ async def related_concurrent(
     tavily: Awaitable[TavilyContext],
     job_id: str,
     allow_terms: Set[str],
+    *,
+    budget: float | None = None,
 ) -> list[Card]:
     """Like `related`, but `/search` starts before Tavily has answered.
 
     `tavily` resolves to the Tavily context once web search is done; `/findSimilar` and the
     dedupe wait for it. The awaitable is always awaited, so a coroutine is never left behind.
+    `budget` caps the seconds spent on Exa after Tavily answered (None: no cap); requests
+    still running then are cancelled and the results that did arrive are kept. Owned request
+    tasks are cancelled and awaited on every exit, cancellation included.
     """
     related_q = next((q for q in queries if q.purpose == "related"), None)
     key = _api_key() if related_q else ""
     errors = _Errors(job_id)
 
-    search_task = None
-    if related_q and key:
-        search_task = asyncio.create_task(
-            _post(EXA_SEARCH_URL, search_body(related_q), key, job_id, allow_terms, errors)
-        )
+    search_task: asyncio.Task[list[ExaResult]] | None = None
+    similar_task: asyncio.Task[list[ExaResult]] | None = None
     try:
-        top_url, exclude = await tavily
-    except Exception:  # Tavily failing must not take Exa down with it
-        top_url, exclude = None, frozenset()
-
-    if related_q is None:
-        return []
-    if not key:
-        await _emit_local(job_id, DISABLED_MESSAGE)
-        return []
-
-    try:
-        similar: list[ExaResult] = []
-        if top_url:
-            similar = await _post(
-                EXA_SIMILAR_URL, similar_body(top_url), key, job_id, allow_terms, errors
+        if related_q and key:
+            search_task = asyncio.create_task(
+                _post(EXA_SEARCH_URL, search_body(related_q), key, job_id, allow_terms, errors)
             )
-        found = await search_task if search_task is not None else []
+        try:
+            top_url, exclude = await tavily
+        except Exception:  # Tavily failing must not take Exa down with it
+            top_url, exclude = None, frozenset()
+        deadline = None if budget is None else time.monotonic() + budget
+
+        if related_q is None:
+            return []
+        if not key:
+            await _emit_local(job_id, DISABLED_MESSAGE)
+            return []
+
+        if top_url:
+            safe = await asyncio.to_thread(safe_similar_url, top_url, allow_terms)
+            if safe is None:
+                await _emit_local(job_id, UNSAFE_URL_MESSAGE)
+            else:
+                similar_task = asyncio.create_task(
+                    _post(EXA_SIMILAR_URL, similar_body(safe), key, job_id, allow_terms, errors)
+                )
+        pending = [t for t in (search_task, similar_task) if t is not None]
+        if pending:
+            timeout = None if deadline is None else max(0.0, deadline - time.monotonic())
+            _, late = await asyncio.wait(pending, timeout=timeout)
+            if late:
+                await _emit_local(
+                    job_id, f"Exa slower than {budget:.1f}s after web search; not waiting"
+                )
+        return build_related_cards(_task_result(search_task), _task_result(similar_task), exclude)
     finally:
-        if search_task is not None and not search_task.done():
-            search_task.cancel()
-    return build_related_cards(found, similar, exclude)
+        await _cancel_and_wait(search_task, similar_task)
 
 
 async def related(
