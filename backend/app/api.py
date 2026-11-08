@@ -26,7 +26,7 @@ async def analyze(image: UploadFile) -> dict[str, str]:
     if (image.content_type or "").lower() not in ALLOWED_TYPES or not _looks_like_image(data[:12]):
         raise HTTPException(415, "image must be png, jpg or webp")
     job = jobs.create_job()
-    jobs.start_job(job, image.filename)
+    jobs.start_job(job, image.filename, data)
     return {"job_id": job.job_id}
 
 
