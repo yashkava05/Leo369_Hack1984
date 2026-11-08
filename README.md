@@ -20,7 +20,14 @@ cd latent
 ./scripts/setup.sh          # .env, Ollama model pull + smoke test, backend/.venv, spaCy model, frontend deps
 ```
 
-Then run each server in its own terminal:
+Then start everything with one command (Ollama if needed, the backend on :8000, the frontend on
+:5173; Ctrl+C stops both servers):
+
+```bash
+./scripts/dev.sh
+```
+
+Or run each server in its own terminal:
 
 ```bash
 # Terminal 1: backend on http://localhost:8000
@@ -30,7 +37,8 @@ cd backend && source .venv/bin/activate && uvicorn app.main:app --reload --port 
 cd frontend && npm run dev
 ```
 
-Open http://localhost:5173: the page shows the JSON from `GET /api/health`.
+Open http://localhost:5173 and drop a screenshot (try `eval/screenshots/concert_ig.png`). The Vite dev
+server proxies `/api` to the backend; banners appear if the local model is down or no Tavily key is set.
 
 <details><summary>Manual setup (instead of scripts/setup.sh)</summary>
 
@@ -88,7 +96,7 @@ All settings live in one repo-root `.env` (copy `.env.example`). The backend rea
 | `LATENT_WATCH_DIR` | empty (off) | backend, see [Auto-ingest](#auto-ingest-from-the-screenshot-folder) |
 | `LATENT_DB_PATH` | `~/.latent/latent.db` | backend (intent library) |
 | `LATENT_KEEP_THUMBS` | `0` | backend (intent library) |
-| `VITE_API_URL` | `http://localhost:8000` | frontend |
+| `VITE_API_URL` | empty (same origin, via the Vite `/api` proxy) | frontend |
 | `VITE_MOCK` | `0` | frontend |
 
 ## Auto-ingest from the screenshot folder

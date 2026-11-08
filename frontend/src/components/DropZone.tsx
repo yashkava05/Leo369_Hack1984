@@ -3,22 +3,24 @@ import { useJob } from '../state/useJob'
 import { ACCEPTED_TYPES, validateImage } from './validateImage'
 import './DropZone.css'
 
-export function DropZone() {
+/** `disabledReason` (from the health banners) blocks new drops, e.g. while the local model is down. */
+export function DropZone({ disabledReason = null }: { disabledReason?: string | null } = {}) {
   const { status, previewUrl, error, start, reset } = useJob()
   const inputRef = useRef<HTMLInputElement>(null)
   const [dragging, setDragging] = useState(false)
   const [rejection, setRejection] = useState<string | null>(null)
   const busy = status === 'uploading' || status === 'running'
   const finished = status === 'done' || status === 'error'
+  const unavailable = disabledReason !== null
 
   const accept = useCallback(
     (file: File | undefined) => {
-      if (!file || busy) return
+      if (!file || busy || unavailable) return
       const problem = validateImage(file)
       setRejection(problem)
       if (!problem) void start(file)
     },
-    [busy, start],
+    [busy, unavailable, start],
   )
 
   useEffect(() => {
@@ -42,12 +44,12 @@ export function DropZone() {
       <button
         type="button"
         className={`dropzone${dragging ? ' dragging' : ''}${busy ? ' busy' : ''}`}
-        aria-disabled={busy || finished}
+        aria-disabled={busy || finished || unavailable}
         aria-describedby="dropzone-hint"
-        onClick={() => !busy && !finished && inputRef.current?.click()}
+        onClick={() => !busy && !finished && !unavailable && inputRef.current?.click()}
         onDragOver={(e) => {
           e.preventDefault()
-          if (!busy && !finished) setDragging(true)
+          if (!busy && !finished && !unavailable) setDragging(true)
         }}
         onDragLeave={() => setDragging(false)}
         onDrop={(e) => {
@@ -61,7 +63,7 @@ export function DropZone() {
         ) : (
           <span className="dropzone-prompt">
             <strong>Drop a screenshot</strong>
-            <span>or click to choose one, or paste with Ctrl/Cmd+V</span>
+            <span>{unavailable ? disabledReason : 'or click to choose one, or paste with Ctrl/Cmd+V'}</span>
           </span>
         )}
       </button>

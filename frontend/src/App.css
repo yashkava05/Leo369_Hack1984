@@ -1,0 +1,78 @@
+.app {
+  display: grid;
+  gap: 1rem;
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+.app-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1.5rem;
+}
+
+.app-title {
+  margin: 0;
+  font-size: 1.75rem;
+  letter-spacing: 0.02em;
+}
+
+.app-header-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.app-main {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.app-left {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+
+/* The children bring their own top margins for standalone use; the grid gap spaces them here. */
+.app-left > *,
+.app-right > .dashboard {
+  margin-top: 0;
+}
+
+/* Keep the terminal in view on a laptop screen: a compact drop zone and preview. */
+.app-left .dropzone {
+  min-height: 10rem;
+  padding: 1rem;
+}
+
+.app-left .dropzone-preview {
+  max-height: 12rem;
+}
+
+.app-right {
+  position: sticky;
+  top: 1rem;
+  min-width: 0;
+}
+
+.app-results-note {
+  margin: 0.75rem 0 0;
+  color: #6b7280;
+  text-align: center;
+}
+
+@media (max-width: 960px) {
+  .app-main {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .app-right {
+    position: static;
+  }
+}
