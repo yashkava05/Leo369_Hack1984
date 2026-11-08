@@ -10,6 +10,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app import egress, jobs
+from app.config import Settings, get_settings
 from app.main import app
 from app.models import Card, Intent, SearchQuery
 from app.pipeline import cards as cards_mod
@@ -352,8 +353,12 @@ def test_bad_date_skips_calendar_card():
 
 
 @pytest.mark.live
-@pytest.mark.skipif(not os.getenv("TAVILY_API_KEY"), reason="needs TAVILY_API_KEY")
+@pytest.mark.skipif(
+    not (os.getenv("TAVILY_API_KEY") or Settings().tavily_api_key),
+    reason="needs TAVILY_API_KEY (env or .env)",
+)
 async def test_live_concert_fixture():
+    get_settings.cache_clear()
     raw = json.loads(
         (
             Path(__file__).resolve().parent.parent / "fixtures" / "concert_flyer.result.json"

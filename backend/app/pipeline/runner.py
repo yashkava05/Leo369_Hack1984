@@ -27,6 +27,7 @@ from app.pipeline import cards as cards_mod
 from app.pipeline import exa as exa_mod
 from app.pipeline import search as search_mod
 from app.pipeline.extract import extract_intent
+from app.pipeline.query import allow_terms as query_allow_terms
 from app.pipeline.query import build_queries, related_query
 from app.pipeline.scrub import scrub_intent
 
@@ -193,8 +194,9 @@ async def _run_stages(job: jobs.JobState, box: list[bytes], timings: dict[str, i
     )
     timings["query"] = _ms(time.perf_counter() - t0)
 
-    # allow_terms: only the kept performer/author values may appear in an outbound query.
-    allow_terms = {e.value for e in scrubbed.public_entities if e.type in ("performer", "author")}
+    # allow_terms: only kept public names (performers, authors, titles, products, brands,
+    # companies) may appear in an outbound query; the same set the query builder checked with.
+    allow_terms = query_allow_terms(scrubbed)
 
     # --- search (network) ---------------------------------------------------------
     # Tavily and Exa run concurrently; Exa's findSimilar waits only for the Tavily answer.
@@ -209,19 +211,36 @@ async def _run_stages(job: jobs.JobState, box: list[bytes], timings: dict[str, i
     related_cards: list[Card] = []
     exa_task = None
     if related_q is not None:
+        # Exa is optional: once Tavily answers it gets at most OPTIONAL_BUDGET_S more, and
+        # keeps whatever arrived by then.
         exa_task = asyncio.create_task(
-            exa_mod.related_concurrent([related_q], tavily_context(), job_id, allow_terms)
+            exa_mod.related_concurrent(
+                [related_q],
+                tavily_context(),
+                job_id,
+                allow_terms,
+                budget=exa_mod.OPTIONAL_BUDGET_S,
+            )
         )
     try:
-        results = await tavily_task
-    except Exception as exc:  # search never raises, but degrade gracefully if it ever does
-        log.info("search failed for %s: %s", job_id, type(exc).__name__)
-        results = {}
-    if exa_task is not None:
         try:
-            related_cards = await exa_task
-        except Exception as exc:  # Exa never raises either; related cards are optional
-            log.info("exa failed for %s: %s", job_id, type(exc).__name__)
+            results = await tavily_task
+        except Exception as exc:  # search never raises, but degrade gracefully if it ever does
+            log.info("search failed for %s: %s", job_id, type(exc).__name__)
+            results = {}
+        if exa_task is not None:
+            try:
+                related_cards = await exa_task
+            except Exception as exc:  # Exa never raises either; related cards are optional
+                log.info("exa failed for %s: %s", job_id, type(exc).__name__)
+    finally:
+        # On cancellation, stop both network tasks and wait for them before returning.
+        for task in (tavily_task, exa_task):
+            if task is not None and not task.done():
+                task.cancel()
+        await asyncio.gather(
+            *(t for t in (tavily_task, exa_task) if t is not None), return_exceptions=True
+        )
     search_note = SEARCH_DEGRADED_NOTE if queries and not results else None
     await _publish(
         job,

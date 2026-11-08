@@ -1,9 +1,113 @@
 # Latent
 
-Local-first memory agent that turns screenshots into actions. Built for HACK1984.
+**Your screenshots, turned into actions, without your screenshots leaving your laptop.**
+A local-first memory agent built for HACK1984.
 
-Drop a screenshot; a local vision model (Ollama + Qwen2.5-VL) extracts the intent, PII is
-stripped, a sanitized text query goes to Tavily, and the results render as action cards.
+Drop a screenshot. A vision model running on your machine (Ollama + Qwen2.5-VL) works out what you
+meant to do and pulls out the public facts; a deterministic scrubber removes anything private; only
+short text queries built from public facts go to Tavily (and Exa). Latent answers in a chat: its
+work steps tag every stage On device or Internet, then it replies with action cards (tickets, a map
+pin, a calendar file it makes only after you say yes) and a privacy receipt of what left.
+
+## Demo
+
+[TBD: demo GIF, recorded from a real run; put it at `docs/demo.gif` and embed it here.]
+
+The demo runs on the chat screen: drop a concert screenshot, follow the work steps, approve **Add to
+calendar**, then turn on **Air-gap**, drop an internal email, choose **Turn off and finish** and
+open **Receipts**. Record the GIF from that screen; the classic layout stays at `?view=classic`.
+
+- Backup video (90 s): [TBD: link to the recorded backup video]
+- Demo script, checklist and fallback plan: [`docs/DEMO.md`](docs/DEMO.md)
+
+## Architecture
+
+```mermaid
+flowchart LR
+    S[Screenshot] --> V["Qwen2.5-VL<br/>(local, Ollama)"]
+    V --> P["PII scrubber<br/>(local, Presidio + spaCy)"]
+    P --> Q["Query builder<br/>(local)"]
+    Q --> G{"Egress guard<br/>(6 rules)"}
+    G -->|"short text queries only"| T[Tavily]
+    G -.->|"related, optional"| E[Exa]
+    T --> C["Action cards<br/>(built locally)"]
+    E -.-> C
+    G -->|"every attempt"| A[(Audit log)]
+```
+
+Everything left of the egress guard runs on this machine. The image bytes stay in memory for the
+extraction and are then dropped; they are never logged or sent, and never written to disk unless
+you opt in to library thumbnails (`LATENT_KEEP_THUMBS=1` stores a 256 px JPEG on this machine).
+
+## How privacy is enforced
+
+Privacy in Latent is **enforced and auditable**, not mathematically guaranteed: the rules below are
+code with tests, and every outbound request is recorded so you can check what left.
+
+**One door to the network.** Only `backend/app/egress.py` opens network connections
+(`backend/tests/test_single_egress.py` fails if any other module in `backend/app` opens a
+network client). Ollama is reached
+only through a loopback-only client. Every internet request passes these rules in order; the first
+failure blocks it:
+
+1. Air-gap: `LATENT_OFFLINE=1` or the **Air-gap mode** switch in the UI blocks everything.
+2. The host must be on the allow-list (`api.tavily.com`, `api.exa.ai`), over https on the default
+   port.
+3. The JSON body must be at most 4096 bytes, so an image cannot fit.
+4. No base64-looking run of 200+ characters in the body.
+5. The PII checker finds nothing in any string of the body (only kept performer and author names
+   are allowed through).
+6. No API key in the body. Keys come from the environment, travel only in the request header, and
+   are redacted from every record, log line and event.
+
+Every attempt, sent or blocked, is recorded with its exact byte count and a payload preview: in the
+chat's **Receipts** drawer (query text and size; the receipt under each reply opens that turn's
+requests), in the classic view's **Audit log** drawer (with the payload preview), at
+`GET /api/egress`, and in `backend/egress.log`.
+
+**Scrubber policy** (`backend/app/pipeline/scrub.py`, runs locally on everything the model
+returns):
+
+- Any entity with an email address, phone number, credit card, SSN, IBAN, IP address, US bank
+  number, social handle or account/order/invoice ID is removed, whatever its type.
+- Person names are removed unless the entity is a performer or author (public names you would
+  search for).
+- Runs of 6+ digits are removed outside dates, times and prices.
+- For documents (emails, chats, internal docs) only `topic`, `public_org` and `product` entities
+  are kept; everything else is dropped.
+- The summary is cleaned too, but it is never sent: queries are built only from kept public
+  entities, by templates in `backend/app/pipeline/query.py`.
+
+**Leak eval.** `eval/` holds ten synthetic screenshots full of planted fake personal data and a
+script that runs the local pipeline offline and fails on any leak:
+`LATENT_OFFLINE=1 python eval/run_eval.py`. Latest results (`eval/results.md`):
+[TBD: leaks, intent accuracy, entity recall and latency from a real run on the demo laptop; the
+eval needs Ollama and has not been run yet].
+
+## Setup in 3 commands
+
+Needs Python 3.11+, Node 20.19+ and [Ollama](https://ollama.com/download) 0.7+ (details below).
+
+```bash
+git clone https://github.com/yashkava05/Leo369_Hack1984.git latent && cd latent
+./scripts/setup.sh    # .env, model pull + smoke test, backend venv, spaCy model, frontend deps
+./scripts/dev.sh      # backend on :8000, frontend on http://localhost:5173
+```
+
+Put your `TAVILY_API_KEY` (and optionally `EXA_API_KEY`) in `.env`, open http://localhost:5173 and
+drop `eval/screenshots/concert_ig.png` on the chat (or click **Try a concert flyer**).
+
+## Track alignment
+
+| Track | How Latent meets it |
+| --- | --- |
+| **Privacy-First** | Vision runs locally; one egress module with six rules; work steps tagged On device or Internet; air-gap switch; a privacy receipt per reply and a log of every outbound request and its size; leak eval on fake-PII screenshots. |
+| **SURGE (Tavily & Exa)** | Tavily search turns scrubbed public entities into ticket, shop, book and insight cards (calendar and map cards are built on-device); Exa adds related-reading cards for books, charts and documents when a key with credits is set. |
+| **Most Startup-able** | A problem everyone has; free for consumers with an affiliate share on tickets, products and books (one hook, `affiliate.tag_url`, passes through today); a planned enterprise tier with an on-prem model, admin policy and audit-log export. |
+
+## Team
+
+[TBD: names and roles]
 
 ## Prerequisites
 
@@ -13,6 +117,8 @@ stripped, a sanitized text query goes to Tavily, and the results render as actio
 - About 600 MB of disk for the spaCy `en_core_web_lg` model the local PII scrubber uses (setup installs it)
 
 ## Quick start
+
+Step by step:
 
 ```bash
 git clone https://github.com/yashkava05/Leo369_Hack1984.git latent
@@ -102,14 +208,16 @@ All settings live in one repo-root `.env` (copy `.env.example`). The backend rea
 | `LATENT_WATCH_DIR` | empty (off) | backend, see [Auto-ingest](#auto-ingest-from-the-screenshot-folder) |
 | `LATENT_DB_PATH` | `~/.latent/latent.db` | backend (intent library) |
 | `LATENT_KEEP_THUMBS` | `0` | backend (intent library) |
+| `DEMO_FALLBACK` | `0` | backend, see [`docs/DEMO.md`](docs/DEMO.md#fallback-plan) |
 | `VITE_API_URL` | empty (same origin, via the Vite `/api` proxy) | frontend |
 | `VITE_MOCK` | `0` | frontend |
 
 ## Auto-ingest from the screenshot folder
 
 Opt-in and off by default. Set `LATENT_WATCH_DIR` to a folder and every new screenshot saved there
-starts a job within about a second; the open UI shows a "Watching ~/Desktop" pill and follows the
-newest job unless you are in the middle of one.
+starts a job within about a second; the classic view (`?view=classic`) shows a "Watching
+~/Desktop" pill and follows the newest job unless you are in the middle of one. The chat screen
+does not show watched jobs yet.
 
 ```bash
 LATENT_WATCH_DIR=~/Desktop uvicorn app.main:app --port 8000   # from backend/
@@ -132,9 +240,9 @@ result: the intent summary, the public entities and the cards, with the egress r
 Screenshot thumbnails (256 px JPEG) are stored only when `LATENT_KEEP_THUMBS=1`. The file is not
 encrypted; it relies on your user account's file permissions.
 
-The **Library** drawer in the UI searches saved intents by performer, product, place or any
-other public entity (SQLite FTS5), filters by type, reopens a result's cards in the dashboard,
-and deletes one entry or everything ("Delete everything" also runs `VACUUM`). The same data is
+The **Library** drawer in the classic view (`?view=classic`) searches saved intents by
+performer, product, place or any other public entity (SQLite FTS5), filters by type, reopens a
+result's cards in the dashboard, and deletes one entry or everything ("Delete everything" also runs `VACUUM`). The same data is
 under `GET /api/library?q=&type=&limit=50`, `GET /api/library/{id}`, `DELETE /api/library/{id}`
 and `DELETE /api/library`. To inspect it directly:
 
