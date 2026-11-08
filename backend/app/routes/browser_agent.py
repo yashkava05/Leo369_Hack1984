@@ -1,6 +1,6 @@
-"""Browser-session agent routes (#67, Teams #68): the Latent UI and the extension meet here.
+"""Browser-session agent routes (#67, Teams #68): the PrismLocal UI and the extension meet here.
 
-UI (Latent's proxy adds the launch secret; view token per job): POST /browser/jobs ·
+UI (PrismLocal's proxy adds the launch secret; view token per job): POST /browser/jobs ·
     GET/DELETE /browser/jobs/{id}
 Extension (extension origin+nonce): POST /browser/jobs/{id}/claim|progress|content|fail
 

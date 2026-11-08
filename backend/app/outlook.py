@@ -43,7 +43,8 @@ _URL = re.compile(r"(?:https?://|www\.)\S+", re.I)
 _INJECTION = re.compile(
     r"(ignore (?:all |any )?(?:previous|prior|above) (?:instructions|messages)"
     r"|disregard (?:your|all|previous) (?:instructions|rules)"
-    r"|\b(?:ai|assistant|agent|latent|copilot|chatgpt)\b[^.!?\n]{0,40}\b(?:must|should|please)\b"
+    r"|\b(?:ai|assistant|agent|latent|prismlocal|copilot|chatgpt)\b"
+    r"[^.!?\n]{0,40}\b(?:must|should|please)\b"
     r"|system prompt|you are now|new instructions"
     r"|forward (?:all|every|these) (?:emails|messages|mail))",
     re.I,

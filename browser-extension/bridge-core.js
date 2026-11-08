@@ -1,5 +1,5 @@
 /*
- * Provider-neutral core of the Latent browser bridge (#67, reused by Teams Web in #68).
+ * Provider-neutral core of the PrismLocal browser bridge (#67, reused by Teams Web in #68).
  *
  * Loaded three ways: importScripts() in the service worker, chrome.scripting file injection in
  * the authorized tab (isolated world), and require() in the Node tests. No DOM access here: the
@@ -66,7 +66,7 @@
   var JOB_ID = /^b_[0-9a-f]{32}$/
   var NONCE = /^[A-Za-z0-9_-]{32,64}$/
 
-  /** Messages from the Latent page. Unknown shapes are rejected; nothing else is trusted. */
+  /** Messages from the PrismLocal page. Unknown shapes are rejected; nothing else is trusted. */
   function validateUiMessage(msg) {
     if (!msg || typeof msg !== 'object' || Array.isArray(msg)) return null
     var keys = Object.keys(msg).sort().join(',')

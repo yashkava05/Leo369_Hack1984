@@ -1,6 +1,6 @@
 /*
  * Teams Web adapter (#68). Injected only into the one Teams tab the user authorized, and only
- * after Latent's backend accepted a confirmed request for the chat/channel the user selected.
+ * after PrismLocal's backend accepted a confirmed request for the chat/channel the user selected.
  * Read-only by construction: it reads rendered text and scrolls the open conversation's
  * timeline (then scrolls back). It never clicks, expands threads, opens links, posts, reacts,
  * edits, joins meetings, downloads files, switches chats or touches cookies/storage.
@@ -15,7 +15,7 @@
  *   [data-tid="chat-pane-message"] or [id^="content-"]; author [data-tid="message-author-name"]
  *   (omitted on consecutive messages by the same author); time <time datetime>.
  * - Unread divider: [data-tid="unread-divider"] or a separator saying "New messages".
- * - Collapsed channel threads show a replies summary button; Latent reports them as
+ * - Collapsed channel threads show a replies summary button; PrismLocal reports them as
  *   incomplete instead of expanding them.
  */
 ;(function (root) {
@@ -160,7 +160,7 @@
       adapter.setScroll(start)
     }
     if (mode === 'unread' && !dividerSeen) {
-      // No "New messages" divider: either nothing is unread (top of history reached) or Latent
+      // No "New messages" divider: either nothing is unread (top of history reached) or PrismLocal
       // could not confirm which messages are unread. Never guess.
       picked = []
       collapsed = 0

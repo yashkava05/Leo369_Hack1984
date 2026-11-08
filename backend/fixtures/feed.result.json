@@ -94,7 +94,7 @@
     "provenance": "local",
     "actions": [],
     "feedback": [],
-    "body": "The talk is in the local library with a date and venue. Latent does not assume whether you acted on it.",
+    "body": "The talk is in the local library with a date and venue. PrismLocal does not assume whether you acted on it.",
     "sources": [
       {
         "title": "Saved event: Lumen Archive",

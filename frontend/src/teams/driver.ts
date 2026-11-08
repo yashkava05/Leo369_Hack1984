@@ -3,8 +3,8 @@ import { OutlookError, sendToExtension } from '../outlook/driver'
 import type { TeamsHello, TeamsJobView, TeamsScope } from './types'
 
 /**
- * The two halves of a real Teams read: the Latent backend (job, nonce, local analysis) and the
- * Latent extension (the only thing that can see the authorized Teams tab). The demo driver in
+ * The two halves of a real Teams read: the PrismLocal backend (job, nonce, local analysis) and the
+ * PrismLocal extension (the only thing that can see the authorized Teams tab). The demo driver in
  * demo.ts implements the same interface with a clearly labelled fake chat.
  */
 export interface TeamsDriver {

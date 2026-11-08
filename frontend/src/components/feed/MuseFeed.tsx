@@ -1,7 +1,7 @@
 import { ArrowLeft, Compass, MessageCircle, RefreshCw, ShieldCheck, Sparkles } from 'lucide-react'
 import { useLayoutEffect } from 'react'
 import { MOCK } from '../../api/client'
-import { Orb } from '../../chat/ChatApp'
+import { Orb, Wordmark } from '../../chat/ChatApp'
 import { useFeed } from '../../state/useFeed'
 import { FeedCard } from './FeedCard'
 import { FeedDetail } from './FeedDetail'
@@ -17,8 +17,8 @@ export function MuseFeed() {
 
   return (
     <div className="feed-app">
-      <aside className="chat-sidebar feed-sidebar" aria-label="Latent navigation">
-        <div className="chat-brand"><Orb /><span>Latent<span className="chat-brand-dot">.</span></span></div>
+      <aside className="chat-sidebar feed-sidebar" aria-label="PrismLocal navigation">
+        <div className="chat-brand"><Orb /><Wordmark /></div>
         <nav className="chat-sidebar-section" aria-label="Main">
           <h2>Explore</h2>
           <a className="chat-nav-item" href="/"><MessageCircle size={17} aria-hidden="true" /><span>Chat</span></a>

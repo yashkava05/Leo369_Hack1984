@@ -30,8 +30,16 @@ const SAMPLES = [
 const OUTLOOK_DRIVER = MOCK ? createDemoDriver() : liveDriver
 const TEAMS_DRIVER = MOCK ? createDemoTeamsDriver() : liveTeamsDriver
 
+const LOGO_SRC = '/brand/icon-128.png'
+
+/** The PrismLocal app icon, used as the brand mark and as the assistant's avatar. */
 export function Orb({ small = false }: { small?: boolean }) {
-  return <span aria-hidden="true" className={`chat-orb${small ? ' is-small' : ''}`}><span /></span>
+  return <span aria-hidden="true" className={`chat-orb${small ? ' is-small' : ''}`}><img src={LOGO_SRC} alt="" /></span>
+}
+
+/** "PrismLocal" set like the brand sheet: "Prism" bold, "Local" lighter. */
+export function Wordmark() {
+  return <span className="chat-wordmark">Prism<span>Local</span></span>
 }
 
 function Cards({ message }: { message: Extract<ChatMessage, { type: 'cards' }> }) {
@@ -139,7 +147,7 @@ export function ChatApp() {
       case 'user-image': return <div className="chat-user-image"><img src={message.url} alt={`Your screenshot: ${message.name}`} /><span><LockKeyhole size={11} aria-hidden="true" /> Stays on this device</span></div>
       case 'user-text': return <div className="chat-bubble chat-user-bubble">{message.text}</div>
       case 'agent-text': return <div className="chat-agent-message"><Orb small /><div className="chat-bubble chat-agent-bubble">{message.text}</div></div>
-      case 'typing': return <div className="chat-agent-message"><Orb small /><div className="chat-typing" role="status" aria-label="Latent is reading your screenshot"><i /><i /><i /></div></div>
+      case 'typing': return <div className="chat-agent-message"><Orb small /><div className="chat-typing" role="status" aria-label="PrismLocal is reading your screenshot"><i /><i /><i /></div></div>
       case 'work-steps': return <div className="chat-agent-content"><WorkSteps message={message} /></div>
       case 'cards': return <div className="chat-agent-content"><Cards message={message} /></div>
       case 'receipt': return <div className="chat-agent-content"><button type="button" className="chat-receipt-pill" onClick={() => openReceipt(message.records)}>{receiptLabel(message.records, message.source)}<ChevronRight size={13} aria-hidden="true" /></button></div>
@@ -157,9 +165,9 @@ export function ChatApp() {
       onDragLeave={() => { dragDepth.current = Math.max(0, dragDepth.current - 1); if (dragDepth.current === 0) setDragging(false) }}
       onDrop={drop}>
       <aside className="chat-sidebar" aria-label="Your chats and saved items" inert={drawer}>
-        <div className="chat-brand"><Orb /><span>Latent<span className="chat-brand-dot">.</span></span></div>
+        <div className="chat-brand"><Orb /><Wordmark /></div>
         <div className="chat-sidebar-section"><h2>Chats</h2>
-          <button className="chat-nav-item is-selected" type="button" aria-current="page" onClick={() => composer.current?.focus()}><MessageCircle size={17} aria-hidden="true" /><span>Latent</span><span className="chat-online-dot" /></button>
+          <button className="chat-nav-item is-selected" type="button" aria-current="page" onClick={() => composer.current?.focus()}><MessageCircle size={17} aria-hidden="true" /><span>PrismLocal</span><span className="chat-online-dot" /></button>
           <a className="chat-nav-item" href="?view=feed"><Compass size={17} aria-hidden="true" /><span>Muse Feed</span></a>
         </div>
         <div className="chat-sidebar-section chat-kept"><h2><Bookmark size={13} aria-hidden="true" /> Kept for later <span>{chat.kept.length || ''}</span></h2>
@@ -174,19 +182,19 @@ export function ChatApp() {
           </div>)}
           <button type="button" onClick={() => { void refreshSaved() }}>Sync saved items</button>
           <button type="button" onClick={() => {
-            if (window.confirm('Delete all Latent local data? This removes saved items, library history, the search index, Muse feed items and preferences, and browser Kept copies from Latent. Copies outside the app (backups, other storage) are not affected.')) { setVoiceOpen(false); void clearMemory() }
+            if (window.confirm('Delete all PrismLocal local data? This removes saved items, library history, the search index, Muse feed items and preferences, and browser Kept copies from PrismLocal. Copies outside the app (backups, other storage) are not affected.')) { setVoiceOpen(false); void clearMemory() }
           }}>Delete all local data</button>
         </div>
         <div className="chat-sidebar-footer"><ShieldCheck size={17} aria-hidden="true" /><div>A little more private.<span>A lot more useful.</span></div></div>
       </aside>
       <div className="chat-main" inert={drawer}>
-        <header className="chat-header"><div className="chat-header-identity"><Orb /><div><h1>Latent</h1><p><span className={`chat-status-dot${chat.offline ? ' is-offline' : ''}`} />{status}</p></div></div>
+        <header className="chat-header"><div className="chat-header-identity"><Orb /><div><h1><Wordmark /></h1><p><span className={`chat-status-dot${chat.offline ? ' is-offline' : ''}`} />{status}</p></div></div>
           <div className="chat-header-controls"><label className="chat-airgap"><span>Air-gap</span><button type="button" role="switch" aria-label="Air-gap mode" aria-checked={chat.offline === true} disabled={chat.toggling}
             onClick={() => { void toggleOffline(!chat.offline) }}><span /></button></label>
             <span className="chat-header-divider" /><button type="button" className="chat-receipts-button" onClick={() => openReceipt(null)}><ShieldCheck size={16} aria-hidden="true" /><span>Receipts</span></button></div>
         </header>
         <div className="chat-scroll" ref={scroller} onScroll={() => { const el = scroller.current; if (el) following.current = el.scrollHeight - el.scrollTop - el.clientHeight < 100 }}>
-          <main className="chat-thread" aria-label="Conversation with Latent">
+          <main className="chat-thread" aria-label="Conversation with PrismLocal">
             <div className="chat-day"><span />Today<span /></div>
             {welcomeOnly && <div className="chat-intro"><span className="chat-intro-mark"><Sparkles size={18} strokeWidth={1.5} aria-hidden="true" /></span><h2>What are you looking for?</h2><p>Speak a request. Review it. Get live results.</p></div>}
             <div className="chat-messages" role="log" aria-label="Messages" aria-live="polite" aria-relevant="additions">
@@ -210,7 +218,7 @@ export function ChatApp() {
             <button type="button" className="chat-attach" aria-label="Attach a screenshot" onClick={() => attach.current?.click()}><Plus size={21} aria-hidden="true" /></button>
             <button type="button" className={`chat-attach chat-mic${voiceOpen ? ' is-active' : ''}`} aria-label={voiceOpen ? 'Close voice input' : 'Speak a thought'} aria-expanded={voiceOpen} aria-controls="chat-voice-controls" title={voiceOpen ? 'Close voice input' : 'Speak a thought'} disabled={chat.busy && !voiceOpen} onClick={() => setVoiceOpen(!voiceOpen)}><Mic size={18} aria-hidden="true" /></button>
             <input type="file" ref={attach} accept="image/png,image/jpeg,image/webp" hidden onChange={(event) => { const file = event.currentTarget.files?.[0]; event.currentTarget.value = ''; if (file) { following.current = true; void sendImage(file) } }} />
-            <input ref={composer} value={text} onChange={(event) => setText(event.target.value)} aria-label="Message Latent" placeholder="Message Latent, or speak with the microphone" />
+            <input ref={composer} value={text} onChange={(event) => setText(event.target.value)} aria-label="Message PrismLocal" placeholder="Message PrismLocal, or speak with the microphone" />
             <button type="submit" className="chat-send" aria-label="Send message" disabled={!text.trim()}><ArrowUp size={18} aria-hidden="true" /><span>Send</span></button>
           </form>
           <p className="chat-composer-hint"><LockKeyhole size={11} aria-hidden="true" /> Your audio and screenshots stay on this device.</p>

@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Latent pitch</title>
+<title>PrismLocal pitch</title>
 <!--
-  Latent pitch deck: 7 slides, one <section class="slide"> each, speaker notes in <aside class="notes">.
+  PrismLocal pitch deck: 7 slides, one <section class="slide"> each, speaker notes in <aside class="notes">.
   Present: open this file in any browser. Arrow keys / space / click = next, F = fullscreen, N = notes.
   Edit: change the text in this file; no build step, no network needed.
   PDF: docs/pitch.pdf (slides) and docs/pitch-notes.pdf (open with ?notes, then print). Export steps: README.md, "Pitch deck".
@@ -43,6 +43,12 @@
   .card p, .card li { font-size: 19px; }
   .foot { position: absolute; left: 72px; right: 72px; bottom: 26px; display: flex; justify-content: space-between;
     font: 14px/1 ui-monospace, Menlo, Consolas, monospace; color: var(--muted); }
+  .foot-brand { display: inline-flex; align-items: center; gap: 8px; }
+  .foot-brand img { width: 18px; height: 18px; }
+  .brand { position: absolute; top: 30px; right: 72px; display: flex; align-items: center; gap: 12px;
+    font: 700 28px/1 "Inter", "Manrope", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; letter-spacing: -.02em; }
+  .brand img { width: 44px; height: 44px; filter: drop-shadow(0 0 12px #5b4dff66); }
+  .brand span { font-weight: 400; color: #b4bce6; }
   .big { font-size: 34px; line-height: 1.3; }
   table { border-collapse: collapse; width: 100%; }
   td, th { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--line); font-size: 19px; vertical-align: top; }
@@ -80,6 +86,7 @@
 
 <!-- 1 · Problem -->
 <section class="slide">
+  <div class="brand"><img src="brand/icon-128.png" alt=""><b>Prism<span>Local</span></b></div>
   <div class="kicker">01 · Problem</div>
   <h1>Your camera roll is a graveyard of intentions.</h1>
   <div class="cols">
@@ -97,17 +104,17 @@
       </ul>
     </div>
   </div>
-  <div class="foot"><span>Latent · HACK1984</span><span>1 / 7</span></div>
+  <div class="foot"><span class="foot-brand"><img src="brand/icon-32.png" alt="">PrismLocal · HACK1984</span><span>1 / 7</span></div>
   <aside class="notes">Everyone screenshots things they mean to act on, then never does. Cloud assistants could help, but they upload the whole image, with names, emails and internal numbers. On a work laptop that can break an NDA or a compliance policy, so the screenshots that matter most at work can't go to them.</aside>
 </section>
 
-<!-- 2 · Latent -->
+<!-- 2 · PrismLocal -->
 <section class="slide">
-  <div class="kicker">02 · Latent</div>
+  <div class="kicker">02 · PrismLocal</div>
   <h1>Drop a screenshot. Get actions back.<br><span class="local">The image never leaves your laptop.</span></h1>
   <div class="cols" style="grid-template-columns: 1.4fr 1fr;">
     <figure style="margin:0;position:relative;height:440px;border:2px dashed var(--tbd);border-radius:12px;overflow:hidden;background:#0b0f14;">
-      <img src="screenshots/card-gallery.png" alt="Action card gallery: the card types Latent renders" style="width:100%;height:100%;object-fit:cover;object-position:top;display:block;">
+      <img src="screenshots/card-gallery.png" alt="Action card gallery: the card types PrismLocal renders" style="width:100%;height:100%;object-fit:cover;object-position:top;display:block;">
       <figcaption class="tbd" style="position:absolute;left:0;right:0;bottom:0;padding:8px 12px;background:rgba(11,15,20,.85);font:600 15px/1.3 ui-monospace,Menlo,Consolas,monospace;">[TBD: interim card gallery, replace with a still of cards blooming on the dashboard (concert flyer → tickets, calendar, map)]</figcaption>
     </figure>
     <div>
@@ -116,8 +123,8 @@
       <p>Results come back as cards you can act on: <b>Add to calendar</b>, buy tickets, open in Maps.</p>
     </div>
   </div>
-  <div class="foot"><span>Latent · HACK1984</span><span>2 / 7 · then live demo</span></div>
-  <aside class="notes">Latent turns a screenshot into actions without the image leaving your laptop. A local model reads it, private details are stripped, and only short public text queries go to the web. Results bloom as cards you can act on. HAND-OFF: switch to the live demo now (concert flyer, then air-gap). Come back for slide 3.</aside>
+  <div class="foot"><span class="foot-brand"><img src="brand/icon-32.png" alt="">PrismLocal · HACK1984</span><span>2 / 7 · then live demo</span></div>
+  <aside class="notes">PrismLocal turns a screenshot into actions without the image leaving your laptop. A local model reads it, private details are stripped, and only short public text queries go to the web. Results bloom as cards you can act on. HAND-OFF: switch to the live demo now (concert flyer, then air-gap). Come back for slide 3.</aside>
 </section>
 
 <!-- 3 · Architecture -->
@@ -186,7 +193,7 @@
     <path d="M985,230 C985,450 420,450 254,372" fill="none" stroke="#93a1b2" stroke-width="2" stroke-dasharray="6 6" marker-end="url(#ah)"/>
     <text x="560" y="446" text-anchor="middle" fill="#93a1b2" font-family="system-ui,Segoe UI,Roboto,Arial,sans-serif" font-size="15">search results come back as text</text>
   </svg>
-  <div class="foot"><span>Latent · HACK1984</span><span>3 / 7</span></div>
+  <div class="foot"><span class="foot-brand"><img src="brand/icon-32.png" alt="">PrismLocal · HACK1984</span><span>3 / 7</span></div>
   <aside class="notes">Green is your laptop: Qwen2.5-VL reads the image through Ollama on loopback, the scrubber strips PII, the query builder keeps only public entities. One arrow crosses: up to three short text queries, each request at most 4 KB. The egress guard runs on your laptop, right at the boundary: it is the only module allowed to open a connection, it logs every attempt, and the request crosses only after it passes.</aside>
 </section>
 
@@ -218,7 +225,7 @@
     </div>
     <div class="ph" style="font-size:17px">[TBD: air-gap demo still<br>internal email: extraction done locally, search ✕ blocked in the audit log]</div>
   </div>
-  <div class="foot"><span>Latent · HACK1984</span><span>4 / 7</span></div>
+  <div class="foot"><span class="foot-brand"><img src="brand/icon-32.png" alt="">PrismLocal · HACK1984</span><span>4 / 7</span></div>
   <aside class="notes">We don't claim magic, we show it. Ten fake-PII screenshots: intent accuracy [TBD], leaks [TBD exact]. Six egress rules in egress.py, and a test fails if any other module opens a connection. You saw air-gap: extraction finished locally, search blocked, and the audit log lists every outbound request with its byte count.</aside>
 </section>
 
@@ -244,7 +251,7 @@
       </ul>
     </div>
   </div>
-  <div class="foot"><span>Latent · HACK1984</span><span>5 / 7</span></div>
+  <div class="foot"><span class="foot-brand"><img src="brand/icon-32.png" alt="">PrismLocal · HACK1984</span><span>5 / 7</span></div>
   <aside class="notes">Two lines of revenue. Consumers get it free; when they buy tickets, products or books from a card, an affiliate tag earns a share. The hook, affiliate.tag_url, exists today and is a pass-through. Companies would pay for a planned enterprise tier: on-prem model, admin policy controls and audit-log export for compliance.</aside>
 </section>
 
@@ -291,14 +298,14 @@
       </ul>
     </div>
   </div>
-  <div class="foot"><span>Latent · HACK1984</span><span>6 / 7</span></div>
+  <div class="foot"><span class="foot-brand"><img src="brand/icon-32.png" alt="">PrismLocal · HACK1984</span><span>6 / 7</span></div>
   <aside class="notes">How does this scale to millions? The expensive part, the vision model, runs on each user's own machine, so our servers only carry a thin search proxy, accounts and billing; we never pay for GPUs and we never hold anyone's screenshots. The path: an installable desktop app that bundles the local runtime and picks a model that fits the user's RAM; then our own search proxy, so API keys leave the device, with no query logs and rate limits; then enterprise pilots with a self-hosted proxy or a full air-gap; then on-device mobile. Trust has to scale too: one egress point, an outbound log users can read, the leak-test eval on fake-PII screenshots, and later a third-party audit and SOC 2. Revenue: a free tier with a search cap, a Pro subscription, affiliate links that carry no user data, and per-seat enterprise. Risks: weak laptops get smaller model tiers or an OCR-only mode; against platform owners we are cross-platform, inspectable and enterprise-first; search cost is handled with caching and caps.</aside>
 </section>
 
 <!-- 7 · Tracks + ask -->
 <section class="slide">
   <div class="kicker">07 · Tracks + ask</div>
-  <h2>Why Latent fits each track</h2>
+  <h2>Why PrismLocal fits each track</h2>
   <table>
     <tr><th style="width:24%">Track</th><th>How we meet it</th></tr>
     <tr><td><b>Privacy-First</b></td><td>Vision runs locally; one egress module with six rules; air-gap switch; audit log of every outbound request and its size; leak eval on fake-PII screenshots.</td></tr>
@@ -310,7 +317,7 @@
     <div class="card"><h3>What's next</h3><p style="margin:0">Opt-in auto-ingest from the screenshot folder, a local intent library, Exa related-content cards.</p></div>
     <div class="card"><h3>Our ask</h3><p class="tbd" style="margin:0">[TBD: the ask, e.g. pilot teams or feedback]</p></div>
   </div>
-  <div class="foot"><span>Latent · HACK1984</span><span>7 / 7</span></div>
+  <div class="foot"><span class="foot-brand"><img src="brand/icon-32.png" alt="">PrismLocal · HACK1984</span><span>7 / 7</span></div>
   <aside class="notes">Privacy-First: local vision, one guarded door, air-gap, audit log, leak eval. SURGE: Tavily turns scrubbed entities into real actions; Exa is our stretch. Startup: everyone has this problem, consumers are free, enterprises pay. Next: opt-in auto-ingest, a local intent library, Exa cards. Our ask: [TBD]. Thank you.</aside>
 </section>
 

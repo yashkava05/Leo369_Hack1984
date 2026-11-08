@@ -1,4 +1,4 @@
-"""Provider-neutral local bridge between the Latent browser extension and the backend (#67).
+"""Provider-neutral local bridge between the PrismLocal browser extension and the backend (#67).
 
 The extension reads an explicitly authorized tab (Outlook Web #67, Teams Web #68) and hands
 the page text to this process. Nothing here opens a network connection: the extension posts to
@@ -311,7 +311,7 @@ def require_viewer(job: BrowserJob | None, token: str | None) -> BrowserJob:
 
 # Per-launch secret for the UI routes. The backend writes it to a 0600 file; the Vite dev proxy
 # reads that file and adds it as a header, so page JavaScript never sees it. A page that is not
-# served through Latent's own proxy (another dev server on :5173, a cross-origin page) cannot
+# served through PrismLocal's own proxy (another dev server on :5173, a cross-origin page) cannot
 # create jobs or read results, even though its Origin header looks right.
 _UI_SECRET = secrets.token_urlsafe(32)
 UI_SECRET_HEADER = "x-latent-ui-secret"
@@ -353,7 +353,7 @@ def unpublish_ui_secret() -> None:
 
 
 def require_ui(origin: str | None, secret: str | None, *, need_origin: bool) -> None:
-    """UI routes: the launch secret (added by Latent's proxy) plus a UI Origin when present.
+    """UI routes: the launch secret (added by PrismLocal's proxy) plus a UI Origin when present.
 
     Browsers always send Origin on POST, so job creation requires it; same-origin GET/DELETE
     through the proxy carry none and rely on the secret plus the per-job view token.

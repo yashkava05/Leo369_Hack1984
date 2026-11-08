@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-  Latent on Windows: check, set up and start the whole app with one command.
+  PrismLocal on Windows: check, set up and start the whole app with one command.
 
 .DESCRIPTION
   The Windows counterpart of scripts/setup.sh + scripts/dev.sh, for the demo laptop. It:
@@ -209,7 +209,7 @@ if (-not $Mock -and (Get-Setting 'LATENT_MOCK' '0') -match '^(1|true|yes|on)$') 
 }
 
 $mode = if ($Check) { 'readiness check (dry run, nothing is changed)' } else { 'setup + start' }
-Write-Host "Latent on Windows: $mode"
+Write-Host "PrismLocal on Windows: $mode"
 Write-Host "repo: $Root"
 if ($Mock) { Write-Host "mock mode: the backend replays fixtures; Ollama is not needed$mockSource" }
 if ($AirGap) { Write-Host "air-gap: the backend starts with every outbound request blocked (LATENT_OFFLINE=1)" }
@@ -369,7 +369,7 @@ foreach ($key in 'TAVILY_API_KEY', 'EXA_API_KEY') {
 }
 
 foreach ($port in $BackendPort, $FrontendPort) {
-  if (Test-PortListening $port) { Fail "port $port is already in use" "stop whatever is using it (another Latent running? check: Get-NetTCPConnection -LocalPort $port -State Listen)" }
+  if (Test-PortListening $port) { Fail "port $port is already in use" "stop whatever is using it (another PrismLocal running? check: Get-NetTCPConnection -LocalPort $port -State Listen)" }
   else { Ok "port $port is free" }
 }
 
@@ -456,7 +456,7 @@ if ($Reinstall -or -not (Test-Path -LiteralPath $ViteJs) -or (Read-Stamp $NpmSta
 }
 
 # --- 3. Start ---------------------------------------------------------------------------------
-Step 'Starting Latent'
+Step 'Starting PrismLocal'
 
 $procs = @()
 $savedEnv = @{}
@@ -513,7 +513,7 @@ try {
   if (-not $up) { throw "the frontend did not answer on :$FrontendPort within 60 s" }
 
   Write-Host ""
-  Ok "Latent is up: http://localhost:$FrontendPort"
+  Ok "PrismLocal is up: http://localhost:$FrontendPort"
   if ($Wsl) {
     Info "From WSL use the Windows host address: http://<host>:$FrontendPort, http://<host>:$BackendPort/api/health"
     Info "and OLLAMA_HOST=http://<host>:11434, where <host> is: ip route show default | awk '{print `$3}'"

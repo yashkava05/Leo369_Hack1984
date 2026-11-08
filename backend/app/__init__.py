@@ -1,1 +1,1 @@
-"""Latent backend application package."""
+"""PrismLocal backend application package."""
