@@ -178,7 +178,8 @@ async def _run_stages(job: jobs.JobState, box: list[bytes], timings: dict[str, i
     # --- query (local) ------------------------------------------------------------
     t0 = time.perf_counter()
     queries: list[SearchQuery] = await asyncio.to_thread(build_queries, scrubbed)
-    related_q = related_query(scrubbed)  # Exa only; never sent to Tavily
+    # Exa only; never sent to Tavily.
+    related_q = await asyncio.to_thread(related_query, scrubbed)
     plural = "y" if len(queries) == 1 else "ies"
     await _publish(
         job,

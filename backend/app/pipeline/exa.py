@@ -230,12 +230,16 @@ async def related_concurrent(
         await _emit_local(job_id, DISABLED_MESSAGE)
         return []
 
-    similar: list[ExaResult] = []
-    if top_url:
-        similar = await _post(
-            EXA_SIMILAR_URL, similar_body(top_url), key, job_id, allow_terms, errors
-        )
-    found = await search_task if search_task is not None else []
+    try:
+        similar: list[ExaResult] = []
+        if top_url:
+            similar = await _post(
+                EXA_SIMILAR_URL, similar_body(top_url), key, job_id, allow_terms, errors
+            )
+        found = await search_task if search_task is not None else []
+    finally:
+        if search_task is not None and not search_task.done():
+            search_task.cancel()
     return build_related_cards(found, similar, exclude)
 
 
