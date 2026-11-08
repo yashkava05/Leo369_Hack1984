@@ -1,0 +1,49 @@
+{
+  "search": {
+    "requestId": "req_fake_search_0001",
+    "resolvedSearchType": "neural",
+    "results": [
+      {
+        "id": "https://openshelf.test/works/glass-orchard",
+        "title": "The Glass Orchard - Mira Calloway",
+        "url": "https://openshelf.test/works/glass-orchard",
+        "publishedDate": "2025-04-02T00:00:00.000Z",
+        "author": "Openshelf staff",
+        "text": "Published 2025, 352 pages."
+      },
+      {
+        "id": "https://longreads.test/essays/orchards-and-sisters",
+        "title": "  Orchards, sisters and   inheritance: reading The Glass Orchard ",
+        "url": "https://longreads.test/essays/orchards-and-sisters?utm_source=exa",
+        "publishedDate": "2025-06-18T09:30:00.000Z",
+        "author": "Rowan Pell",
+        "text": "Mira Calloway's second novel follows three sisters who inherit a failing orchard in a valley that is slowly drying out. The book is less about farming than about what each sister believes she owes the others, and the essay traces how the orchard becomes a ledger of debts that no one agreed to keep. It closes with a look at the novel's divisive ending and why it works."
+      },
+      {
+        "id": "https://bookclubnotes.test/guides/glass-orchard",
+        "title": "The Glass Orchard book club guide",
+        "url": "https://bookclubnotes.test/guides/glass-orchard",
+        "text": "Discussion questions and themes for The Glass Orchard."
+      },
+      { "title": "no url here" }
+    ]
+  },
+  "findSimilar": {
+    "requestId": "req_fake_similar_0001",
+    "results": [
+      {
+        "id": "https://quietreview.test/2025/glass-orchard-review",
+        "title": "Review: The Glass Orchard",
+        "url": "https://quietreview.test/2025/glass-orchard-review",
+        "publishedDate": "2025-05-10T00:00:00.000Z",
+        "text": "A patient family novel with a sharp final act."
+      },
+      {
+        "id": "https://quietreview.test/2024/the-salt-ledger-review",
+        "title": "Review: The Salt Ledger",
+        "url": "https://quietreview.test/2024/the-salt-ledger-review",
+        "text": "Another slow-burning family saga set on a failing farm."
+      }
+    ]
+  }
+}
