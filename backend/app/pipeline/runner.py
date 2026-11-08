@@ -22,11 +22,12 @@ import time
 from PIL import Image, UnidentifiedImageError
 
 from app import jobs
-from app.models import Intent, JobResult, SearchQuery, StageEvent
+from app.models import Card, Intent, JobResult, SearchQuery, StageEvent
 from app.pipeline import cards as cards_mod
+from app.pipeline import exa as exa_mod
 from app.pipeline import search as search_mod
 from app.pipeline.extract import extract_intent
-from app.pipeline.query import build_queries
+from app.pipeline.query import build_queries, related_query
 from app.pipeline.scrub import scrub_intent
 
 log = logging.getLogger(__name__)
@@ -108,6 +109,23 @@ async def run_job(job_id: str, image_bytes: bytes, filename: str) -> None:
         return
 
     timings: dict[str, int] = {}
+    # Hand the bytes over in a box so the stages can drop the last reference after extract.
+    box = [image_bytes]
+    del image_bytes
+    try:
+        await _run_stages(job, box, timings)
+    except Exception as exc:
+        # Backstop: an unexpected failure in scrub/query/cards must still end the stream with
+        # a terminal event, or the job stays "running" and subscribers wait forever.
+        # Log the type only: exception text can carry entity values.
+        log.error("job %s failed unexpectedly (%s)", job_id, type(exc).__name__)
+        if not job.finished:
+            await _finish_error(job, f"internal error ({type(exc).__name__})", timings)
+
+
+async def _run_stages(job: jobs.JobState, box: list[bytes], timings: dict[str, int]) -> None:
+    job_id = job.job_id
+    image_bytes = box.pop()
 
     # --- ingest (local) -----------------------------------------------------------
     t0 = time.perf_counter()
@@ -160,6 +178,8 @@ async def run_job(job_id: str, image_bytes: bytes, filename: str) -> None:
     # --- query (local) ------------------------------------------------------------
     t0 = time.perf_counter()
     queries: list[SearchQuery] = await asyncio.to_thread(build_queries, scrubbed)
+    # Exa only; never sent to Tavily.
+    related_q = await asyncio.to_thread(related_query, scrubbed)
     plural = "y" if len(queries) == 1 else "ies"
     await _publish(
         job,
@@ -175,20 +195,38 @@ async def run_job(job_id: str, image_bytes: bytes, filename: str) -> None:
     allow_terms = {e.value for e in scrubbed.public_entities if e.type in ("performer", "author")}
 
     # --- search (network) ---------------------------------------------------------
+    # Tavily and Exa run concurrently; Exa's findSimilar waits only for the Tavily answer.
     t0 = time.perf_counter()
     for q in queries:
         await _publish(job, "search", "start", f"search → {q.text}", local=False)
+    tavily_task = asyncio.create_task(search_mod.search(queries, job_id, allow_terms))
+
+    async def tavily_context() -> exa_mod.TavilyContext:
+        return exa_mod.tavily_context(queries, await tavily_task)
+
+    related_cards: list[Card] = []
+    exa_task = None
+    if related_q is not None:
+        exa_task = asyncio.create_task(
+            exa_mod.related_concurrent([related_q], tavily_context(), job_id, allow_terms)
+        )
     try:
-        results = await search_mod.search(queries, job_id, allow_terms)
+        results = await tavily_task
     except Exception as exc:  # search never raises, but degrade gracefully if it ever does
         log.info("search failed for %s: %s", job_id, type(exc).__name__)
         results = {}
+    if exa_task is not None:
+        try:
+            related_cards = await exa_task
+        except Exception as exc:  # Exa never raises either; related cards are optional
+            log.info("exa failed for %s: %s", job_id, type(exc).__name__)
     search_note = SEARCH_DEGRADED_NOTE if queries and not results else None
     await _publish(
         job,
         "search",
         "ok",
-        f"{len(results)} of {len(queries)} queries returned results",
+        f"{len(results)} of {len(queries)} queries returned results"
+        + (f" · {len(related_cards)} related from Exa" if related_cards else ""),
         local=False,
         data={"found": len(results)},
     )
@@ -197,6 +235,7 @@ async def run_job(job_id: str, image_bytes: bytes, filename: str) -> None:
     # --- cards (local) ------------------------------------------------------------
     t0 = time.perf_counter()
     cards = await asyncio.to_thread(cards_mod.build_cards, scrubbed, queries, results)
+    cards = exa_mod.merge_cards(cards, related_cards)
     await _publish(
         job,
         "cards",

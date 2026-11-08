@@ -20,7 +20,14 @@ cd latent
 ./scripts/setup.sh          # .env, Ollama model pull + smoke test, backend/.venv, spaCy model, frontend deps
 ```
 
-Then run each server in its own terminal:
+Then start everything with one command (Ollama if needed, the backend on :8000, the frontend on
+:5173; Ctrl+C stops both servers):
+
+```bash
+./scripts/dev.sh
+```
+
+Or run each server in its own terminal:
 
 ```bash
 # Terminal 1: backend on http://localhost:8000
@@ -30,7 +37,8 @@ cd backend && source .venv/bin/activate && uvicorn app.main:app --reload --port 
 cd frontend && npm run dev
 ```
 
-Open http://localhost:5173: the page shows the JSON from `GET /api/health`.
+Open http://localhost:5173 and drop a screenshot (try `eval/screenshots/concert_ig.png`). The Vite dev
+server proxies `/api` to the backend; banners appear if the local model is down or no Tavily key is set.
 
 <details><summary>Manual setup (instead of scripts/setup.sh)</summary>
 
@@ -85,8 +93,28 @@ All settings live in one repo-root `.env` (copy `.env.example`). The backend rea
 | `TAVILY_API_KEY` | empty | backend |
 | `EXA_API_KEY` | empty | backend |
 | `LATENT_MOCK` | `0` | backend |
-| `VITE_API_URL` | `http://localhost:8000` | frontend |
+| `LATENT_WATCH_DIR` | empty (off) | backend, see [Auto-ingest](#auto-ingest-from-the-screenshot-folder) |
+| `VITE_API_URL` | empty (same origin, via the Vite `/api` proxy) | frontend |
 | `VITE_MOCK` | `0` | frontend |
+
+## Auto-ingest from the screenshot folder
+
+Opt-in and off by default. Set `LATENT_WATCH_DIR` to a folder and every new screenshot saved there
+starts a job within about a second; the open UI shows a "Watching ~/Desktop" pill and follows the
+newest job unless you are in the middle of one.
+
+```bash
+LATENT_WATCH_DIR=~/Desktop uvicorn app.main:app --port 8000   # from backend/
+```
+
+- Find the macOS screenshot folder with `defaults read com.apple.screencapture location`. If that
+  prints "does not exist", screenshots go to the default, `~/Desktop`.
+- Only new `.png`, `.jpg`, `.jpeg` and `.webp` files are picked up (including the macOS
+  temp-name-then-rename save); hidden and temp files, files over 10 MB and files already in the
+  folder are ignored (renaming one of them does not count as new). A file must stop growing for 500 ms before it is read, so half-written
+  files never start a job.
+- Latent only reads the file. It never moves, edits or deletes anything in the folder, and the
+  image bytes stay on this machine exactly as with a dropped screenshot.
 
 ## Checks
 

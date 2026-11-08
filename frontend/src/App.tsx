@@ -7,6 +7,7 @@ import { HealthBanner } from './components/HealthBanner'
 import { LeftDeviceSummary } from './components/LeftDeviceSummary'
 import { StageStrip } from './components/StageStrip'
 import { Terminal } from './components/Terminal'
+import { WatchPill } from './components/WatchPill'
 import { dropDisabledReason, healthBanners, useHealth } from './state/useHealth'
 import { useJob } from './state/useJob'
 import './App.css'
@@ -23,6 +24,7 @@ function App() {
         <h1 className="app-title">Latent</h1>
         <div className="app-header-tools">
           <AirGapToggle />
+          <WatchPill />
           <AuditDrawer />
         </div>
       </header>
