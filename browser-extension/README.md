@@ -1,8 +1,9 @@
 # Latent Browser Bridge (Chrome extension)
 
-Lets Latent read **one Outlook on the web tab you explicitly share**, read-only, for one
-request you reviewed and confirmed in Latent (issue #67). Teams Web (#68) will reuse
-`bridge-core.js` and the backend bridge with its own adapter under `providers/`.
+Lets Latent read **one Outlook on the web tab** (issue #67) or **one Teams on the web chat or
+channel** (issue #68) that you explicitly share, read-only, for one request you reviewed and
+confirmed in Latent. Both reuse `bridge-core.js` and the backend bridge; each has its own
+adapter under `providers/` and its own Chrome site permission.
 
 ## Load it (unpacked)
 
@@ -30,6 +31,7 @@ exits. While a read runs, the toolbar icon shows a **READ** badge.
 | Permission | Why |
 | --- | --- |
 | `optional_host_permissions`: `outlook.office.com`, `outlook.office365.com`, `outlook.live.com`, `outlook.cloud.microsoft` | Requested at runtime, one origin at a time, only when you click **Allow this Outlook tab**. Never all sites. |
+| `optional_host_permissions`: `teams.microsoft.com`, `teams.cloud.microsoft`, `teams.live.com` | Requested separately, only when you click **Allow this Teams chat**. An Outlook grant never covers Teams. |
 | `activeTab` | Lets the popup see which tab you clicked it on. No other tab is inspected. |
 | `scripting` | Injects the read-only Outlook reader into the shared tab, only after Latent confirmed a request. There is no always-on content script. |
 | `storage` | `chrome.storage.session` only: the shared tab id, origin, account fingerprint and account label. Memory only. |
@@ -93,15 +95,56 @@ Not requested: cookies, tabs, history, downloads, webRequest, native messaging, 
   not control it. Air-gap stops Latent from reading; it does not disconnect other tabs.
 - Your cookies, passwords and tokens stay in Chrome. The extension never reads them.
 
+## Teams on the web (#68)
+
+1. Open Teams on the web (Chrome desktop) in the same profile, sign in as usual, and open the
+   **one chat or channel** Latent may read. Government clouds (`*.microsoft.us`) and the native
+   Teams apps are not supported.
+2. Click the Latent icon → **Allow this Teams chat** → accept Chrome's prompt for that Teams site.
+   The popup records the open conversation (its title and an opaque fingerprint), the account
+   and the tenant name. If no chat/channel is open, sharing fails with "nothing selected".
+3. In Latent, tap the mic, say e.g. "What have I been asked to do in this channel?", review the
+   text, choose **Check Teams**, tick **Read only this channel: …**, check the scope (most recent,
+   today or unread; at most 20; replies only for channels and only when ticked), then read.
+
+How it stays scoped:
+- Latent never searches or picks a conversation. If your request names another chat ("in the
+  Finance channel") Latent says so and still reads only the shared one, after you confirm it.
+- The backend binds the job to the fingerprint you confirmed. The extension refuses to read if
+  the tab now shows another conversation, account or tenant (`conversation_changed`,
+  `account_changed`), the grant was revoked, you are signed out, or the organization blocks it.
+- The reader scrolls the open timeline from the newest message upward (at most 15 steps,
+  explicit waits, 12 s), deduplicates re-rendered messages, stops at the count, the start of
+  today, the "New messages" divider or the top of the history, and scrolls back. It never
+  clicks, so collapsed thread replies are **not expanded**: they are reported as incomplete.
+  In unread mode, if no "New messages" divider can be found Latent returns nothing rather than
+  guess.
+- A message link is kept only if Teams itself rendered a message permalink; otherwise Latent
+  shows an honest locator (conversation · author · time). It never builds a link.
+- Tasks need an explicit request quoted verbatim from the message; the owner is shown only
+  when the message @mentions or names that person, otherwise it is "unknown". Messages with
+  instructions aimed at an assistant are flagged and produce no tasks or summary points.
+
+Read receipts: Teams may mark messages as read or send read receipts while a conversation is
+open or scrolled, depending on your and your organization's settings. Latent cannot promise a
+silent read, and scrolling also makes Teams load older messages from Microsoft (browser
+network traffic, shown as **Browser · Internet**).
+
 ## Tests
 
 ```bash
 node --test browser-extension/test
 ```
 
-Covers the bounded virtualized-list reader (count, max 20, dedup, lazy load, scroll and time
+`bridge-core.test.js` covers the bounded virtualized-list reader (count, max 20, dedup, lazy load, scroll and time
 budgets, cancel, scroll restore), the origin allowlist, page-message validation and static
 checks that the extension has no write/navigation/cookie code or extra permissions.
+`teams.test.js` covers the Teams timeline reader (newest-first, max 20, dedup, today/unread
+boundaries, replies in/out of scope, unloaded threads, budgets, cancel, scroll restore,
+permalink filter, origin allowlist). `worker.test.js` runs `background.js` in a sandbox with a
+fake `chrome`: separate Teams grant, confirmed conversation, account/conversation switches,
+revoked grant, cancel dropping late results, and the unchanged Outlook payload.
 
-Live Outlook DOM selectors are in `providers/outlook.js`; validate them against a real signed-in
-inbox before a demo (see the PR for the manual checklist).
+Live Outlook DOM selectors are in `providers/outlook.js` and Teams selectors in
+`providers/teams.js`; validate them against a real signed-in session before a demo (see the
+PRs for the manual checklists).

@@ -114,11 +114,13 @@ test('origin allowlist rejects lookalikes', () => {
   }
   for (const url of [
     'http://outlook.office.com/mail/', 'https://outlook.office.com.evil.example/', 'https://evil.example/?u=outlook.office.com',
-    'https://outlook.office.com:8443/', 'https://user:pw@outlook.office.com/', 'https://outlook-office.com/', 'https://teams.microsoft.com/',
+    'https://outlook.office.com:8443/', 'https://user:pw@outlook.office.com/', 'https://outlook-office.com/',
     'javascript:alert(1)', 'not a url',
   ]) {
     assert.equal(core.providerForUrl(url), null, url)
   }
+  // Teams Web is its own provider (#68): never matched as Outlook, so an Outlook grant cannot cover it.
+  assert.equal(core.providerForUrl('https://teams.microsoft.com/').provider, 'teams')
 })
 
 test('page messages are schema-checked', () => {
@@ -150,7 +152,7 @@ test('manifest never requests all sites, cookies, tabs or history', () => {
 })
 
 test('extension code has no write, navigation, link or credential actions', () => {
-  const files = ['background.js', 'bridge-core.js', 'popup.js', 'providers/outlook.js']
+  const files = ['background.js', 'bridge-core.js', 'popup.js', 'providers/outlook.js', 'providers/teams.js']
   const forbidden = [
     /\.click\(/, /dispatchEvent\(/, /chrome\.tabs\.(create|update|remove|move|highlight)\b/, /window\.open\(/,
     /location\.(assign|replace|href\s*=)/, /chrome\.cookies/, /document\.cookie/, /localStorage|indexedDB/,
@@ -166,7 +168,7 @@ test('extension code has no write, navigation, link or credential actions', () =
   assert.equal((worker.match(/fetch\(/g) || []).length, 1)
   assert.ok(worker.includes('fetch(core.BACKEND +'))
   assert.equal(core.BACKEND, 'http://127.0.0.1:8000')
-  for (const file of ['bridge-core.js', 'providers/outlook.js', 'popup.js']) {
+  for (const file of ['bridge-core.js', 'providers/outlook.js', 'providers/teams.js', 'popup.js']) {
     assert.ok(!/fetch\(/.test(fs.readFileSync(path.join(ROOT, file), 'utf8')), file)
   }
 })

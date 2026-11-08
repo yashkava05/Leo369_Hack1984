@@ -1,0 +1,23 @@
+/* Teams browser-session panel (#68). Builds on outlook.css; defines the voice button tokens so
+   the panel's buttons are styled even outside .voice-capture. */
+.teams-panel { --v-text: var(--chat-ink, #18202c); --v-muted: var(--chat-muted, #5d6877); --v-surface: var(--chat-surface, #fff); --v-field: var(--chat-sunk, #f4f6f9); --v-border: var(--chat-line, #d6dce4); --v-accent: var(--chat-me, #5b4bdb); --v-on-accent: #fff; min-width: 0; }
+.teams-panel :is(button, select, input):focus-visible { outline: 2px solid var(--v-accent); outline-offset: 2px; }
+.teams-panel h3:focus { outline: none; }
+.teams-source { grid-column: 1 / -1; display: grid; gap: 6px; }
+.teams-confirm, .teams-replies { grid-column: 1 / -1; display: flex; gap: 8px; align-items: flex-start; font-size: 0.86rem; overflow-wrap: anywhere; }
+.teams-confirm input, .teams-replies input { margin-top: 3px; min-height: auto; }
+.teams-mismatch { margin: 0; padding: 8px 10px; border-radius: 8px; font-size: 0.82rem; color: var(--chat-net, #b8701a); background: var(--chat-net-bg, #fbf0df); }
+.teams-caveat { color: var(--chat-net, #b8701a); }
+.teams-h { margin: 0 0 6px; font-size: 0.86rem; }
+.teams-points { display: grid; gap: 4px; margin: 0; padding-left: 18px; font-size: 0.86rem; overflow-wrap: anywhere; }
+.teams-owner { display: inline-flex; gap: 4px; align-items: center; font-weight: 600; }
+.teams-owner.is-unknown { font-weight: 500; font-style: italic; }
+.teams-locator { display: inline-flex; gap: 4px; align-items: center; font-size: 0.74rem; color: var(--chat-muted, #5d6877); overflow-wrap: anywhere; }
+a.teams-locator { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+/* Phones: wrap the actions instead of pushing Stop/Close off-screen. */
+@media (max-width: 480px) {
+  .teams-panel { padding: 12px; }
+  .teams-panel .teams-actions { flex-wrap: wrap; }
+  .teams-panel .teams-actions .voice-primary, .teams-panel .teams-actions .voice-secondary { flex: 1 1 100%; }
+  .teams-scope { grid-template-columns: 1fr; }
+}

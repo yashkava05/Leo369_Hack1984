@@ -1,4 +1,4 @@
-"""Browser-session agent routes (#67): the Latent UI and the Latent extension meet here.
+"""Browser-session agent routes (#67, Teams #68): the Latent UI and the extension meet here.
 
 UI (Latent's proxy adds the launch secret; view token per job): POST /browser/jobs ·
     GET/DELETE /browser/jobs/{id}
@@ -18,20 +18,39 @@ from fastapi import APIRouter, Header, HTTPException, Request, Response
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from app import browser_bridge as bridge
-from app import egress, outlook
+from app import egress, outlook, teams
 from app.config import get_settings
 from app.pipeline.text_intent import normalize_text
 
 router = APIRouter(prefix="/browser")
-PROVIDERS = {outlook.PROVIDER: outlook}
+PROVIDERS = {outlook.PROVIDER: outlook, teams.PROVIDER: teams}
 
 
 class CreateJob(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    provider: Literal["outlook"]
+    provider: Literal["outlook", "teams"]
     request: str = Field(min_length=1, max_length=1000)
-    mode: Literal["latest", "unread", "selected"]
-    count: int = Field(ge=1, le=outlook.MAX_COUNT)
+    mode: Literal["latest", "unread", "selected", "today"]
+    count: int = Field(ge=1, le=max(outlook.MAX_COUNT, teams.MAX_COUNT))
+    # Teams only (#68): the chat/channel fingerprint the user explicitly confirmed, and whether
+    # thread replies are in scope. Outlook requests must leave these unset.
+    source: str | None = Field(None, max_length=16)
+    source_confirmed: bool = False
+    replies: bool = False
+
+
+def _scope(item: CreateJob) -> bridge.Scope:
+    if item.provider == teams.PROVIDER:
+        return teams.validate_scope(
+            item.mode,
+            item.count,
+            replies=item.replies,
+            source=item.source,
+            confirmed=item.source_confirmed,
+        )
+    if item.source is not None or item.source_confirmed or item.replies:
+        raise bridge.BridgeError("invalid_scope", 422)
+    return outlook.validate_scope(item.mode, item.count)
 
 
 def _raise(exc: bridge.BridgeError) -> None:
@@ -59,13 +78,20 @@ def _parse(model: type[BaseModel], data: Any) -> Any:
 
 
 def _airgap(job: bridge.BrowserJob | None = None) -> None:
-    """Air-gap disables browser retrieval: Outlook pages load mail from Microsoft (NET)."""
+    """Air-gap disables browser retrieval: Outlook/Teams pages load content from Microsoft."""
     if egress.is_offline():
         if job is not None and job.status not in bridge.TERMINAL:
             job.status, job.error = "blocked", "airgap_on"
             job.wipe()
             bridge.audit(job, "blocked_airgap", "browser")
         raise HTTPException(423, "airgap_on")
+
+
+def _scope_view(job: bridge.BrowserJob) -> dict[str, Any]:
+    scope: dict[str, Any] = {"mode": job.scope.mode, "count": job.scope.count}
+    if job.provider == teams.PROVIDER:
+        scope["replies"] = job.scope.replies
+    return scope
 
 
 def _view(job: bridge.BrowserJob) -> dict[str, Any]:
@@ -110,7 +136,7 @@ def _view(job: bridge.BrowserJob) -> dict[str, Any]:
         "provider": job.provider,
         "status": job.status,
         "error": job.error,
-        "scope": {"mode": job.scope.mode, "count": job.scope.count},
+        "scope": _scope_view(job),
         "origin": job.origin,
         "inspected": job.inspected,
         "coverage": coverage,
@@ -149,7 +175,7 @@ async def create_job(request: Request) -> dict[str, Any]:
     item = _parse(CreateJob, await _json(request, 4096))
     try:
         text = normalize_text(item.request)
-        scope = outlook.validate_scope(item.mode, item.count)
+        scope = _scope(item)
     except ValueError:
         raise HTTPException(422, "invalid_payload") from None
     except bridge.BridgeError as exc:
@@ -159,7 +185,7 @@ async def create_job(request: Request) -> dict[str, Any]:
         "job_id": job.job_id,
         "nonce": job.nonce,
         "view_token": job.view_token,
-        "scope": {"mode": scope.mode, "count": scope.count},
+        "scope": _scope_view(job),
         "expires_in_s": bridge.JOB_TTL_S,
     }
 
@@ -220,7 +246,10 @@ async def claim(job_id: str, request: Request) -> dict[str, Any]:
     job.timings_ms["claimed_at_ms"] = int((time.time() - job.created) * 1000)
     bridge.audit(job, "claimed", "local")
     # The scope comes from the backend, never from the page or the UI message.
-    return {"provider": job.provider, "mode": job.scope.mode, "count": job.scope.count}
+    scope = {"provider": job.provider, "mode": job.scope.mode, "count": job.scope.count}
+    if hasattr(provider, "claim_scope"):
+        scope.update(provider.claim_scope(job))
+    return scope
 
 
 @router.post("/jobs/{job_id}/progress", status_code=204)
@@ -244,7 +273,9 @@ async def content(job_id: str, request: Request) -> dict[str, Any]:
     if not job.claimed:
         raise HTTPException(409, "bad_state")
     _airgap(job)
-    body = _parse(bridge.ContentRequest, await _json(request, bridge.MAX_CONTENT_BYTES))
+    provider = PROVIDERS[job.provider]
+    schema = getattr(provider, "ContentRequest", bridge.ContentRequest)
+    body = _parse(schema, await _json(request, bridge.MAX_CONTENT_BYTES))
     # The body may take a while to arrive: Stop, replacement or air-gap may have landed since.
     try:
         bridge.ensure_open(job)
@@ -253,13 +284,15 @@ async def content(job_id: str, request: Request) -> dict[str, Any]:
     if job.submitted:
         raise HTTPException(409, "replay")
     _airgap(job)
-    provider = PROVIDERS[job.provider]
     try:
         if body.provider != job.provider or body.origin != job.origin:
             raise bridge.BridgeError("wrong_origin", 403)
         if body.coverage.requested != job.scope.count:
             raise bridge.BridgeError("scope_mismatch", 422)
-        items = provider.check_items(job, body.mode, body.items)
+        if hasattr(provider, "check_content"):
+            items = provider.check_content(job, body)
+        else:
+            items = provider.check_items(job, body.mode, body.items)
     except bridge.BridgeError as exc:
         job.status, job.error = "error", exc.code
         job.wipe()
@@ -267,13 +300,13 @@ async def content(job_id: str, request: Request) -> dict[str, Any]:
     job.submitted = True
     job.items = items
     job.inspected = len(items)
-    job.coverage = body.coverage.model_copy(
-        update={
-            "inspected": len(items),
-            "partial": body.coverage.partial
-            or (len(items) < job.scope.count and job.scope.mode != "selected"),
-        }
-    )
+    if hasattr(provider, "partial"):
+        is_partial = provider.partial(job, body.coverage, len(items))
+    else:
+        is_partial = body.coverage.partial or (
+            len(items) < job.scope.count and job.scope.mode != "selected"
+        )
+    job.coverage = body.coverage.model_copy(update={"inspected": len(items), "partial": is_partial})
     job.timings_ms["read"] = body.coverage.elapsed_ms
     job.status = "analyzing"
     bridge.audit(

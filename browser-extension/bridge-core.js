@@ -1,5 +1,5 @@
 /*
- * Provider-neutral core of the Latent browser bridge (#67, reused by #68).
+ * Provider-neutral core of the Latent browser bridge (#67, reused by Teams Web in #68).
  *
  * Loaded three ways: importScripts() in the service worker, chrome.scripting file injection in
  * the authorized tab (isolated world), and require() in the Node tests. No DOM access here: the
@@ -20,6 +20,19 @@
         'https://outlook.live.com',
         'https://outlook.cloud.microsoft',
       ],
+      script: 'providers/outlook.js',
+      global: '__latentOutlook',
+    },
+    // Teams Web (#68): its own origins and its own grant. An Outlook grant never covers these.
+    teams: {
+      label: 'Microsoft Teams (web)',
+      origins: [
+        'https://teams.microsoft.com',
+        'https://teams.cloud.microsoft',
+        'https://teams.live.com',
+      ],
+      script: 'providers/teams.js',
+      global: '__latentTeams',
     },
   }
   var MAX_ITEMS = 20
@@ -27,6 +40,7 @@
     'extension_unavailable', 'no_source_selected', 'permission_denied', 'wrong_origin',
     'account_changed', 'login_required', 'unsupported_layout', 'empty_mailbox',
     'nothing_selected', 'tab_closed', 'cancelled', 'read_failed',
+    'conversation_changed', 'org_blocked', 'empty_conversation',
   ]
 
   /** Exact origin match against the provider allowlist; lookalike hosts never match. */

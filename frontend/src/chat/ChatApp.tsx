@@ -8,6 +8,9 @@ import { useJob } from '../state/useJob'
 import { OutlookPanel } from '../outlook/OutlookPanel'
 import { liveDriver } from '../outlook/driver'
 import { createDemoDriver } from '../outlook/demo'
+import { TeamsPanel } from '../teams/TeamsPanel'
+import { liveTeamsDriver } from '../teams/driver'
+import { createDemoTeamsDriver } from '../teams/demo'
 import type { EgressRecord } from '../types'
 import type { ChatMessage } from './messages'
 import { beginVoiceJob, chooseAsk, loadOffline, releaseImages, reopenKept, say, sendImage, sendText, setVoiceBusy, syncJob, toggleOffline, useChat } from './store'
@@ -25,6 +28,7 @@ const SAMPLES = [
 
 // Demo mode never touches a browser extension: it uses the labelled fake inbox.
 const OUTLOOK_DRIVER = MOCK ? createDemoDriver() : liveDriver
+const TEAMS_DRIVER = MOCK ? createDemoTeamsDriver() : liveTeamsDriver
 
 export function Orb({ small = false }: { small?: boolean }) {
   return <span aria-hidden="true" className={`chat-orb${small ? ' is-small' : ''}`}><span /></span>
@@ -49,6 +53,8 @@ export function ChatApp() {
   const [selectedReceipt, setSelectedReceipt] = useState<EgressRecord[] | null>(null)
   // Private Outlook results live only inside the panel (#67), never in the chat store.
   const [outlook, setOutlook] = useState<{ key: number; request: string } | null>(null)
+  // Same for Teams (#68). One browser read at a time: opening one panel closes the other.
+  const [teams, setTeams] = useState<{ key: number; request: string } | null>(null)
   const attach = useRef<HTMLInputElement>(null)
   const scroller = useRef<HTMLDivElement>(null)
   const following = useRef(true)
@@ -167,13 +173,15 @@ export function ChatApp() {
               </div>)}
             </div>
             {outlook && <div className="chat-agent-content"><OutlookPanel key={outlook.key} request={outlook.request} driver={OUTLOOK_DRIVER} offline={chat.offline === true} onClose={() => setOutlook(null)} /></div>}
+            {teams && <div className="chat-agent-content"><TeamsPanel key={teams.key} request={teams.request} driver={TEAMS_DRIVER} offline={chat.offline === true} onClose={() => setTeams(null)} /></div>}
           </main>
         </div>
         <div className="chat-composer-area">
           {MOCK && <p className="chat-demo-note"><span /> Demo mode · Sample results, no web searches sent</p>}
           <div id="chat-voice-controls" className="chat-voice-panel" hidden={!voiceOpen}>
             {voiceOpen && <VoiceCapture autoStart disabled={chat.busy} onBusyChange={setVoiceBusy} onJob={beginVoiceJob} onClose={() => setVoiceOpen(false)}
-              onOutlook={(request) => { following.current = true; setOutlook({ key: Date.now(), request }) }} />}
+              onOutlook={(request) => { following.current = true; setTeams(null); setOutlook({ key: Date.now(), request }) }}
+              onTeams={(request) => { following.current = true; setOutlook(null); setTeams({ key: Date.now(), request }) }} />}
           </div>
           <form className="chat-composer" onSubmit={submit} aria-label="Message composer">
             <button type="button" className="chat-attach" aria-label="Attach a screenshot" onClick={() => attach.current?.click()}><Plus size={21} aria-hidden="true" /></button>

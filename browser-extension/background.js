@@ -1,9 +1,11 @@
 /*
- * Latent bridge service worker (#67). Talks to exactly two parties:
+ * Latent bridge service worker (#67; Teams Web adapter #68). Talks to exactly two parties:
  * - the Latent page on localhost (externally_connectable + sender.origin check), and
  * - the Latent backend on 127.0.0.1:8000, authenticated by this extension's origin and a
  *   one-job nonce the backend issued for a request the user confirmed.
  * The selected source lives in chrome.storage.session (memory only, cleared on browser exit).
+ * One source at a time: sharing a Teams tab replaces a shared Outlook tab and vice versa, and
+ * each provider's site needs its own Chrome grant.
  * Page text passes through this worker once, on its way to the local backend; it is never
  * stored, logged or sent anywhere else.
  */
@@ -46,26 +48,43 @@ async function inTab(tabId, func, args) {
   return results && results[0] ? results[0].result : null
 }
 
-async function inject(tabId) {
-  await chrome.scripting.executeScript({ target: { tabId: tabId }, files: ['bridge-core.js', 'providers/outlook.js'] })
+function adapterOf(provider) {
+  return Object.prototype.hasOwnProperty.call(core.PROVIDERS, provider) ? core.PROVIDERS[provider] : null
 }
 
-/** Re-check every condition right before reading: tab, origin, grant, account. Fails closed. */
+async function inject(tabId, provider) {
+  await chrome.scripting.executeScript({ target: { tabId: tabId }, files: ['bridge-core.js', adapterOf(provider).script] })
+}
+
+// These run inside the tab; the adapter's global name is passed in, never page-controlled.
+function probeInTab(name) { return globalThis[name].probe() }
+function readInTab(name, scope, jobId) { return globalThis[name].read(scope, jobId) }
+function abortInTab(name) { if (globalThis[name]) globalThis[name].abort() }
+
+/** Re-check every condition right before reading: tab, origin, grant, account (and for Teams,
+ * the confirmed chat/channel). Fails closed. */
 async function verifySource(source) {
+  var adapter = adapterOf(source.provider)
+  if (!adapter) return { error: 'wrong_origin' }
   var tab
   try { tab = await chrome.tabs.get(source.tabId) } catch (e) { return { error: 'tab_closed' } }
   if (!tab) return { error: 'tab_closed' }
   // Check where the tab is before injecting anything. Without a grant for its current site Chrome
-  // hides tab.url, which also counts as "not the shared Outlook tab any more".
+  // hides tab.url, which also counts as "not the shared tab any more".
   if (!tab.url || core.originOf(tab.url) !== source.origin) return { error: 'wrong_origin' }
   var granted = await chrome.permissions.contains({ origins: [source.origin + '/*'] })
   if (!granted) return { error: 'permission_denied' }
-  try { await inject(source.tabId) } catch (e) { return { error: 'permission_denied' } }
-  var probe = await inTab(source.tabId, function () { return globalThis.__latentOutlook.probe() })
+  try { await inject(source.tabId, source.provider) } catch (e) { return { error: 'permission_denied' } }
+  var probe = await inTab(source.tabId, probeInTab, [adapter.global])
   if (!probe || probe.origin !== source.origin) return { error: 'wrong_origin' }
+  if (probe.blocked) return { error: 'org_blocked' }
   if (probe.signedOut) return { error: 'login_required' }
   // Fail closed: a tab whose account cannot be identified is never treated as the same account.
   if (!probe.account || core.fingerprint(probe.account) !== source.account) return { error: 'account_changed' }
+  if (source.provider === 'teams') {
+    if (!probe.conversation) return { error: 'nothing_selected' }
+    if (!source.conversation || probe.conversation.fp !== source.conversation.fp) return { error: 'conversation_changed' }
+  }
   return { tab: tab }
 }
 
@@ -74,32 +93,44 @@ async function read(jobId, nonce) {
   if (!source) { await report(jobId, nonce, 'no_source_selected'); return }
   // Registered before the claim so a cancel that arrives mid-claim is honoured.
   // The nonce stays in worker memory only while this read runs (for progress reports).
-  var job = running[jobId] = { tabId: source.tabId, cancelled: false, nonce: nonce }
+  var job = running[jobId] = { tabId: source.tabId, provider: source.provider, cancelled: false, nonce: nonce }
   try {
     await showReading(true)
     var claim
     try {
       claim = await backend('/claim', jobId, nonce, { provider: source.provider, origin: source.origin })
     } catch (e) { return } // backend unreachable: the page shows its own error
+    // A request for another provider than the shared tab (Outlook vs Teams) must not leave
+    // the page waiting: say no matching tab is shared.
+    if (claim.status === 422 && !job.cancelled) { await report(jobId, nonce, 'no_source_selected'); return }
     if (!claim.ok || job.cancelled) return // refused (air-gap, wrong origin, replay) or stopped
+    var teams = source.provider === 'teams'
+    // The chat/channel the user confirmed in Latent must be the one shared from this tab.
+    if (teams && (!source.conversation || claim.data.source !== source.conversation.fp)) {
+      await report(jobId, nonce, 'conversation_changed'); return
+    }
     var check = await verifySource(source)
     if (check.error) { await report(jobId, nonce, check.error); return }
     if (job.cancelled) return
     // The scope comes from the backend's claim response, not from the page message.
     var scope = { mode: claim.data.mode, count: claim.data.count }
-    var out = await inTab(source.tabId, function (s, id) { return globalThis.__latentOutlook.read(s, id) }, [scope, jobId])
+    if (teams) { scope.replies = claim.data.replies === true; scope.source = claim.data.source }
+    var out = await inTab(source.tabId, readInTab, [adapterOf(source.provider).global, scope, jobId])
     if (job.cancelled) return
     if (!out) { await report(jobId, nonce, 'read_failed'); return }
     if (out.origin !== source.origin) { await report(jobId, nonce, 'wrong_origin'); return }
     if (!out.account || core.fingerprint(out.account) !== source.account) { await report(jobId, nonce, 'account_changed'); return }
     if (out.error) { await report(jobId, nonce, out.error); return }
-    var sent = await backend('/content', jobId, nonce, {
+    if (teams && out.conversation !== scope.source) { await report(jobId, nonce, 'conversation_changed'); return }
+    var payload = {
       provider: source.provider,
       origin: source.origin,
       mode: scope.mode,
       items: out.result.items,
       coverage: out.result.coverage,
-    })
+    }
+    if (teams) payload.source = scope.source
+    var sent = await backend('/content', jobId, nonce, payload)
     // A refused upload (size, schema, scope) must not leave the page waiting on "reading".
     if (!sent.ok && sent.status !== 404 && sent.status !== 410) await report(jobId, nonce, 'read_failed')
   } catch (e) {
@@ -111,7 +142,7 @@ async function read(jobId, nonce) {
 }
 
 /**
- * Visible signal in Chrome itself (not only in Latent's page) whenever the extension reads mail,
+ * Visible signal in Chrome itself (not only in Latent's page) whenever the extension reads mail or chat,
  * so a read started by anything else is noticed. The badge stays until the read ends.
  */
 async function showReading(on) {
@@ -119,7 +150,7 @@ async function showReading(on) {
   try {
     await chrome.action.setBadgeBackgroundColor({ color: '#b8701a' })
     await chrome.action.setBadgeText({ text: reading ? 'READ' : '' })
-    await chrome.action.setTitle({ title: reading ? 'Latent is reading your shared Outlook tab' : 'Share an Outlook tab with Latent' })
+    await chrome.action.setTitle({ title: reading ? 'Latent is reading your shared tab' : 'Share an Outlook tab or Teams chat with Latent' })
   } catch (e) { /* badge is best effort; the read itself is unaffected */ }
 }
 
@@ -134,7 +165,7 @@ async function cancel(jobId) {
   var job = running[jobId]
   if (!job) return
   job.cancelled = true
-  try { await inTab(job.tabId, function () { if (globalThis.__latentOutlook) globalThis.__latentOutlook.abort() }) } catch (e) { /* tab gone */ }
+  try { await inTab(job.tabId, abortInTab, [adapterOf(job.provider).global]) } catch (e) { /* tab gone */ }
 }
 
 async function hello() {
@@ -144,11 +175,10 @@ async function hello() {
   var alive = true
   try { await chrome.tabs.get(source.tabId) } catch (e) { alive = false }
   if (!alive) { await setSource(null); return { ok: true, version: chrome.runtime.getManifest().version, source: null } }
-  return {
-    ok: true,
-    version: chrome.runtime.getManifest().version,
-    source: { provider: source.provider, origin: source.origin, accountLabel: source.accountLabel || '', granted: granted },
-  }
+  var shared = { provider: source.provider, origin: source.origin, accountLabel: source.accountLabel || '', granted: granted }
+  // Teams: the shared chat/channel label goes only to the local Latent page, for confirmation.
+  if (source.provider === 'teams') shared.conversation = source.conversation || null
+  return { ok: true, version: chrome.runtime.getManifest().version, source: shared }
 }
 
 chrome.runtime.onMessageExternal.addListener(function (message, sender, sendResponse) {
@@ -200,24 +230,33 @@ async function selectTab(tabId) {
   var tab = await chrome.tabs.get(tabId)
   var match = tab && tab.url ? core.providerForUrl(tab.url) : null
   if (!match) return { ok: false, error: 'wrong_origin' }
+  // Each provider's site needs its own grant: an Outlook grant never authorizes Teams.
   var granted = await chrome.permissions.contains({ origins: [match.origin + '/*'] })
   if (!granted) return { ok: false, error: 'permission_denied' }
-  await inject(tabId)
-  var probe = await inTab(tabId, function () { return globalThis.__latentOutlook.probe() })
+  await inject(tabId, match.provider)
+  var probe = await inTab(tabId, probeInTab, [adapterOf(match.provider).global])
   if (!probe || probe.origin !== match.origin) return { ok: false, error: 'wrong_origin' }
+  if (probe.blocked) return { ok: false, error: 'org_blocked' }
   if (probe.signedOut) return { ok: false, error: 'login_required' }
   if (!probe.account) return { ok: false, error: 'unsupported_layout' } // account switches must be detectable
-  await setSource({
+  var source = {
     provider: match.provider,
     origin: match.origin,
     tabId: tabId,
     account: core.fingerprint(probe.account),
     accountLabel: probe.account,
-  })
-  return { ok: true, origin: match.origin, accountLabel: probe.account }
+  }
+  if (match.provider === 'teams') {
+    // Teams shares exactly the chat/channel open now; Latent never picks or searches one.
+    var conv = probe.conversation
+    if (!conv || !conv.fp || !conv.label) return { ok: false, error: 'nothing_selected' }
+    source.conversation = { fp: conv.fp, label: conv.label, kind: conv.kind === 'channel' ? 'channel' : 'chat' }
+  }
+  await setSource(source)
+  return { ok: true, origin: match.origin, accountLabel: probe.account, conversation: source.conversation || null }
 }
 
-// The shared tab navigated: if it left the shared Outlook site, forget it (fail closed early).
+// The shared tab navigated: if it left the shared Outlook/Teams site, forget it (fail closed early).
 chrome.tabs.onUpdated.addListener(function (tabId, change) {
   if (!change.url && change.status !== 'loading') return
   getSource().then(function (source) {

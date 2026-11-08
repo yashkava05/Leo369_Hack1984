@@ -1,6 +1,6 @@
 """Provider-neutral local bridge between the Latent browser extension and the backend (#67).
 
-The extension reads an explicitly authorized tab (Outlook Web now, Teams Web in #68) and hands
+The extension reads an explicitly authorized tab (Outlook Web #67, Teams Web #68) and hands
 the page text to this process. Nothing here opens a network connection: the extension posts to
 this local server, and analysis goes to Ollama through `egress.local_client()`.
 
@@ -61,6 +61,10 @@ ExtensionError = Literal[
     "tab_closed",
     "cancelled",
     "read_failed",
+    # Teams Web (#68)
+    "conversation_changed",
+    "org_blocked",
+    "empty_conversation",
 ]
 
 
@@ -129,8 +133,12 @@ class FailRequest(_Strict):
 
 @dataclass
 class Scope:
-    mode: Literal["latest", "unread", "selected"]
+    mode: Literal["latest", "unread", "selected", "today"]
     count: int
+    # Teams (#68): replies are read only when the user put them in scope, and `source` is the
+    # opaque fingerprint of the one chat/channel the user confirmed. Outlook leaves both unset.
+    replies: bool = False
+    source: str | None = None
 
 
 @dataclass
@@ -145,8 +153,8 @@ class BrowserJob:
     status: Status = "waiting_for_extension"
     origin: str | None = None
     inspected: int = 0
-    items: list[SourceItem] | None = None
-    coverage: Coverage | None = None
+    items: list[Any] | None = None  # provider item models (SourceItem for Outlook)
+    coverage: Any = None  # provider coverage model
     result: dict[str, Any] | None = None
     error: str | None = None
     claimed: bool = False
@@ -416,4 +424,5 @@ async def run_analysis(job: BrowserJob, analyze: Analyzer) -> None:
     job.result = result
     job.status = "done"
     _schedule_expiry(job, RESULT_TTL_S)
-    audit(job, "analyzed_locally", "local", count=len(result.get("emails", [])), ms=ms)
+    count = len(result.get("emails", result.get("messages", [])))
+    audit(job, "analyzed_locally", "local", count=count, ms=ms)
