@@ -199,3 +199,40 @@ it('does not resume an old screenshot while voice owns the shared slot', async (
   expect(store.chatSnapshot().voicePending).toBe(true)
   expect(store.chatSnapshot().busy).toBe(false)
 })
+
+
+describe('empty voice search outcomes', () => {
+  it.each(['explore', 'related'] as const)('explains a zero-query %s result without claiming content was found', (action) => {
+    store.beginVoiceJob('j_no_query', action)
+    const empty = { ...result(), queries: [], cards: [], egress: [] }
+    store.syncJob({ status: 'done', result: empty, events: [] })
+    expect(replies().at(-1)).toContain(action === 'related' ? 'Choose another saved item' : 'name a topic or event and a city')
+    expect(replies().join(' ')).not.toContain("Here's what I found")
+    expect(asks()).toHaveLength(0)
+    expect(store.chatSnapshot().busy).toBe(false)
+  })
+  it('reports no usable cards instead of a successful discovery', () => {
+    store.beginVoiceJob('j_no_results', 'explore')
+    store.syncJob({ status: 'done', result: { ...result(), cards: [] }, events: [] })
+    expect(replies().join(' ')).toContain('without usable cards')
+    expect(replies().join(' ')).not.toContain("Here's what I found")
+  })
+})
+
+
+it('keeps locally built voice cards even when no web query was needed', () => {
+  store.beginVoiceJob('j_local_cards', 'explore')
+  store.syncJob({ status: 'done', result: { ...result(), queries: [], egress: [] }, events: [] })
+  expect(store.chatSnapshot().messages.some((message) => message.type === 'cards')).toBe(true)
+  expect(replies().join(' ')).not.toContain('I need more public details')
+})
+
+
+it.each(['result', 'stage'])('keeps explicit %s errors when a voice result is empty', (source) => {
+  store.beginVoiceJob('j_empty_error', 'explore')
+  const empty = { ...result(), queries: [], cards: [], egress: [], error: source === 'result' ? 'TAVILY_API_KEY not set' : null }
+  const events = source === 'stage' ? [event({ stage: 'search', status: 'error', local: false, message: 'TAVILY_API_KEY not set' })] : []
+  store.syncJob({ status: 'done', result: empty, events })
+  expect(replies().join(' ')).toContain('TAVILY_API_KEY')
+  expect(replies().join(' ')).not.toContain('I need more public details')
+})

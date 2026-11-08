@@ -130,11 +130,20 @@ function finishResult(result: JobResult, file?: File, searchError?: string, voic
     append({ id: id(), type: 'receipt', source: 'voice', records: result.egress })
     return
   }
+  if (voiceAction && !result.queries.length && !result.cards.length && !result.egress.length && !result.error && !searchError) {
+    say(voiceAction === 'related'
+      ? "That saved item doesn't have enough public details for a related search. Choose another saved item."
+      : 'I need more public details to build a search. For events, name a topic or event and a city, such as “Find AI events in Boston this weekend.” For products, include a brand and model. Review your thought and try again.')
+    append({ id: id(), type: 'receipt', source: 'voice', records: result.egress })
+    return
+  }
   const blockedOffline = result.egress.some((record) => record.blocked && /offline|air.?gap/i.test(record.reason ?? ''))
   const entities = result.intent?.public_entities.map((entity) => entity.value).join(', ') || 'the public details'
   say(blockedOffline
     ? `I read it on this device: ${entities}. Air-gap is on, so I didn't search the web.`
-    : replyFor(result.intent))
+    : voiceAction && !result.cards.length
+      ? 'The search finished without usable cards. Try a more specific topic, location, or date.'
+      : replyFor(result.intent))
   if (result.cards.length) append({ id: id(), type: 'cards', cards: result.cards })
   append({ id: id(), type: 'receipt', source: voiceAction ? 'voice' : undefined, records: result.egress })
   if (blockedOffline) {
