@@ -368,3 +368,151 @@ async def test_live_concert_fixture():
     assert results, "Tavily returned nothing"
     assert_card_hygiene(cards)
     assert any(c.kind == "calendar" for c in cards)
+
+
+# --- regressions from the live Tavily check (real result text) ----------------------
+
+
+def _bare(intent_type: str) -> Intent:
+    return Intent.model_validate(
+        {
+            "intent_type": intent_type,
+            "summary": "x",
+            "public_entities": [],
+            "redaction_counts": {},
+            "confidence": 0.9,
+        }
+    )
+
+
+def _resp(query: str, results: list[dict], answer: str | None = None) -> dict[str, TavilyResponse]:
+    return {
+        query: TavilyResponse.model_validate({"query": query, "answer": answer, "results": results})
+    }
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Save up to $80 on Sony WH-1000XM5 headphones this week.",
+        "Shoppers can save as much as $80 on the Sony WH-1000XM5.",
+    ],
+)
+def test_save_up_to_is_not_a_price(text):
+    assert lowest_price(text) is None
+
+
+def test_price_history_page_shows_no_price():
+    q = SearchQuery(text="Sony WH-1000XM5 headphones price", purpose="shopping")
+    results = _resp(
+        q.text,
+        [
+            {
+                "title": "Sony WH-1000XM5 price history - camelcamelcamel",
+                "url": "https://camelcamelcamel.com/product/B09XS7JWHH",
+                "content": "List price $399.99. Highest $399.99. Lowest $18.00 (3rd party used).",
+                "score": 0.8,
+            }
+        ],
+    )
+    (card,) = build_cards(_bare("product"), [q], results, NOW)
+    assert card.price is None and card.kind == "link"
+
+
+def test_deals_article_is_a_link_not_a_shop():
+    q = SearchQuery(text="Sony WH-1000XM5 headphones price", purpose="shopping")
+    results = _resp(
+        q.text,
+        [
+            {
+                "title": "Black Friday deals 2023: Sony headphones",
+                "url": "https://finance.yahoo.com/news/black-friday-sony-headphones-deals-2023.html",
+                "content": "Save up to $80 on Sony WH-1000XM5, now $319.99 at Amazon.",
+                "score": 0.7,
+            },
+            {
+                "title": "Sony WH-1000XM5 Wireless Noise Canceling Headphones",
+                "url": "https://electronics.sony.com/audio/headphones/p/wh1000xm5-b",
+                "content": "Sale $228.00. Save $171.99.",
+                "score": 0.9,
+            },
+        ],
+    )
+    cards = build_cards(_bare("product"), [q], results, NOW)
+    by_source = {c.source: c for c in cards}
+    assert by_source["electronics.sony.com"].kind == "shop"
+    assert by_source["electronics.sony.com"].price == "$228.00"
+    yahoo = by_source["finance.yahoo.com"]
+    assert yahoo.kind == "link" and yahoo.price is None and yahoo.actions[0].label == "Open"
+
+
+def test_news_article_on_book_query_is_a_link():
+    q = SearchQuery(text="Project Hail Mary Andy Weir book buy", purpose="book")
+    results = _resp(
+        q.text,
+        [
+            {
+                "title": "Project Hail Mary box office opening weekend",
+                "url": "https://www.cnbc.com/2026/03/22/project-hail-mary-box-office.html",
+                "content": "The film adaptation of Andy Weir's novel opened to $80 million.",
+                "score": 0.8,
+            },
+            {
+                "title": "Project Hail Mary by Andy Weir, Paperback",
+                "url": "https://www.barnesandnoble.com/w/project-hail-mary-andy-weir/1137396202",
+                "content": "Paperback $12.99",
+                "score": 0.9,
+            },
+        ],
+    )
+    cards = build_cards(_bare("book"), [q], results, NOW)
+    by_source = {c.source: c for c in cards}
+    assert by_source["barnesandnoble.com"].kind == "book"
+    assert by_source["cnbc.com"].kind == "link"
+
+
+def test_no_information_answer_is_dropped():
+    q = SearchQuery(text="Lumen Drift Boston Dec 5 tickets", purpose="tickets")
+    answer = (
+        "The sources do not provide specific information about Lumen Drift Boston on "
+        "December 5, 2026."
+    )
+    results = _resp(
+        q.text,
+        [
+            {
+                "title": "Lumen Drift",
+                "url": "https://bostonshows.test/lumen",
+                "content": "",
+                "score": 0.5,
+            }
+        ],
+        answer,
+    )
+    cards = build_cards(_bare("event"), [q], results, NOW)
+    assert not any(c.kind == "insight" for c in cards)
+
+
+def test_pagination_param_duplicates_collapse():
+    base = "https://www.ticketmaster.com/paradise-rock-club-presented-by-citizens-tickets-boston/venue/8227"
+    assert clean_url(base + "?page=1") == base
+    q = SearchQuery(text="Paradise Rock Club Boston", purpose="tickets")
+    results = _resp(
+        q.text,
+        [
+            {
+                "title": "Paradise Rock Club - Ticketmaster",
+                "url": base + "?page=1",
+                "content": "",
+                "score": 0.8,
+            },
+            {
+                "title": "Paradise Rock Club - Ticketmaster",
+                "url": base,
+                "content": "",
+                "score": 0.7,
+            },
+        ],
+    )
+    cards = build_cards(_bare("event"), [q], results, NOW)
+    assert [c.kind for c in cards].count("tickets") == 1

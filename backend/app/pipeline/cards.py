@@ -33,9 +33,50 @@ TICKET_DOMAINS = (
 )
 PRICE_RE = re.compile(r"\$\s?(\d{1,4}(?:,\d{3})*(?:\.\d{2})?)")
 # "free shipping over $35", "save $20", "$10 off": amounts that are not the item's price.
-NOT_A_PRICE_BEFORE = re.compile(r"(?:over|save|saving|shipping|orders?|off|fee)\s*:?\s*$", re.I)
+# "save up to $80" / "save as much as $80" are discounts too.
+NOT_A_PRICE_BEFORE = re.compile(
+    r"(?:over|save|saving|shipping|orders?|off|fee)\s*(?:up\s+to|as\s+much\s+as)?\s*:?\s*$", re.I
+)
 NOT_A_PRICE_AFTER = re.compile(r"^\s*(?:off|discount|shipping|minimum)\b", re.I)
 TRACKING_PARAMS = {"fbclid", "gclid"}
+# Pagination params: `?page=1` is the same page as no param at all.
+PAGINATION_PARAMS = {"page", "p", "pg", "pagenum", "page_num", "start", "offset"}
+
+# Price trackers: the dollar amounts are a history table, not the item's price.
+PRICE_TRACKER_DOMAINS = ("camelcamelcamel.com", "keepa.com", "pricespy.co.uk", "honey.com")
+# News and editorial sites: an article about a product or book is not a store page.
+EDITORIAL_DOMAINS = (
+    "yahoo.com",
+    "cnbc.com",
+    "cnn.com",
+    "bbc.com",
+    "bbc.co.uk",
+    "nytimes.com",
+    "theguardian.com",
+    "forbes.com",
+    "businessinsider.com",
+    "theverge.com",
+    "engadget.com",
+    "techradar.com",
+    "cnet.com",
+    "wired.com",
+    "wikipedia.org",
+    "reddit.com",
+    "youtube.com",
+    "variety.com",
+    "hollywoodreporter.com",
+)
+# Wording that marks a deals roundup, price history, review or news article.
+ARTICLE_RE = re.compile(
+    r"\b(?:deals?|black friday|cyber monday|price history|price tracker|price drop|"
+    r"best \w+ (?:of|for|in)|review|box office|news)\b",
+    re.I,
+)
+BOOK_PAGE_RE = re.compile(
+    r"(?:/books?/|/works?/|/dp/|/ebook|/audiobook|\b(?:paperback|hardcover|e-?book|audiobook|"
+    r"kindle|isbn)\b)",
+    re.I,
+)
 
 # Lower rank sorts first; within a rank, higher Tavily score first.
 RANK = {
@@ -70,7 +111,9 @@ def clean_url(url: str) -> str:
     params = [
         (k, v)
         for k, v in parse_qsl(parts.query, keep_blank_values=True)
-        if not k.lower().startswith("utm_") and k.lower() not in TRACKING_PARAMS
+        if not k.lower().startswith("utm_")
+        and k.lower() not in TRACKING_PARAMS
+        and k.lower() not in PAGINATION_PARAMS
     ]
     return urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(params), ""))
 
@@ -97,6 +140,17 @@ def lowest_price(text: str) -> str | None:
         if value > 0 and (best is None or value < best[0]):
             best = (value, raw)
     return f"${best[1]}" if best else None
+
+
+def _is_article(host: str, url: str, title: str) -> bool:
+    """News, deals roundups, reviews and price trackers: never a store or book page."""
+    if _on_domain(host, EDITORIAL_DOMAINS + PRICE_TRACKER_DOMAINS):
+        return True
+    return bool(ARTICLE_RE.search(f"{title} {urlsplit(url).path.replace('-', ' ')}"))
+
+
+def _is_book_page(url: str, title: str, content: str) -> bool:
+    return bool(BOOK_PAGE_RE.search(f"{urlsplit(url).path} {title} {content}"))
 
 
 def snippet(text: str | None) -> str | None:
@@ -221,7 +275,10 @@ def _result_card(purpose: str, r: TavilyResult) -> Card:
     host = domain_of(url)
     title = " ".join(r.title.split()) or host
     text = snippet(r.content)
-    price = lowest_price(r.content)
+    article = _is_article(host, url, title)
+    # On deal and price-history pages the lowest amount is rarely the item's price:
+    # no price beats a wrong one.
+    price = None if article else lowest_price(r.content)
 
     if _on_domain(host, TICKET_DOMAINS):
         url = tag_url(url)
@@ -230,7 +287,7 @@ def _result_card(purpose: str, r: TavilyResult) -> Card:
     elif purpose == "shopping" and price:
         url = tag_url(url)
         kind, label = "shop", "View price"
-    elif purpose == "book":
+    elif purpose == "book" and not article and _is_book_page(url, title, r.content or ""):
         url = tag_url(url)
         kind, label, price = "book", "Get the book", None
     else:
@@ -253,7 +310,7 @@ def insight_card(queries: list[SearchQuery], results: dict[str, TavilyResponse])
     for q in queries:
         resp = results.get(q.text)
         answer = " ".join((resp.answer or "").split()) if resp else ""
-        if not answer:
+        if not answer or NO_ANSWER_RE.search(answer):
             continue
         text = snippet(answer) or answer
         top = resp.results[0] if resp.results else None
@@ -268,6 +325,14 @@ def insight_card(queries: list[SearchQuery], results: dict[str, TavilyResponse])
             actions=[CardAction(label="Copy", type="copy", text=text)],
         )
     return None
+
+
+# Tavily sometimes answers "The sources do not provide specific information about ...".
+NO_ANSWER_RE = re.compile(
+    r"\b(?:sources?|results?|search results)\b[^.]{0,40}\b(?:do(?:es)? not|don't|doesn't)\s+"
+    r"(?:provide|contain|include|mention|have)\b|\bno (?:specific |relevant )?information\b",
+    re.I,
+)
 
 
 # --- assembly ---------------------------------------------------------------------
