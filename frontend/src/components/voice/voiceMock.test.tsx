@@ -39,7 +39,7 @@ describe('no-device voice demos and accessible review', () => {
   })
   it('opens as a one-tap capture strip with a typed fallback and demo scenarios, without starting capture', () => {
     const html = renderToStaticMarkup(<VoiceCapture onJob={() => {}} />)
-    for (const text of ['Tap to speak', 'Start speaking', 'Type instead', 'Close voice input', 'Audio stays on this device', 'Voice demo scenario']) expect(html).toContain(text)
+    for (const text of ['Tap to speak', 'Start speaking', 'Type instead', 'Close voice input', 'Audio stays on this device', 'Voice scenario']) expect(html).toContain(text)
     expect(html).not.toContain('<audio')
     expect(html).not.toContain('blob:')
   })

@@ -1,3 +1,5 @@
+@import "tailwindcss";
+
 :root {
   font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
   color-scheme: light dark;
@@ -30,4 +32,29 @@ pre {
   overflow: hidden;
   clip-path: inset(50%);
   white-space: nowrap;
+}
+
+body.prism-mode {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background: #070910;
+}
+
+body.prism-mode .prism-card-action .card-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: rgb(255 255 255 / 0.82);
+  font-size: 11px;
+  font-weight: 650;
+  box-shadow: none;
+}
+
+body.prism-mode .prism-card-action .card-action:hover {
+  color: white;
 }

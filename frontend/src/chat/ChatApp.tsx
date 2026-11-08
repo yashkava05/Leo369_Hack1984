@@ -1,7 +1,8 @@
-import { ArrowUp, Bookmark, Check, ChevronRight, Compass, ImagePlus, LockKeyhole, MessageCircle, Mic, Plus, ShieldCheck, Sparkles } from 'lucide-react'
+import { Aperture, ArrowUp, Bookmark, Check, ChevronRight, ImagePlus, LockKeyhole, MessageCircle, Mic, Plus, ShieldCheck, Sparkles } from 'lucide-react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { DragEvent, FormEvent } from 'react'
 import { MOCK } from '../api/client'
+import { AppChrome } from '../components/AppNav'
 import { VoiceCapture } from '../components/voice/VoiceCapture'
 import { ActionCard } from '../components/cards/ActionCard'
 import { useJob } from '../state/useJob'
@@ -131,7 +132,7 @@ export function ChatApp() {
 
   const receipts = chat.messages.flatMap((m) => m.type === 'receipt' ? m.records : [])
   const openReceipt = (records: EgressRecord[] | null) => { setSelectedReceipt(records); setDrawer(true) }
-  const status = chat.offline ? 'Air-gap on: nothing leaves this device' : chat.busy ? 'Working on this device…' : 'Works on this device'
+  const status = chat.offline ? 'Air-gap · local only' : chat.busy ? 'Thinking on this device…' : 'On-device · private'
   const welcomeOnly = chat.messages.length === 1
 
   function messageView(message: ChatMessage) {
@@ -139,7 +140,7 @@ export function ChatApp() {
       case 'user-image': return <div className="chat-user-image"><img src={message.url} alt={`Your screenshot: ${message.name}`} /><span><LockKeyhole size={11} aria-hidden="true" /> Stays on this device</span></div>
       case 'user-text': return <div className="chat-bubble chat-user-bubble">{message.text}</div>
       case 'agent-text': return <div className="chat-agent-message"><Orb small /><div className="chat-bubble chat-agent-bubble">{message.text}</div></div>
-      case 'typing': return <div className="chat-agent-message"><Orb small /><div className="chat-typing" role="status" aria-label="Latent is reading your screenshot"><i /><i /><i /></div></div>
+      case 'typing': return <div className="chat-agent-message"><Orb small /><div className="chat-typing" role="status" aria-label="Prism is reading on this device"><i /><i /><i /></div></div>
       case 'work-steps': return <div className="chat-agent-content"><WorkSteps message={message} /></div>
       case 'cards': return <div className="chat-agent-content"><Cards message={message} /></div>
       case 'receipt': return <div className="chat-agent-content"><button type="button" className="chat-receipt-pill" onClick={() => openReceipt(message.records)}>{receiptLabel(message.records, message.source)}<ChevronRight size={13} aria-hidden="true" /></button></div>
@@ -156,11 +157,24 @@ export function ChatApp() {
       onDragOver={(event) => { if (event.dataTransfer.types.includes('Files')) event.preventDefault() }}
       onDragLeave={() => { dragDepth.current = Math.max(0, dragDepth.current - 1); if (dragDepth.current === 0) setDragging(false) }}
       onDrop={drop}>
+      <AppChrome
+        current="chat"
+        end={
+          <>
+            <p className="app-chrome-status"><span className={`chat-status-dot${chat.offline ? ' is-offline' : ''}`} />{status}</p>
+            <label className="chat-airgap"><span>Air-gap</span><button type="button" role="switch" aria-label="Air-gap mode" aria-checked={chat.offline === true} disabled={chat.toggling}
+              onClick={() => { void toggleOffline(!chat.offline) }}><span /></button></label>
+            <span className="chat-header-divider" />
+            <button type="button" className="chat-receipts-button" onClick={() => openReceipt(null)}><ShieldCheck size={16} aria-hidden="true" /><span>Receipts</span></button>
+          </>
+        }
+      />
       <aside className="chat-sidebar" aria-label="Your chats and saved items" inert={drawer}>
-        <div className="chat-brand"><Orb /><span>Latent<span className="chat-brand-dot">.</span></span></div>
+        <div className="chat-brand"><Orb /><span>Prism</span></div>
         <div className="chat-sidebar-section"><h2>Chats</h2>
-          <button className="chat-nav-item is-selected" type="button" aria-current="page" onClick={() => composer.current?.focus()}><MessageCircle size={17} aria-hidden="true" /><span>Latent</span><span className="chat-online-dot" /></button>
-          <a className="chat-nav-item" href="?view=feed"><Compass size={17} aria-hidden="true" /><span>Muse Feed</span></a>
+          <a className="chat-nav-item" href="/"><Aperture size={17} aria-hidden="true" /><span>Prism</span></a>
+          <button className="chat-nav-item is-selected" type="button" aria-current="page" onClick={() => composer.current?.focus()}><MessageCircle size={17} aria-hidden="true" /><span>Chat</span><span className="chat-online-dot" /></button>
+          <a className="chat-nav-item" href="?view=for-you"><Sparkles size={17} aria-hidden="true" /><span>For You</span></a>
         </div>
         <div className="chat-sidebar-section chat-kept"><h2><Bookmark size={13} aria-hidden="true" /> Kept for later <span>{chat.kept.length || ''}</span></h2>
           {chat.kept.length ? <ul>{chat.kept.map((item, index) => <li key={`${item.savedAt}-${index}`}><button type="button" onClick={() => { following.current = true; reopenKept(item) }}><span className="chat-kept-icon"><Bookmark size={14} aria-hidden="true" /></span><span>{item.label}<small>{new Date(item.savedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</small></span></button></li>)}</ul>
@@ -177,21 +191,16 @@ export function ChatApp() {
             if (window.confirm('Delete all Latent local data? This removes saved items, library history, the search index, Muse feed items and preferences, and browser Kept copies from Latent. Copies outside the app (backups, other storage) are not affected.')) { setVoiceOpen(false); void clearMemory() }
           }}>Delete all local data</button>
         </div>
-        <div className="chat-sidebar-footer"><ShieldCheck size={17} aria-hidden="true" /><div>A little more private.<span>A lot more useful.</span></div></div>
+        <div className="chat-sidebar-footer"><ShieldCheck size={17} aria-hidden="true" /><div>Private intelligence.<span>Secured on this computer.</span></div></div>
       </aside>
       <div className="chat-main" inert={drawer}>
-        <header className="chat-header"><div className="chat-header-identity"><Orb /><div><h1>Latent</h1><p><span className={`chat-status-dot${chat.offline ? ' is-offline' : ''}`} />{status}</p></div></div>
-          <div className="chat-header-controls"><label className="chat-airgap"><span>Air-gap</span><button type="button" role="switch" aria-label="Air-gap mode" aria-checked={chat.offline === true} disabled={chat.toggling}
-            onClick={() => { void toggleOffline(!chat.offline) }}><span /></button></label>
-            <span className="chat-header-divider" /><button type="button" className="chat-receipts-button" onClick={() => openReceipt(null)}><ShieldCheck size={16} aria-hidden="true" /><span>Receipts</span></button></div>
-        </header>
         <div className="chat-scroll" ref={scroller} onScroll={() => { const el = scroller.current; if (el) following.current = el.scrollHeight - el.scrollTop - el.clientHeight < 100 }}>
-          <main className="chat-thread" aria-label="Conversation with Latent">
+          <main className="chat-thread" aria-label="Conversation with Prism">
             <div className="chat-day"><span />Today<span /></div>
-            {welcomeOnly && <div className="chat-intro"><span className="chat-intro-mark"><Sparkles size={18} strokeWidth={1.5} aria-hidden="true" /></span><h2>What are you looking for?</h2><p>Speak a request. Review it. Get live results.</p></div>}
+            {welcomeOnly && <div className="chat-intro"><span className="chat-intro-mark"><Sparkles size={18} strokeWidth={1.5} aria-hidden="true" /></span><h2>Your private mind, on this machine.</h2><p>A personal AI agent that sees, listens, remembers, and acts — without sending your life to the cloud.</p></div>}
             <div className="chat-messages" role="log" aria-label="Messages" aria-live="polite" aria-relevant="additions">
               {chat.messages.map((message, index) => <div key={message.id} className={`chat-message type-${message.type}`}>{messageView(message)}
-                {MOCK && index === 0 && <div className="chat-samples"><p>A little inspiration to get started</p><div>{SAMPLES.map((item) => <button key={item.name} type="button" onClick={() => { void sample(item.name) }} aria-busy={sampleLoading === item.name}>
+                {MOCK && index === 0 && <div className="chat-samples"><p>Give Prism something to work with</p><div>{SAMPLES.map((item) => <button key={item.name} type="button" onClick={() => { void sample(item.name) }} aria-busy={sampleLoading === item.name}>
                   <span className="chat-sample-art"><img src={`/samples/${item.name}`} alt="" /><span>{item.icon}</span></span><span className="chat-sample-label">{item.title}<small>{sampleLoading === item.name ? 'Opening sample…' : item.hint}</small></span><Plus size={14} aria-hidden="true" /></button>)}</div></div>}
               </div>)}
             </div>
@@ -200,7 +209,6 @@ export function ChatApp() {
           </main>
         </div>
         <div className="chat-composer-area">
-          {MOCK && <p className="chat-demo-note"><span /> Demo mode · Sample results, no web searches sent</p>}
           <div id="chat-voice-controls" className="chat-voice-panel" hidden={!voiceOpen}>
             {voiceOpen && <VoiceCapture autoStart disabled={chat.busy} onBusyChange={setVoiceBusy} onJob={beginVoiceJob} onClose={() => setVoiceOpen(false)}
               onOutlook={(request) => { following.current = true; setTeams(null); setOutlook({ key: Date.now(), request }) }}
@@ -210,10 +218,10 @@ export function ChatApp() {
             <button type="button" className="chat-attach" aria-label="Attach a screenshot" onClick={() => attach.current?.click()}><Plus size={21} aria-hidden="true" /></button>
             <button type="button" className={`chat-attach chat-mic${voiceOpen ? ' is-active' : ''}`} aria-label={voiceOpen ? 'Close voice input' : 'Speak a thought'} aria-expanded={voiceOpen} aria-controls="chat-voice-controls" title={voiceOpen ? 'Close voice input' : 'Speak a thought'} disabled={chat.busy && !voiceOpen} onClick={() => setVoiceOpen(!voiceOpen)}><Mic size={18} aria-hidden="true" /></button>
             <input type="file" ref={attach} accept="image/png,image/jpeg,image/webp" hidden onChange={(event) => { const file = event.currentTarget.files?.[0]; event.currentTarget.value = ''; if (file) { following.current = true; void sendImage(file) } }} />
-            <input ref={composer} value={text} onChange={(event) => setText(event.target.value)} aria-label="Message Latent" placeholder="Message Latent, or speak with the microphone" />
+            <input ref={composer} value={text} onChange={(event) => setText(event.target.value)} aria-label="Message Prism" placeholder="Ask Prism, or speak with the microphone" />
             <button type="submit" className="chat-send" aria-label="Send message" disabled={!text.trim()}><ArrowUp size={18} aria-hidden="true" /><span>Send</span></button>
           </form>
-          <p className="chat-composer-hint"><LockKeyhole size={11} aria-hidden="true" /> Your audio and screenshots stay on this device.</p>
+          <p className="chat-composer-hint"><LockKeyhole size={11} aria-hidden="true" /> Voice, screenshots, and memory stay on this computer.</p>
         </div>
       </div>
       <ReceiptsDrawer open={drawer} onClose={() => setDrawer(false)} mockRecords={receipts} selectedRecords={selectedReceipt} />

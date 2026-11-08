@@ -19,7 +19,7 @@ const item: FeedItem = {
   feedback: [],
 }
 
-describe('Muse feed', () => {
+describe('For You feed', () => {
   beforeAll(() => {
     vi.stubGlobal('fetch', vi.fn(() => {
       throw new Error('mock feed must not call the network')
@@ -28,10 +28,30 @@ describe('Muse feed', () => {
 
   it('renders provenance, explanation, and accessible controls', () => {
     const html = renderToStaticMarkup(<FeedCard item={item} feedback={[]} onOpen={() => undefined} onFeedback={() => undefined} />)
-    expect(html).toContain('WEB')
-    expect(html).toContain('Why this?')
-    expect(html).toContain('Open story')
+    expect(html).toContain('From the web')
+    expect(html).toContain('It shares a public topic with a memory you saved.')
+    expect(html).toContain('Read more')
     expect(html).toContain('aria-pressed="false"')
+  })
+
+  it('uses story-matching mock screenshots instead of an unrelated book screenshot', () => {
+    const coastal: FeedItem = {
+      ...item,
+      id: 'feed-connection-trip',
+      kind: 'connection',
+      title: 'Two saves, one coastal weekend',
+      teaser: 'The Harbor Glass exhibition and Northline rail note share a public place.',
+      why: 'Both scrubbed memories contain the public city Port Aurora.',
+      provenance: 'local',
+    }
+    const html = renderToStaticMarkup(<FeedCard item={coastal} feedback={[]} onOpen={() => undefined} onFeedback={() => undefined} />)
+    expect(html).toContain('/samples/harbor-glass.svg')
+    expect(html).toContain('/samples/northline-rail.svg')
+    expect(html).toContain('Harbor Glass')
+    expect(html).toContain('Northline')
+    expect(html).toContain('Port Aurora')
+    expect(html).not.toContain('book_goodreads')
+    expect(html).not.toContain('Project Hail Mary')
   })
 
   it('provides deterministic fixtures for every kind and session feedback', async () => {

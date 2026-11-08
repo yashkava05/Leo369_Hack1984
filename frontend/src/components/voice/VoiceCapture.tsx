@@ -51,7 +51,7 @@ export function VoiceCapture({ onJob, disabled = false, onBusyChange, autoStart 
     setLoading(true); setLibraryError(null); setContext(null)
     try {
       let found = await listLibrary()
-      if (MOCK && !found.length) found = [{ id: MOCK_VOICE_CONTEXT_ID, created_at: 0, intent_type: 'event', summary: `Demo: ${mockVoiceIntent.summary}`, card_count: 0 }]
+      if (MOCK && !found.length) found = [{ id: MOCK_VOICE_CONTEXT_ID, created_at: 0, intent_type: 'event', summary: mockVoiceIntent.summary, card_count: 0 }]
       if (gen === selection.current) { setItems(found); if (!found.length) setLibraryError('Nothing saved yet — use “Save for later” first.') }
     } catch { if (gen === selection.current) setLibraryError('Could not open your saved items. Try again.') }
     finally { if (gen === selection.current) setLoading(false) }
@@ -141,8 +141,8 @@ export function VoiceCapture({ onJob, disabled = false, onBusyChange, autoStart 
     </>}
 
     <p className="voice-privacy"><LockKeyhole size={11} aria-hidden="true" />Audio stays on this device · only scrubbed keywords are searched</p>
-    {MOCK && <label className="voice-demo">Demo
-      <select aria-label="Voice demo scenario" value={voice.scenario} disabled={busy || disabled} onChange={(event) => { clearContext(); voice.setScenario(event.target.value as VoiceScenario) }}>
+    {MOCK && <label className="voice-demo">
+      <select aria-label="Voice scenario" value={voice.scenario} disabled={busy || disabled} onChange={(event) => { clearContext(); voice.setScenario(event.target.value as VoiceScenario) }}>
         <option value="event">Event discovery</option><option value="save">Save only</option><option value="related">Related to a saved item</option><option value="silence">Silence</option><option value="permission-denied">Permission denied</option>
       </select>
     </label>}

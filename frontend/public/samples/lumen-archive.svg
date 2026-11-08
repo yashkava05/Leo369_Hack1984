@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 440" width="780" height="440">
+  <rect width="780" height="440" fill="#efe6d4"/>
+  <rect width="780" height="44" fill="#2c2620"/>
+  <text x="22" y="28" fill="#efe6d4" font-family="system-ui, sans-serif" font-size="14" font-weight="600">9:41</text>
+  <text x="96" y="28" fill="#c4b5fd" font-family="system-ui, sans-serif" font-size="11" letter-spacing="2">CALENDAR</text>
+  <rect x="20" y="64" width="300" height="356" rx="18" fill="#2c2620"/>
+  <text x="48" y="120" fill="#c4b5fd" font-family="system-ui, sans-serif" font-size="12" letter-spacing="1.8">THURSDAY</text>
+  <text x="48" y="186" fill="#efe6d4" font-family="Georgia, serif" font-size="64">7:00</text>
+  <text x="230" y="186" fill="#c4b5fd" font-family="system-ui, sans-serif" font-size="20">PM</text>
+  <text x="48" y="230" fill="#efe6d4" font-family="system-ui, sans-serif" font-size="15">Port Aurora Public Library</text>
+  <text x="360" y="150" fill="#2c2620" font-family="Georgia, serif" font-size="38">Lumen Archive</text>
+  <text x="360" y="190" fill="#5c5348" font-family="system-ui, sans-serif" font-size="16">Public talk  |  local library</text>
+  <text x="360" y="226" fill="#7a6f62" font-family="system-ui, sans-serif" font-size="14">Reading room  |  90 minutes</text>
+  <rect x="360" y="260" width="180" height="40" rx="12" fill="#2c2620"/>
+  <text x="376" y="285" fill="#efe6d4" font-family="system-ui, sans-serif" font-size="14" font-weight="600">Add to calendar</text>
+</svg>
