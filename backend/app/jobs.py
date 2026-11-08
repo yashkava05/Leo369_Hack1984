@@ -93,8 +93,61 @@ def start_job(job: JobState, filename: str | None) -> None:
     job.task = asyncio.create_task(runner)
 
 
+def offline_replay(
+    events: list[StageEvent], result: JobResult
+) -> tuple[list[StageEvent], JobResult]:
+    """Air-gap variant of a fixture: local stages unchanged, every search request blocked."""
+    blocked = [
+        r.model_copy(update={"blocked": True, "reason": "offline mode"}) for r in result.egress
+    ]
+    local_part = [e for e in events if e.stage in ("ingest", "extract", "scrub", "query")]
+    base = local_part[-1] if local_part else events[0]
+
+    def make(stage, status, message, local, data=None) -> StageEvent:
+        return base.model_copy(
+            update={
+                "stage": stage,
+                "status": status,
+                "message": message,
+                "local": local,
+                "data": data,
+            }
+        )
+
+    out = list(local_part)
+    out.append(make("search", "start", "search: air-gap on, nothing may leave this device", False))
+    for r in blocked:
+        target = f"{r.method} {r.host}{r.path}"
+        out.append(
+            make(
+                "search",
+                "error",
+                f"network ✕ blocked {target} · {r.bytes_out} bytes · {r.reason}",
+                False,
+                {
+                    "host": r.host,
+                    "path": r.path,
+                    "bytes_out": r.bytes_out,
+                    "blocked": True,
+                    "reason": r.reason,
+                },
+            )
+        )
+    out.append(
+        make("search", "ok", "search: 0 results, every request blocked (offline mode)", False)
+    )
+    out.append(make("cards", "ok", "cards: built 0 cards (search blocked)", True))
+    out.append(make("done", "ok", f"done: 0 cards, 0 network calls, {len(blocked)} blocked", True))
+    out = [e.model_copy(update={"seq": i}) for i, e in enumerate(out)]
+    return out, result.model_copy(update={"cards": [], "egress": blocked})
+
+
 async def run_mock(job: JobState, fixture: str) -> None:
     events, fixture_result = load_fixture(fixture)
+    from app import egress  # local import: egress imports jobs lazily too
+
+    if egress.is_offline():
+        events, fixture_result = offline_replay(events, fixture_result)
     now = time.time()
     result = fixture_result.model_copy(
         update={
