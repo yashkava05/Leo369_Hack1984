@@ -105,6 +105,47 @@ export interface Card {
   actions: CardAction[]
 }
 
+export type FeedItemKind = 'discovery' | 'connection' | 'follow_up' | 'pattern'
+export type FeedFeedbackAction = 'save' | 'useful' | 'not_useful' | 'dismiss' | 'less_like_this'
+export type FeedProvenance = 'local' | 'web'
+
+export interface FeedHero {
+  url: string
+  alt: string
+}
+
+export interface FeedSource {
+  title: string
+  url: string | null
+  job_id: string | null
+}
+
+export interface FeedItem {
+  id: string
+  kind: FeedItemKind
+  title: string
+  teaser: string
+  hero: FeedHero | null
+  source_job_ids: string[]
+  why: string
+  created_at: number
+  provenance: FeedProvenance
+  actions: CardAction[]
+  feedback: FeedFeedbackAction[]
+}
+
+export interface FeedItemDetail extends FeedItem {
+  body: string
+  sources: FeedSource[]
+  cards: Card[]
+}
+
+export interface FeedResponse {
+  items: FeedItem[]
+  next_cursor: string | null
+  generated_at: number
+}
+
 export type Stage = 'ingest' | 'extract' | 'scrub' | 'query' | 'search' | 'cards' | 'done' | 'error'
 export type StageStatus = 'start' | 'progress' | 'ok' | 'error'
 
