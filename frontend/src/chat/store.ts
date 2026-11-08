@@ -1,7 +1,8 @@
 import { useSyncExternalStore } from 'react'
-import { reset as resetJob, start } from '../state/useJob'
+import { followVoice, reserveVoiceSlot, reset as resetJob, start } from '../state/useJob'
 import { MOCK } from '../api/client'
 import { wipeLibrary } from '../api/library'
+import type { VoiceAction } from '../api/voice'
 import type { JobState } from '../state/useJob'
 import { getOffline, setOffline } from '../api/privacy'
 import { runAction } from '../components/cards/cardActions'
@@ -11,20 +12,21 @@ import { deleteMemory, initialSaved, keepSaved, resolvePending, syncSaved } from
 import type { SavedView } from './saved'
 import type { ChatMessage, KeptItem } from './messages'
 
-export const WELCOME = "Hi, I'm Latent. Send me a screenshot of something you meant to come back to and I'll turn it into something you can act on. I read it on this device; your screenshot never leaves it."
+export const WELCOME = "Hi, I'm Latent. Tap the microphone and tell me what you're looking for. I'll transcribe it on this device, let you review it, then search the live web when you choose Search. You can also attach your own screenshot."
 interface ChatState {
   messages: ChatMessage[]
   kept: KeptItem[]
   savedNotice: string
   blockedSaves: SavedView['blocked']
   busy: boolean
+  voicePending: boolean
   offline: boolean | null
   toggling: boolean
 }
 let nextId = 0
 const id = () => `chat-${++nextId}`
-let state: ChatState = { messages: [{ id: id(), type: 'agent-text', text: WELCOME }], kept: initialSaved(), savedNotice: '', blockedSaves: [], busy: false, offline: null, toggling: false }
-let active: { turn: string; file: File; startedAt: number } | null = null
+let state: ChatState = { messages: [{ id: id(), type: 'agent-text', text: WELCOME }], kept: initialSaved(), savedNotice: '', blockedSaves: [], busy: false, voicePending: false, offline: null, toggling: false }
+let active: { turn: string; file?: File; voiceAction?: VoiceAction; startedAt: number } | null = null
 const listeners = new Set<() => void>()
 const imageUrls = new Set<string>()
 const emit = (next: Partial<ChatState>) => {
@@ -53,7 +55,7 @@ export async function clearMemory(): Promise<void> {
     resetJob()
     if (MOCK) await wipeLibrary()
     releaseImages()
-    emit({ kept: [], blockedSaves: [], savedNotice: '', busy: false, messages: [{ id: id(), type: 'agent-text', text: WELCOME }] })
+    emit({ kept: [], blockedSaves: [], savedNotice: '', busy: false, voicePending: false, messages: [{ id: id(), type: 'agent-text', text: WELCOME }] })
   } catch { say('Could not finish deleting local data. Retry when storage and the backend are available.') }
 }
 
@@ -80,14 +82,14 @@ export async function toggleOffline(offline: boolean): Promise<boolean> {
 export function sendText(text: string): void {
   if (!text.trim()) return
   append({ id: id(), type: 'user-text', text: text.trim() })
-  if (state.busy) { say("Give me a second, I'm still on the last one."); return }
+  if (state.busy || state.voicePending) { say("Give me a second, I'm still on the last one."); return }
   say(/privacy|air.?gap|send|receipt|private|leave/i.test(text)
     ? "I read your screenshot on this device. Only short text searches built from public details can leave; your image and private text stay here. Open Receipts to see exactly what was sent, or turn on air-gap to block searches."
     : "I work best with screenshots. Send one of something you meant to come back to: an event, a product, a book, or a work doc.")
 }
 
 export async function sendImage(file: File): Promise<void> {
-  if (state.busy) { say("Give me a second, I'm still on the last one."); return }
+  if (state.busy || state.voicePending) { say("Give me a second, I'm still on the last one."); return }
   if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
     say('I can read PNG, JPEG or WebP screenshots. Try one of those.'); return
   }
@@ -103,6 +105,24 @@ export async function sendImage(file: File): Promise<void> {
     { id: id(), type: 'work-steps', turn, events: [], startedAt: active.startedAt },
   )
   await start(file)
+}
+
+export function setVoiceBusy(busy: boolean): boolean {
+  if ((busy && state.busy) || !reserveVoiceSlot(busy)) return false
+  emit({ voicePending: busy })
+  return true
+}
+
+/** Keep the reviewed transcript out of the conversation and persisted chat items. */
+export function beginVoiceJob(jobId: string, action: VoiceAction): void {
+  if (state.busy || !followVoice(jobId)) return
+  const turn = id()
+  active = { turn, voiceAction: action, startedAt: Date.now() }
+  emit({ busy: true })
+  append(
+    { id: id(), type: 'agent-text', text: action === 'related' ? 'Finding related options from your selected saved item.' : 'Interpreting your reviewed thought on this device.' },
+    { id: id(), type: 'work-steps', turn, source: 'voice', savedLocally: action === 'save', events: [], startedAt: active.startedAt },
+  )
 }
 
 function jobError(message: string): string {
@@ -125,19 +145,34 @@ export function syncJob(job: JobState): void {
   if (!finished) return
   active = null
   emit({ busy: false })
-  if (job.status === 'error' || !job.result) { say(jobError(job.error ?? 'model error')); return }
-  finishResult(job.result, current.file, job.events.find((e) => e.stage === 'search' && e.status === 'error')?.message)
+  if (job.status === 'error' || !job.result) { say(current.voiceAction ? /local_save_unavailable/.test(job.error ?? '') ? 'Local saving failed. Check local storage permissions and free disk space, then submit your reviewed thought again.' : 'Local interpretation failed. Check Ollama, then review and submit your thought again.' : jobError(job.error ?? 'model error')); return }
+  finishResult(job.result, current.file, job.events.find((e) => e.stage === 'search' && e.status === 'error')?.message, current.voiceAction)
 }
 
-function finishResult(result: JobResult, file: File, searchError?: string): void {
+function finishResult(result: JobResult, file?: File, searchError?: string, voiceAction?: VoiceAction): void {
+  if (voiceAction === 'save') {
+    say('Your scrubbed interest is saved in the local library. Nothing left this device.')
+    append({ id: id(), type: 'receipt', source: 'voice', records: result.egress })
+    return
+  }
+  if (voiceAction && !result.queries.length && !result.cards.length && !result.egress.length && !result.error && !searchError) {
+    say(voiceAction === 'related'
+      ? "That saved item doesn't have enough public details for a related search. Choose another saved item."
+      : 'I need more public details to build a search. For events, name a topic or event and a city, such as “Find AI events in Boston this weekend.” For products, include a brand and model. Review your thought and try again.')
+    append({ id: id(), type: 'receipt', source: 'voice', records: result.egress })
+    return
+  }
   const blockedOffline = result.egress.some((record) => record.blocked && /offline|air.?gap/i.test(record.reason ?? ''))
   const entities = result.intent?.public_entities.map((entity) => entity.value).join(', ') || 'the public details'
   say(blockedOffline
     ? `I read it on this device: ${entities}. Air-gap is on, so I didn't search the web.`
-    : replyFor(result.intent))
+    : voiceAction && !result.cards.length
+      ? 'The search finished without usable cards. Try a more specific topic, location, or date.'
+      : replyFor(result.intent))
   if (result.cards.length) append({ id: id(), type: 'cards', cards: result.cards })
-  append({ id: id(), type: 'receipt', records: result.egress })
+  append({ id: id(), type: 'receipt', source: voiceAction ? 'voice' : undefined, records: result.egress })
   if (blockedOffline) {
+    if (voiceAction) { say('Turn air-gap off and submit your reviewed thought again to search the web.'); return }
     append({ id: id(), type: 'ask', kind: 'resume', question: 'Turn air-gap off and finish?', primary: 'Turn off and finish', result, file })
     return
   }
@@ -154,7 +189,7 @@ function finishResult(result: JobResult, file: File, searchError?: string): void
 export async function chooseAsk(messageId: string, yes: boolean): Promise<void> {
   const ask = state.messages.find((m) => m.id === messageId)
   if (!ask || ask.type !== 'ask' || ask.choice) return
-  if (ask.kind === 'resume' && (state.busy || state.toggling)) { say("Give me a second, I'm still on the last one."); return }
+  if (ask.kind === 'resume' && (state.busy || state.voicePending || state.toggling)) { say("Give me a second, I'm still on the last one."); return }
   const choice = yes ? ask.primary : 'Not now'
   emit({ messages: state.messages.map((m) => m.id === messageId ? { ...ask, choice } : m) })
   append({ id: id(), type: 'user-text', text: choice })

@@ -193,9 +193,23 @@ key itself is never returned or logged.
 Silicon or a GPU it takes a few seconds. With 16 GB+ RAM or a good GPU you can use the 7B model:
 set `LATENT_MODEL=qwen2.5vl:7b` in `.env` and re-run `./scripts/setup.sh`.
 
-**Windows.** `setup.sh` is for macOS and Linux. On Windows, run it inside WSL, or do the steps by
-hand: install Ollama for Windows, `ollama pull qwen2.5vl:3b`, then follow the manual setup above
-(the backend install includes `en_core_web_lg`).
+**Windows.** `setup.sh` and `dev.sh` are for macOS and Linux (or WSL). On Windows, clone the repo
+onto the Windows drive (for example `C:\src\latent`, not `\\wsl.localhost\...`), install Python
+3.11, Node 20.19+ and [Ollama for Windows](https://ollama.com/download/windows), then double-click
+`scripts\start-windows.cmd`. It checks the prerequisites (printing a fix for each missing one),
+creates `.env` if there is none (never touching an existing `.env` or `.env.local`), pulls the model,
+installs `backend\.venv` (including `en_core_web_lg`) and the frontend dependencies when they are
+missing or changed, starts the backend and frontend, waits for `/api/health` and opens the chat.
+Ctrl+C or closing the window stops both servers. From PowerShell:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\start-windows.ps1 -Check   # readiness report only
+scripts\start-windows.cmd -Mock      # replay fixtures: no Ollama, no network
+scripts\start-windows.cmd -AirGap    # start with every outbound request blocked
+scripts\start-windows.cmd -Wsl       # bind to 0.0.0.0 so WSL can reach the app (and Ollama, if started here)
+```
+
+See [`docs/DEMO.md`](docs/DEMO.md#windows-demo-laptop) for the demo-laptop routine.
 
 ## Configuration
 
@@ -255,6 +269,53 @@ and `DELETE /api/library`. To inspect it directly:
 sqlite3 ~/.latent/latent.db 'select intent_type, summary from intents order by created_at desc limit 5;'
 ```
 
+## Local voice and reviewed text
+
+Click the **microphone icon** beside the screenshot attachment button in chat
+(or below the classic screenshot drop zone) to open voice input. Record up to 30 seconds, stop, review/edit the text,
+then choose **Explore**, **Save locally**, or **Find related**. Typed input uses the
+same review and local interpretation without microphone access. Find related requires
+one selected library item and searches only that item's scrubbed public details.
+Save locally stores a scrubbed intent in the library without any internet request.
+
+Voice is optional. With the backend environment activated:
+
+```bash
+cd backend
+python -m pip install -e '.[voice]'
+cd ..
+./scripts/setup_voice.sh
+```
+
+The script explicitly installs the pinned `Systran/faster-whisper-base.en` model
+(about 150 MB; additional Python dependencies need extra space) and runs an offline,
+in-memory smoke transcription. Set `LATENT_VOICE_PYTHON` if your Python environment
+is outside `backend/.venv`. Runtime never downloads a model. Defaults:
+
+```env
+LATENT_STT_MODEL_PATH=~/.latent/models/faster-whisper-base.en
+LATENT_STT_DEVICE=cpu
+LATENT_STT_COMPUTE_TYPE=int8
+```
+
+Transcription is English-only, CPU int8 by default; the first request loads the model
+and can take longer. Latency depends on CPU and recording length. Browser recording
+requires localhost or HTTPS and permission, and chooses WebM/Opus, MP4, then Ogg/Opus
+according to browser support. The backend also accepts WAV, validates container bytes,
+and caps uploads at 8 MiB and decoded audio at 30 seconds. Unsupported recording,
+permission denial, missing models, and silence offer a typed fallback.
+
+Audio is decoded only in memory and never stored or logged. Raw/edited transcripts
+are review-only and never enter job events, the local library, or audit records.
+Only local Ollama receives reviewed text; only provenance-checked queries from scrubbed
+public entities can reach Tavily/Exa. No Gradium/cloud transcription key is used.
+Air-gap mode allows transcription, local interpretation, and save while blocking
+external searches. Install the STT and Ollama models before going offline.
+
+`VITE_MOCK=1 npm run dev` in `frontend/` provides event, save-only, selected-context
+related, silence, and permission-denied demos without a microphone or backend.
+`LATENT_MOCK=1` replays local voice results without loading Whisper or Ollama.
+
 ## Checks
 
 ```bash
@@ -273,11 +334,12 @@ backend/tests/          pytest suite
 frontend/src/           Vite + React + TS (api/, components/, types.ts, App.tsx, main.tsx)
 eval/                   screenshots/, expected.json, run_eval.py
 scripts/setup.sh        one-shot local setup
+scripts/start-windows.* Windows: check, set up and start in one step
 ```
 
 ## Pitch deck
 
-- [`docs/pitch.pdf`](docs/pitch.pdf): the 6-slide deck for the submission.
+- [`docs/pitch.pdf`](docs/pitch.pdf): the 7-slide deck for the submission.
 - [`docs/pitch-notes.pdf`](docs/pitch-notes.pdf): the same slides with speaker notes under each one.
 - [`docs/pitch.html`](docs/pitch.html): the source. Open it in any browser to present
   (arrow keys or click to move, `F` fullscreen, `N` speaker notes). Edit the text in the file; no

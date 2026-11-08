@@ -11,10 +11,10 @@ export function receiptTotals(records: EgressRecord[]): { sent: number; bytes: n
   }, { sent: 0, bytes: 0, blocked: 0 })
 }
 
-export function receiptLabel(records: EgressRecord[]): string {
+export function receiptLabel(records: EgressRecord[], source?: 'voice'): string {
   const { sent, bytes, blocked } = receiptTotals(records)
   if (sent === 0 && blocked > 0) return `Nothing left this device. ${blocked} searches blocked.`
-  return `🔒 Screenshot stayed here. ${sent} text searches sent (${bytes} bytes).${blocked > 0 ? ` ${blocked} searches blocked.` : ''}`
+  return `🔒 ${source === 'voice' ? 'Audio and transcript stayed here.' : 'Screenshot stayed here.'} ${sent} text searches sent (${bytes} bytes).${blocked > 0 ? ` ${blocked} searches blocked.` : ''}`
 }
 
 export function queryPreview(record: EgressRecord): string {

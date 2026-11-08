@@ -194,6 +194,20 @@ async def _run_stages(job: jobs.JobState, box: list[bytes], timings: dict[str, i
     )
     timings["query"] = _ms(time.perf_counter() - t0)
 
+    await finish_intent_job(job, scrubbed, queries, timings, related_q=related_q, thumb=thumb)
+
+
+async def finish_intent_job(
+    job: jobs.JobState,
+    scrubbed: Intent,
+    queries: list[SearchQuery],
+    timings: dict[str, int],
+    *,
+    related_q: SearchQuery | None = None,
+    thumb: bytes | None = None,
+) -> None:
+    """Shared search/cards/save tail for structured, scrubbed screenshot and voice intents."""
+    job_id = job.job_id
     # allow_terms: only kept public names (performers, authors, titles, products, brands,
     # companies) may appear in an outbound query; the same set the query builder checked with.
     allow_terms = query_allow_terms(scrubbed)

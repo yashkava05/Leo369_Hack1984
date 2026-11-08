@@ -284,6 +284,71 @@ def related_query(intent: Intent, now: date | None = None) -> SearchQuery | None
     return q.model_copy(update={"purpose": "related"})
 
 
+# Voice event discovery can have a topic ("AI events") rather than a known performer.
+# Keep these separate so the established screenshot templates retain their behavior.
+_VOICE_EVENTS = (
+    _Template(
+        "event",
+        "tickets",
+        (_s("performer", "event_name", "public_org", "topic"), _s("city"), _s("date"), "tickets"),
+    ),
+    _Template(
+        "event",
+        "tickets",
+        (_s("performer", "event_name", "public_org", "topic"), _s("city"), "tickets"),
+    ),
+    # A named team/event can be searched without inventing a separate location.
+    _Template(
+        "event",
+        "tickets",
+        (_s("performer", "event_name", "public_org", "topic"), _s("date"), "tickets"),
+    ),
+    _Template(
+        "event", "tickets", (_s("performer", "event_name", "public_org", "topic"), "tickets")
+    ),
+)
+
+
+def _voice_candidate(
+    intent: Intent, templates: tuple[_Template, ...], now: date | None
+) -> SearchQuery | None:
+    for template in templates:
+        query = _build_one(template, _first_values(intent), (now or date.today()).year)
+        if (
+            query
+            and provenance_ok(query, intent)
+            and not _pii_categories(query.text, allow_terms(intent))
+        ):
+            return query
+    return None
+
+
+def build_voice_queries(intent: Intent, now: date | None = None) -> list[SearchQuery]:
+    """Event/topic discovery for voice, with all other intents using the existing builder."""
+    if intent.intent_type != "event":
+        return build_queries(intent, now)
+    query = _voice_candidate(intent, _VOICE_EVENTS, now)
+    return [query] if query else []
+
+
+def related_voice_query(intent: Intent, now: date | None = None) -> SearchQuery | None:
+    """Extend related reading to one selected event/product, from its public entities only."""
+    if intent.intent_type == "event":
+        query = _voice_candidate(intent, _VOICE_EVENTS, now)
+    elif intent.intent_type == "product":
+        query = _voice_candidate(
+            intent,
+            (
+                _Template("product", "context", (_s("brand"), _s("product"), "review")),
+                _Template("product", "context", (_s("product"), "review")),
+            ),
+            now,
+        )
+    else:
+        return related_query(intent, now)
+    return query.model_copy(update={"purpose": "related"}) if query else None
+
+
 def feed_discovery_query(intent: Intent, now: date | None = None) -> SearchQuery | None:
     """One privacy-proven discovery query for the Muse feed.
 

@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "Latent Browser Bridge",
+  "version": "0.1.0",
+  "description": "Lets Latent read an Outlook on the web tab or one Teams on the web chat you explicitly share, read-only, for one confirmed request at a time.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAh8rygtOZBTWlxisO4GIPVGxJoD82mmgB81RRjmj1M6B+1wA3rXH8BQN4HFRv3dVcMPao0S4zJXKq4elJvrVaaSq37M+M88SWmbWCOI2wB0224YzsPKtVWTgcxmpc1Fwg9rV2bx7/kE/PQP35foZPsjDHzYQj6R7Pjm/8X/u2iu/f0P3eOxfvivl+NkgD7ann0VJk+0EVI9DQi0BJULAdBpwTHGnlzBy+4XYEpXC98Yun90rPcosfQnAX3xW14AWP1i5dvxEdN+YOlwEnjVbmT7/+jHZ4u5vfiOxspQaaIH+LaIzU2R02iwoBSH+Fzvw4OAzLkBq4IkIKx/mxJdSZVQIDAQAB",
+  "minimum_chrome_version": "120",
+  "permissions": ["scripting", "storage", "activeTab"],
+  "optional_host_permissions": [
+    "https://outlook.office.com/*",
+    "https://outlook.office365.com/*",
+    "https://outlook.live.com/*",
+    "https://outlook.cloud.microsoft/*",
+    "https://teams.microsoft.com/*",
+    "https://teams.cloud.microsoft/*",
+    "https://teams.live.com/*"
+  ],
+  "host_permissions": ["http://127.0.0.1:8000/*"],
+  "background": { "service_worker": "background.js" },
+  "action": { "default_title": "Share an Outlook tab or Teams chat with Latent", "default_popup": "popup.html" },
+  "externally_connectable": { "matches": ["http://localhost:5173/*"] }
+}

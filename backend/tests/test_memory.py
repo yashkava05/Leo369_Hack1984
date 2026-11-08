@@ -285,11 +285,17 @@ def test_tombstones_are_pruned_after_ttl_but_recent_ones_still_block_reimport():
             "UPDATE saved_item_tombstones SET deleted_at = ? WHERE id = 'old'",
             (library.time.time() - library.TOMBSTONE_TTL_S - 60,),
         )
-    statuses = {
-        s["id"]: s["status"]
-        for s in library.import_saved_items([saved("old"), saved("recent")], client_epoch=0)[1]
-    }
-    assert statuses == {"old": "saved", "recent": "tombstoned"}
+    # Compaction must invalidate even very old offline imports before dropping markers.
+    epoch, statuses, stale = library.import_saved_items(
+        [saved("old"), saved("recent")], client_epoch=0
+    )
+    assert (epoch, statuses, stale) == (1, [], True)
+    assert library.list_saved_items() == (1, [])
+    assert library.import_saved_items([saved("old")], client_epoch=None)[2]
+    # A current client still cannot replay the retained recent tombstone.
+    assert library.import_saved_items([saved("recent")], client_epoch=1)[1] == [
+        {"id": "recent", "status": "tombstoned"}
+    ]
     with library._connect() as conn:
         ids = {r[0] for r in conn.execute("SELECT id FROM saved_item_tombstones")}
     assert ids == {"recent"}
@@ -323,3 +329,92 @@ async def test_import_rejects_oversized_batches_and_card_lists():
         assert (await client.post("/api/saved/import", json=ok)).status_code == 200
     (only,) = library.list_saved_items()[1]
     assert only.id == "i0" and len(only.cards) == MAX_CARDS_PER_ITEM
+
+
+async def test_delete_all_clears_muse_items_feedback_and_suppressions(monkeypatch):
+    from app import feed
+    from app.config import get_settings
+
+    monkeypatch.setenv("LATENT_MOCK", "1")
+    get_settings.cache_clear()
+    library.save(result())
+    library.import_saved_items([saved()], client_epoch=0)
+    await feed.refresh()
+    items = feed.list_items().items
+    assert items
+    assert feed.feedback(items[0].id, "less_like_this")
+    with feed._connect() as conn:
+        assert conn.execute("SELECT COUNT(*) FROM feed_suppressions").fetchone()[0] > 0
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        assert (await client.delete("/api/memory?confirm=DELETE_ALL_LOCAL_DATA")).status_code == 200
+        assert (await client.get("/api/feed")).json()["items"] == []
+    with feed._connect() as conn:
+        assert conn.execute("SELECT COUNT(*) FROM feed_items").fetchone()[0] == 0
+        assert conn.execute("SELECT COUNT(*) FROM feed_suppressions").fetchone()[0] == 0
+    assert library.search() == []
+    assert library.list_saved_items() == (1, [])
+
+
+async def test_reset_is_atomic_when_clearing_feed_fails(monkeypatch):
+    from app import feed
+    from app.config import get_settings
+
+    monkeypatch.setenv("LATENT_MOCK", "1")
+    get_settings.cache_clear()
+    library.save(result())
+    library.import_saved_items([saved()], client_epoch=0)
+    await feed.refresh()
+    item_id = feed.list_items().items[0].id
+    feed.feedback(item_id, "less_like_this")
+    with feed._connect() as conn:
+        conn.execute(
+            "CREATE TRIGGER fail_reset BEFORE DELETE ON feed_suppressions"
+            " BEGIN SELECT RAISE(ABORT, 'simulated storage failure'); END"
+        )
+    with pytest.raises(sqlite3.IntegrityError):
+        library.delete_all_local_data(confirm="DELETE_ALL_LOCAL_DATA")
+    assert library.current_generation() == 0
+    assert library.current_memory_epoch() == 0
+    assert library.get(result().job_id) is not None
+    assert len(library.list_saved_items()[1]) == 1
+    with feed._connect() as conn:
+        assert conn.execute("SELECT COUNT(*) FROM feed_items").fetchone()[0] > 0
+        assert conn.execute("SELECT COUNT(*) FROM feed_suppressions").fetchone()[0] > 0
+
+
+async def test_feed_refresh_started_before_reset_cannot_restore_deleted_memories(monkeypatch):
+    from app import feed
+    from app.config import get_settings
+
+    monkeypatch.setenv("LATENT_MOCK", "0")
+    get_settings.cache_clear()
+    started, release = asyncio.Event(), asyncio.Event()
+
+    async def paused_discovery(_records):
+        started.set()
+        await release.wait()
+        return feed._mock_candidates()
+
+    monkeypatch.setattr(feed, "_discovery_candidates", paused_discovery)
+    task = asyncio.create_task(feed.refresh())
+    await asyncio.wait_for(started.wait(), timeout=5)
+    library.delete_all_local_data(confirm="DELETE_ALL_LOCAL_DATA")
+    release.set()
+    await task
+    assert feed.list_items().items == []
+
+
+@pytest.mark.parametrize("action", ["save", "explore"])
+async def test_merged_voice_save_paths_keep_job_generation_fence(monkeypatch, action):
+    from app.pipeline import voice_runner
+
+    monkeypatch.setattr(jobs, "MOCK_DELAY_RANGE", (0, 0))
+    job = jobs.create_job()
+    library.delete_all_local_data(confirm="DELETE_ALL_LOCAL_DATA")
+    await voice_runner._mock_voice(job, action, None)
+    assert library.get(job.job_id) is None
+    if action == "save":
+        assert job.result.error == "local_save_unavailable"
+    jobs.JOBS.pop(job.job_id, None)

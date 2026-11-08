@@ -36,7 +36,7 @@ log = logging.getLogger(__name__)
 THUMB_PX = 256
 DEFAULT_LIMIT = 50
 MAX_LIMIT = 200
-# A tombstone blocks re-import of an individually deleted saved item; prune after 90 days.
+# Age-based compaction advances the import epoch so older copies remain rejected.
 TOMBSTONE_TTL_S = 90 * 24 * 60 * 60
 
 SCHEMA = """
@@ -428,9 +428,9 @@ def wipe() -> None:
         )
         conn.execute("DELETE FROM intents_fts")
         conn.execute("DELETE FROM intents")
-    from app import feed  # local import: feed stores derived rows in this same private DB
+        from app import feed  # local import: feed reads library records
 
-    feed.wipe()
+        feed.wipe(conn)
     conn = sqlite3.connect(init_db(), timeout=5)
     try:
         conn.execute("INSERT INTO intents_fts (intents_fts) VALUES ('optimize')")
@@ -478,7 +478,14 @@ def _require_epoch(conn: sqlite3.Connection, client_epoch: int | None) -> tuple[
 
 
 def _prune_tombstones(conn: sqlite3.Connection, now: float) -> None:
-    conn.execute("DELETE FROM saved_item_tombstones WHERE deleted_at < ?", (now - TOMBSTONE_TTL_S,))
+    deleted = conn.execute(
+        "DELETE FROM saved_item_tombstones WHERE deleted_at < ?", (now - TOMBSTONE_TTL_S,)
+    ).rowcount
+    if deleted:
+        conn.execute(
+            "UPDATE memory_state SET memory_epoch = memory_epoch + 1, updated_at = ? WHERE id = 1",
+            (now,),
+        )
 
 
 def import_saved_items(
@@ -487,10 +494,10 @@ def import_saved_items(
     statuses: list[dict[str, str]] = []
     with _connect() as conn:
         conn.execute("BEGIN IMMEDIATE")
+        _prune_tombstones(conn, time.time())
         ok, epoch = _require_epoch(conn, client_epoch)
         if not ok:
             return (epoch, statuses, True)
-        _prune_tombstones(conn, time.time())
         for item in items:
             tombstoned = conn.execute(
                 "SELECT 1 FROM saved_item_tombstones WHERE id = ?",
@@ -528,11 +535,11 @@ def import_saved_items(
 def delete_saved_item(saved_id: str, *, client_epoch: int | None) -> tuple[int, bool, bool]:
     with _connect() as conn:
         conn.execute("BEGIN IMMEDIATE")
+        now = time.time()
+        _prune_tombstones(conn, now)
         ok, epoch = _require_epoch(conn, client_epoch)
         if not ok:
             return (epoch, False, True)
-        now = time.time()
-        _prune_tombstones(conn, now)
         conn.execute(
             "INSERT OR REPLACE INTO saved_item_tombstones (id, deleted_at) VALUES (?, ?)",
             (saved_id, now),
@@ -584,6 +591,9 @@ def delete_all_local_data(*, confirm: str) -> tuple[bool, int]:
         conn.execute("DELETE FROM saved_items")
         conn.execute("DELETE FROM intents_fts")
         conn.execute("DELETE FROM intents")
+        from app import feed  # local import: feed reads library records
+
+        feed.wipe(conn)
     conn = sqlite3.connect(init_db(), timeout=5)
     try:
         conn.execute("INSERT INTO intents_fts (intents_fts) VALUES ('optimize')")

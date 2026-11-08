@@ -130,7 +130,7 @@ async def delete_all_local_data(confirm: str = Query("")) -> dict:
         raise HTTPException(
             400,
             "confirmation required: DELETE_ALL_LOCAL_DATA"
-            " (saved items, library history, FTS index)",
+            " (saved items, library history, FTS index, Muse feed and preferences)",
         )
     generation = await asyncio.to_thread(library.current_generation)
     cancelled = []

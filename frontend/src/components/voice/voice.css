@@ -1,0 +1,73 @@
+.voice-capture { --v-text: var(--chat-ink, #eeeae5); --v-muted: var(--chat-muted, #b9b3c6); --v-surface: var(--chat-surface, #24232b); --v-field: var(--chat-sunk, #17161e); --v-border: var(--chat-line, #4a4657); --v-accent: var(--chat-me, #8f7cff); --v-on-accent: #fff; --v-rec: #e5484d; --v-error: var(--chat-block, #ff8a8a); --v-error-bg: var(--chat-block-bg, rgb(255 90 90 / 0.12));
+  color: var(--v-text); background: var(--v-surface); border: 1px solid var(--v-border); border-radius: 18px; padding: 12px 14px 10px; max-width: 100%; min-width: 0; font: inherit; box-shadow: 0 6px 24px rgb(15 23 42 / 0.10); }
+.voice-capture * { box-sizing: border-box; }
+.voice-capture :is(button, textarea, select) { font: inherit; color: inherit; }
+.voice-capture :is(button, textarea, select):focus-visible { outline: 2px solid var(--v-accent); outline-offset: 2px; }
+.voice-capture button { cursor: pointer; }
+.voice-capture button:disabled, .voice-capture select:disabled, .voice-capture textarea:disabled { opacity: 0.5; cursor: default; }
+
+/* One-line status bar used for idle / listening / transcribing / error */
+.voice-bar { display: flex; align-items: center; gap: 12px; min-height: 48px; }
+.voice-bar-text { display: grid; gap: 4px; flex: 1; min-width: 0; }
+.voice-bar-text strong { font-weight: 600; font-size: 0.95rem; display: flex; align-items: baseline; gap: 8px; }
+.voice-bar-text > span { font-size: 0.8rem; color: var(--v-muted); }
+.voice-bar.is-error { padding: 4px 4px 4px 12px; border-radius: 12px; background: var(--v-error-bg); }
+.voice-bar.is-error strong { font-weight: 500; color: var(--v-error); font-size: 0.9rem; }
+.voice-time { font-variant-numeric: tabular-nums; color: var(--v-muted); font-weight: 500; }
+.voice-progress { display: block; height: 3px; border-radius: 3px; background: var(--v-border); overflow: hidden; }
+.voice-progress i { display: block; height: 100%; background: var(--v-rec); transition: width 0.2s linear; }
+
+.voice-mic { display: grid; place-items: center; width: 44px; height: 44px; flex: none; border-radius: 50%; border: 0; background: var(--v-accent); color: var(--v-on-accent); }
+.voice-mic:hover:not(:disabled) { filter: brightness(1.08); }
+.voice-dot { width: 12px; height: 12px; margin: 0 6px; flex: none; border-radius: 50%; background: var(--v-rec); box-shadow: 0 0 0 0 rgb(229 72 77 / 0.55); animation: voice-pulse 1.4s ease-out infinite; }
+.voice-dot.is-waiting { background: var(--v-muted); animation: none; }
+.voice-spinner { width: 18px; height: 18px; margin: 0 3px; flex: none; border-radius: 50%; border: 2px solid var(--v-border); border-top-color: var(--v-accent); animation: voice-spin 0.8s linear infinite; }
+@keyframes voice-pulse { 70% { box-shadow: 0 0 0 10px rgb(229 72 77 / 0); } 100% { box-shadow: 0 0 0 0 rgb(229 72 77 / 0); } }
+@keyframes voice-spin { to { transform: rotate(360deg); } }
+
+/* Buttons */
+.voice-primary, .voice-secondary { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 16px; border-radius: 999px; font-weight: 600; font-size: 0.9rem; white-space: nowrap; }
+.voice-primary { border: 0; background: var(--v-accent); color: var(--v-on-accent); }
+.voice-primary:hover:not(:disabled) { filter: brightness(1.08); }
+.voice-secondary { border: 1px solid var(--v-border); background: transparent; }
+.voice-secondary:hover:not(:disabled) { border-color: var(--v-muted); }
+.voice-icon { display: inline-grid; place-items: center; width: 36px; height: 36px; flex: none; border-radius: 50%; border: 0; background: transparent; color: var(--v-muted); }
+.voice-icon:hover:not(:disabled) { background: var(--v-field); color: var(--v-text); }
+.voice-link { display: inline-flex; align-items: center; gap: 6px; border: 0; background: none; padding: 6px 2px; color: var(--v-muted); font-size: 0.85rem; text-decoration: underline; text-underline-offset: 3px; }
+.voice-link:hover:not(:disabled) { color: var(--v-text); }
+
+/* Review */
+.voice-review { display: grid; gap: 8px; }
+.voice-review textarea { width: 100%; min-height: 64px; max-height: 30vh; resize: vertical; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--v-border); background: var(--v-field); line-height: 1.45; font-size: 0.98rem; }
+.voice-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.voice-spacer { flex: 1; }
+.voice-chip { display: flex; align-items: center; gap: 8px; padding: 6px 6px 6px 10px; border-radius: 10px; background: var(--v-field); font-size: 0.85rem; overflow-wrap: anywhere; }
+.voice-chip > span { flex: 1; }
+.voice-related { display: grid; gap: 6px; }
+.voice-related select { width: 100%; min-width: 0; min-height: 40px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--v-border); background: var(--v-field); text-overflow: ellipsis; }
+.voice-hint { margin: 0; font-size: 0.78rem; color: var(--v-muted); }
+.voice-hint kbd { font: inherit; font-size: 0.72rem; padding: 0 4px; border: 1px solid var(--v-border); border-radius: 4px; }
+.voice-error { margin: 0 0 8px; color: var(--v-error); font-size: 0.88rem; }
+
+/* Footer */
+.voice-privacy { display: flex; align-items: center; gap: 5px; margin: 12px 0 0; font-size: 0.74rem; color: var(--v-muted); }
+.voice-demo { display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: 0.74rem; color: var(--v-muted); }
+.voice-demo select { min-height: 28px; padding: 0 6px; border-radius: 6px; border: 1px solid var(--v-border); background: var(--v-field); font-size: 0.78rem; }
+
+@media (max-width: 480px) {
+  .voice-capture { padding: 10px; border-radius: 14px; }
+  .voice-actions { flex-wrap: nowrap; gap: 6px; }
+  .voice-actions .voice-primary, .voice-actions .voice-secondary { flex: 1 1 0; min-width: 0; justify-content: center; padding: 0 10px; }
+  .voice-actions .voice-spacer { display: none; }
+  .voice-actions .voice-icon { width: 34px; }
+  .voice-shortcut { display: none; }
+  .voice-bar.is-error { flex-wrap: wrap; gap: 6px 10px; padding: 10px 6px 6px 12px; }
+  .voice-bar.is-error .voice-bar-text { flex: 1 0 calc(100% - 46px); order: 0; }
+  .voice-bar.is-error .voice-icon { order: 1; }
+  .voice-bar.is-error :is(.voice-secondary, .voice-link) { order: 2; }
+  .voice-bar-text > span { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { .voice-capture *, .voice-capture *::before, .voice-capture *::after { animation: none !important; transition: none !important; } }
+
+.voice-trigger { display: inline-grid; place-items: center; width: 44px; height: 44px; border: 1px solid currentColor; border-radius: 50%; background: transparent; color: inherit; cursor: pointer; }
+.voice-trigger:focus-visible { outline: 3px solid currentColor; outline-offset: 3px; }

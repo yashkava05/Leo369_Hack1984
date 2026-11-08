@@ -12,7 +12,7 @@ vi.mock('../api/events', () => ({
   },
 }))
 
-const { endsJob, follow, reset, start, useJob } = await import('./useJob')
+const { endsJob, follow, followVoice, reserveVoiceSlot, reset, start, useJob } = await import('./useJob')
 
 // Read the shared store the way components do (server render uses the current snapshot).
 function Probe() {
@@ -107,5 +107,21 @@ describe('follow (folder watcher)', () => {
     emit(event({ stage: 'extract' }))
     expect(follow('j_watched')).toBe(false)
     expect(read()).toEqual({ status: 'running', events: 1, cards: null })
+  })
+})
+
+
+describe('shared voice reservation', () => {
+  afterEach(() => { reserveVoiceSlot(false); reset() })
+  it('prevents watcher and screenshot starts until voice is handed off', async () => {
+    reset()
+    expect(reserveVoiceSlot(true)).toBe(true)
+    expect(follow('j_watcher')).toBe(false)
+    await start(new File(['x'], 'test.png', { type: 'image/png' }))
+    expect(read().status).toBe('idle')
+    reserveVoiceSlot(false)
+    expect(followVoice('j_voice')).toBe(true)
+    expect(read().status).toBe('running')
+    expect(reserveVoiceSlot(true)).toBe(false)
   })
 })

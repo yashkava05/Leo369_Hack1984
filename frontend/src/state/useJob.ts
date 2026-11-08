@@ -1,5 +1,7 @@
 import { useSyncExternalStore } from 'react'
 import { analyze, subscribe } from '../api/events'
+import { MOCK } from '../api/client'
+import { subscribeMockVoice } from '../api/voice'
 import type { JobResult, Stage, StageEvent } from '../types'
 
 // One shared job store for the whole page: the drop zone writes it, and the stage strip,
@@ -26,6 +28,14 @@ let unsubscribeEvents: (() => void) | null = null
 // Bumped by every start() and reset() so late analyze() responses and stray events from an
 // abandoned job are ignored.
 let generation = 0
+let voiceReserved = false
+
+/** Hold the shared input slot across local capture and the analyze request. */
+export function reserveVoiceSlot(busy: boolean): boolean {
+  if (busy && (voiceReserved || state.status === 'uploading' || state.status === 'running')) return false
+  voiceReserved = busy
+  return true
+}
 
 function setState(next: JobState): void {
   state = next
@@ -67,6 +77,7 @@ function onEvent(gen: number, event: StageEvent): void {
 }
 
 export async function start(file: File): Promise<void> {
+  if (voiceReserved) return
   clear()
   const gen = generation
   setState({ status: 'uploading', previewUrl: URL.createObjectURL(file), events: [] })
@@ -89,11 +100,21 @@ export async function start(file: File): Promise<void> {
  * Does nothing while the user is mid-job (uploading or running). Returns whether it switched.
  */
 export function follow(jobId: string): boolean {
-  if (state.status === 'uploading' || state.status === 'running') return false
+  if (voiceReserved || state.status === 'uploading' || state.status === 'running') return false
   clear()
   const gen = generation
   setState({ status: 'running', jobId, events: [] })
   unsubscribeEvents = subscribe(jobId, (event) => onEvent(gen, event))
+  return true
+}
+
+/** Follow an accepted voice job through the same stages and result store. */
+export function followVoice(jobId: string): boolean {
+  if (voiceReserved || state.status === 'uploading' || state.status === 'running') return false
+  clear()
+  const gen = generation
+  setState({ status: 'running', jobId, events: [] })
+  unsubscribeEvents = (MOCK ? subscribeMockVoice : subscribe)(jobId, (event) => onEvent(gen, event))
   return true
 }
 
@@ -125,8 +146,9 @@ const getSnapshot = (): JobState => state
 export function useJob(): JobState & {
   start(file: File): Promise<void>
   follow(jobId: string): boolean
+  followVoice(jobId: string): boolean
   reset(): void
 } {
   const snapshot = useSyncExternalStore(subscribeStore, getSnapshot, getSnapshot)
-  return { ...snapshot, start, follow, reset }
+  return { ...snapshot, start, follow, followVoice, reset }
 }
