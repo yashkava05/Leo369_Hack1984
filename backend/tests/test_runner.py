@@ -79,6 +79,14 @@ def _env(monkeypatch):
     get_settings.cache_clear()
 
 
+@pytest.fixture(autouse=True)
+async def _close_egress_clients():
+    """Close the module-global egress clients on this test's loop, so a later lifespan
+    shutdown (on a different loop) does not try to close a client bound to a dead loop."""
+    yield
+    await egress.aclose()
+
+
 @pytest.fixture
 def tavily(monkeypatch):
     """Serve Tavily via a MockTransport and provide a key so search runs."""

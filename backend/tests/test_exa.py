@@ -7,6 +7,7 @@ Exa and Tavily are served by an httpx.MockTransport with recorded Exa-shaped JSO
 import asyncio
 import io
 import json
+import os
 from datetime import date
 from pathlib import Path
 
@@ -15,7 +16,7 @@ import pytest
 from PIL import Image
 
 from app import egress, jobs
-from app.config import get_settings
+from app.config import Settings, get_settings
 from app.models import Card, CardAction, Entity, Intent, SearchQuery
 from app.pipeline import exa, runner
 from app.pipeline import scrub as scrub_mod
@@ -237,6 +238,16 @@ async def test_http_errors_degrade_to_nothing(monkeypatch, status):
     assert EXA_KEY not in errors[0].model_dump_json()
 
 
+async def test_http_402_reports_credits_exhausted(monkeypatch):
+    # Live check: an account out of credits answered 402 NO_MORE_CREDITS on every call.
+    use(monkeypatch, Server(exa_status=402))
+    job = jobs.create_job()
+    assert await exa.related([RELATED_Q], TOP_URL, job.job_id, ALLOW) == []
+    errors = [e for e in job.events if e.status == "error" and e.stage == "search"]
+    assert len(errors) == 1
+    assert "credits exhausted (HTTP 402)" in errors[0].message
+
+
 async def test_offline_blocks_and_records(monkeypatch):
     server = Server()
     use(monkeypatch, server)
@@ -389,3 +400,26 @@ async def test_runner_no_exa_key_still_done(monkeypatch):
     assert server.exa_requests() == []
     assert not any(c.kind == "related" for c in job.result.cards)
     assert sum(e.message == "Exa disabled (no key)" for e in job.events) == 1
+
+
+# --- live ---------------------------------------------------------------------------
+
+# Read before the autouse `_env` fixture swaps in the fake key; Settings() also reads .env.
+LIVE_EXA_KEY = os.getenv("EXA_API_KEY") or Settings().exa_api_key
+
+
+@pytest.mark.live
+@pytest.mark.skipif(not LIVE_EXA_KEY, reason="needs EXA_API_KEY (env or .env)")
+async def test_live_exa_related(monkeypatch):
+    monkeypatch.setenv("EXA_API_KEY", LIVE_EXA_KEY)
+    get_settings.cache_clear()
+    book = make_intent("book", ("book_title", "Project Hail Mary"), ("author", "Andy Weir"))
+    query = related_query(book, now=NOW)
+    assert query is not None
+    job = jobs.create_job()
+    cards = await exa.related(
+        [query], None, job.job_id, {"project", "hail", "mary", "andy", "weir"}
+    )
+    for c in cards:
+        print(f"{c.kind:9} {c.title} | {c.url or ''}")
+    assert all(c.kind == "related" and c.url for c in cards)

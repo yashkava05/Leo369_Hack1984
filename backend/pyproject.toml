@@ -40,7 +40,7 @@ testpaths = ["tests"]
 asyncio_mode = "auto"
 markers = [
     "ollama: live test that needs a running Ollama with the model pulled",
-    "live: live test that calls the real Tavily API (needs TAVILY_API_KEY)",
+    "live: live test that calls the real Tavily or Exa API (needs TAVILY_API_KEY or EXA_API_KEY)",
 ]
 
 [tool.ruff]
