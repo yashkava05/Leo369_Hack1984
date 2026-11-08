@@ -10,6 +10,7 @@ import json
 import os
 from datetime import date
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import httpx
 import pytest
@@ -550,7 +551,7 @@ async def test_budget_keeps_find_similar_that_arrives_in_time(monkeypatch):
 
 # --- live ---------------------------------------------------------------------------
 
-# Read before the autouse `_env` fixture swaps in the fake key; Settings() also reads .env.
+# Read before the autouse `_env` fixture swaps in the fake key; Settings reads local dotenv files.
 LIVE_EXA_KEY = os.getenv("EXA_API_KEY") or Settings().exa_api_key
 
 
@@ -563,9 +564,54 @@ async def test_live_exa_related(monkeypatch):
     query = related_query(book, now=NOW)
     assert query is not None
     job = jobs.create_job()
+    statuses: dict[str, int] = {}
+    real_post = egress.internet_post
+
+    async def observe(url, *args, **kwargs):
+        response = await real_post(url, *args, **kwargs)
+        statuses[urlsplit(url).path] = response.status_code
+        return response
+
+    monkeypatch.setattr(egress, "internet_post", observe)
     cards = await exa.related(
-        [query], None, job.job_id, {"project", "hail", "mary", "andy", "weir"}
+        [query],
+        "https://en.wikipedia.org/wiki/Project_Hail_Mary",
+        job.job_id,
+        {"project", "hail", "mary", "andy", "weir"},
     )
+    assert statuses == {"/search": 200, "/findSimilar": 200}, f"Exa endpoints failed: {statuses}"
+    assert 1 <= len(cards) <= exa.MAX_RELATED, "Exa returned no usable related cards"
+    assert all(
+        c.kind == "related" and c.url and len(c.snippet or "") <= SNIPPET_CHARS for c in cards
+    )
+    secrets_hidden = all(
+        LIVE_EXA_KEY not in value
+        for value in [
+            job.result.model_dump_json(),
+            *(e.model_dump_json() for e in job.events),
+            *(r.model_dump_json() for r in egress.records()),
+        ]
+    )
+    assert secrets_hidden, "Exa key appeared in audit, events or result"
     for c in cards:
         print(f"{c.kind:9} {c.title} | {c.url or ''}")
-    assert all(c.kind == "related" and c.url for c in cards)
+
+
+async def test_live_check_rejects_exhausted_credits(monkeypatch):
+    monkeypatch.setitem(globals(), "LIVE_EXA_KEY", EXA_KEY)
+    use(monkeypatch, Server(exa_status=402))
+    with pytest.raises(AssertionError, match="Exa endpoints failed"):
+        await test_live_exa_related(monkeypatch)
+
+
+async def test_live_check_rejects_empty_success_responses(monkeypatch):
+    monkeypatch.setitem(globals(), "LIVE_EXA_KEY", EXA_KEY)
+    monkeypatch.setattr(
+        egress,
+        "_internet",
+        httpx.AsyncClient(
+            transport=httpx.MockTransport(lambda request: httpx.Response(200, json={"results": []}))
+        ),
+    )
+    with pytest.raises(AssertionError, match="no usable related cards"):
+        await test_live_exa_related(monkeypatch)

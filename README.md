@@ -94,8 +94,12 @@ git clone https://github.com/yashkava05/Leo369_Hack1984.git latent && cd latent
 ./scripts/dev.sh      # backend on :8000, frontend on http://localhost:5173
 ```
 
-Put your `TAVILY_API_KEY` (and optionally `EXA_API_KEY`) in `.env`, open http://localhost:5173 and
+Put your `TAVILY_API_KEY` (and optionally `EXA_API_KEY`) in the gitignored `.env.local`, open http://localhost:5173 and
 drop `eval/screenshots/concert_ig.png` on the chat (or click **Try a concert flyer**).
+
+The backend reads root/backend `.env` files, then root/backend `.env.local` overrides;
+shell environment variables take precedence over all of them. Restart the backend after changing
+a key. Keep keys unprefixed: never use `VITE_EXA_API_KEY`, which would expose a key to the browser.
 
 ## Track alignment
 
@@ -195,8 +199,9 @@ hand: install Ollama for Windows, `ollama pull qwen2.5vl:3b`, then follow the ma
 
 ## Configuration
 
-All settings live in one repo-root `.env` (copy `.env.example`). The backend reads it with
-`pydantic-settings`; Vite reads the `VITE_*` variables from the same file.
+Copy `.env.example` to the repo-root `.env` for defaults and put private overrides in
+`.env.local`. The backend reads both with `pydantic-settings` (including backend-specific
+overrides); Vite exposes only the `VITE_*` variables to browser code.
 
 | Variable | Default | Used by |
 | --- | --- | --- |
