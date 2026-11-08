@@ -64,4 +64,13 @@ describe('no-device voice demos and accessible review', () => {
     expect(chosen).toMatch(/>(<svg[^]*?<\/svg>)?Find related<\/button>/)
     expect(chosen).not.toMatch(/<button[^>]*disabled=""[^>]*>(<svg[^]*?<\/svg>)?Find related/)
   })
+  it('keeps a retry action available when loading saved items fails, preserving the review', () => {
+    const html = renderToStaticMarkup(<TranscriptReview {...review} context={null} libraryError="Could not open your saved items. Try again." />)
+    expect(html).toContain('Retry loading saved items')
+    expect(html).toContain(review.text)
+    expect(html).not.toMatch(/<button[^>]*disabled=""[^>]*>Retry loading saved items/)
+    const loading = renderToStaticMarkup(<TranscriptReview {...review} context={null} loading libraryError="Could not open your saved items. Try again." />)
+    expect(loading).toMatch(/<button[^>]*disabled=""[^>]*>Retry loading saved items/)
+  })
+
 })

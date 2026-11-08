@@ -37,7 +37,7 @@ export function TranscriptReview(props: Props) {
       props.onAction(primary)
     }
   }
-  const showPicker = pickRelated || !!props.context || props.items.length > 0
+  const showPicker = pickRelated || !!props.context || props.items.length > 0 || !!props.libraryError
 
   return <div className="voice-review">
     <label htmlFor={`${id}-text`} className="visually-hidden">Your thought (edit before searching)</label>
@@ -71,7 +71,10 @@ export function TranscriptReview(props: Props) {
           {props.items.map((item) => <option key={item.id} value={item.id}>{item.summary}</option>)}
         </select>
       </>}
-      {props.libraryError && <p role="status" className="voice-hint">{props.libraryError}</p>}
+      {props.libraryError && <>
+        <p role="status" className="voice-hint">{props.libraryError}</p>
+        <button type="button" className="voice-link" disabled={locked || props.loading} onClick={props.onLoad}>Retry loading saved items</button>
+      </>}
     </div>}
   </div>
 }

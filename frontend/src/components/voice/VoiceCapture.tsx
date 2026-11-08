@@ -1,5 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
-import type { KeyboardEvent } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Keyboard, LockKeyhole, Mic, Square, X } from 'lucide-react'
 import { MOCK } from '../../api/client'
 import { getLibraryItem, listLibrary } from '../../api/library'
@@ -67,8 +66,9 @@ export function VoiceCapture({ onJob, disabled = false, onBusyChange, autoStart 
     } catch { if (gen === selection.current) setLibraryError('That saved item is unavailable. Choose another.') }
     finally { if (gen === selection.current) setLoading(false) }
   }
-  const clearContext = () => { selection.current++; setContext(null); setLoading(false) }
-  const discard = () => { voice.cancel(); clearContext(); onClose?.() }
+  const clearContext = useCallback(() => { selection.current++; setContext(null); setLoading(false) }, [])
+  const cancel = voice.cancel
+  const discard = useCallback(() => { cancel(); clearContext(); onClose?.() }, [cancel, clearContext, onClose])
   const record = () => { clearContext(); void voice.start() }
   const act = async (action: VoiceAction) => {
     await voice.submit(action, action === 'related' ? context?.id ?? null : null)
@@ -77,14 +77,19 @@ export function VoiceCapture({ onJob, disabled = false, onBusyChange, autoStart 
   }
   // setText moves the controller into review, which is the typed-input path (same text-to-intent route).
   const typeInstead = () => { voice.setText(voice.text) }
-  const onKeyDown = (event: KeyboardEvent<HTMLElement>) => {
-    if (event.key !== 'Escape') return
-    event.stopPropagation()
-    if (voice.phase === 'recording' || voice.phase === 'requesting' || voice.phase === 'transcribing') voice.cancel()
-    else discard()
-  }
+  useEffect(() => {
+    // Opening the panel leaves focus on its trigger, outside the section.
+    const onEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || event.defaultPrevented) return
+      event.preventDefault()
+      event.stopPropagation()
+      discard()
+    }
+    window.addEventListener('keydown', onEscape)
+    return () => window.removeEventListener('keydown', onEscape)
+  }, [discard])
 
-  return <section className={`voice-capture is-${voice.phase}`} aria-label="Speak a thought" onKeyDown={onKeyDown}>
+  return <section className={`voice-capture is-${voice.phase}`} aria-label="Speak a thought">
     {voice.phase === 'idle' && !voice.error && <div className="voice-bar">
       <button type="button" className="voice-mic" disabled={disabled} onClick={record} aria-label="Start speaking"><Mic size={20} aria-hidden="true" /></button>
       <div className="voice-bar-text"><strong>Tap to speak</strong><span>Up to {LIMIT_S} seconds, in English</span></div>
