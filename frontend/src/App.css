@@ -14,9 +14,23 @@
 }
 
 .app-title {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
   margin: 0;
   font-size: 1.75rem;
-  letter-spacing: 0.02em;
+  letter-spacing: -0.01em;
+}
+
+.app-title > span > span {
+  font-weight: 400;
+  opacity: 0.8;
+}
+
+.app-logo {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 23%;
 }
 
 .app-header-tools {

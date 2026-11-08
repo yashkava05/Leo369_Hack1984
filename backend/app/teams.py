@@ -219,7 +219,7 @@ def origin_allowed(origin: str) -> bool:
 def validate_scope(
     mode: str, count: int, *, replies: bool, source: str | None, confirmed: bool
 ) -> Scope:
-    """A Teams read needs one explicitly confirmed chat/channel; Latent never guesses one."""
+    """A Teams read needs one explicitly confirmed chat/channel; PrismLocal never guesses one."""
     if mode not in MODES or not isinstance(count, int) or not 1 <= count <= MAX_COUNT:
         raise BridgeError("invalid_scope", 422)
     if not confirmed or not source or not re.match(_FP, source):
