@@ -2,7 +2,7 @@ import { BookOpen, CalendarDays, Lightbulb, Link2, MapPin, ShoppingBag, Sparkles
 import { useState } from 'react'
 import type { JSX } from 'react'
 import type { Card } from '../../types'
-import { formatEventWhen, safeHttpUrl } from './cardActions'
+import { formatEventWhen, safeImageLinkUrl } from './cardActions'
 import { CardShell } from './CardShell'
 
 function Snippet({ card }: { card: Card }) {
@@ -61,13 +61,15 @@ function InsightCard({ card }: { card: Card }) {
 
 function ImageLinkReview({ card }: { card: Card }) {
   const [value, setValue] = useState(card.subtitle ?? '')
-  const candidate = /[|<>\\^`{}…]|\.\.\.|\s/.test(value) ? null : safeHttpUrl(value.includes('://') ? value : `https://${value}`)
-  const corrected = value !== card.subtitle && !!candidate
+  const [checked, setChecked] = useState(false)
+  const candidate = safeImageLinkUrl(value)
+  const corrected = checked && !!candidate
   return <CardShell card={card} icon={Link2} kindLabel="Image link" hideSubtitle>
     <p className="card-snippet">{card.snippet} Check unclear characters before opening.</p>
     <label className="card-url-review">Review URL
-      <input aria-label={`Review URL: ${card.title}`} value={value} onChange={(event) => setValue(event.target.value)} spellCheck={false} autoCapitalize="none" />
+      <input aria-label={`Review URL: ${card.title}`} value={value} onChange={(event) => { setValue(event.target.value); setChecked(false) }} spellCheck={false} autoCapitalize="none" />
     </label>
+    <label className="card-url-confirm"><input type="checkbox" checked={checked} onChange={(event) => setChecked(event.target.checked)} />I checked this URL against the image</label>
     <button className="card-action" type="button" disabled={!corrected}
       onClick={() => { if (corrected && candidate) window.open(candidate, '_blank', 'noopener,noreferrer') }}>Open reviewed link</button>
   </CardShell>

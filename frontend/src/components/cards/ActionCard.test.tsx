@@ -5,7 +5,7 @@ import sensitiveFixture from '../../api/fixtures/sensitive_doc.result.json'
 import { SAMPLE_CARDS } from '../../pages/sampleCards'
 import type { Card, CardKind, JobResult } from '../../types'
 import { ActionCard } from './ActionCard'
-import { cardActions, formatEventWhen, runAction, safeHttpUrl } from './cardActions'
+import { cardActions, formatEventWhen, runAction, safeHttpUrl, safeImageLinkUrl } from './cardActions'
 
 const ALL_CARDS: Card[] = [
   ...(concertFixture as JobResult).cards,
@@ -192,4 +192,12 @@ it('requires a review before opening an ambiguous or cut-off screenshot URL', ()
   expect(html).toContain('Open reviewed link')
   expect(html).toContain('disabled=""')
   expect(html).not.toContain('href=')
+})
+
+
+it.each(['http://localhost:8080/private', 'https://user:pass@folio.example/a', 'https://folio.example/?token=SYNTHETIC', 'https://folio.example/#id_token=SYNTHETIC', 'https://folio.example/#/auth?refresh_token=SYNTHETIC'])('rejects reviewed URLs outside the extraction policy: %s', (url) => {
+  expect(safeImageLinkUrl(url)).toBeNull()
+})
+it('accepts a reviewed public URL and preserves path case', () => {
+  expect(safeImageLinkUrl('go.example/FakeIGReel2')).toBe('https://go.example/FakeIGReel2')
 })

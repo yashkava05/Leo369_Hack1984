@@ -386,4 +386,4 @@ Open/Copy cards; cut-off or unclear URLs require review, and hidden suffixes are
 No linked page is fetched automatically, no URL is sent to Tavily/Exa, and these unreviewed link
 results stay in the current session rather than being saved to history. On macOS, an optional
 Apple Vision OCR pass uses the installed Swift command-line tools; other platforms use the
-local vision-model response. URL transcription is best-effort, so check case-sensitive short links.
+local vision-model response, whose links require manual review before opening. URL transcription is best-effort, so check case-sensitive short links.

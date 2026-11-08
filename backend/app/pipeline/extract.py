@@ -210,6 +210,15 @@ async def extract_intent(image_bytes: bytes, emit: Emit) -> Intent:
             intent = ScreenshotIntent(
                 **intent.model_dump(include=set(Intent.model_fields)), visible_links=recognized
             )
+        elif isinstance(intent, ScreenshotIntent):
+            intent = intent.model_copy(
+                update={
+                    "visible_links": [
+                        link.model_copy(update={"needs_review": True})
+                        for link in intent.visible_links
+                    ]
+                }
+            )
     withheld = sum(intent.redaction_counts.values())
     log.info(
         "extract: %s, %d entities, %d withheld, %.2f s",

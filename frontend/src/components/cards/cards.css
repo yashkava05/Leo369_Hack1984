@@ -199,3 +199,4 @@
 
 .card-url-review { display: grid; gap: 6px; margin: 12px 0; font-size: 12px; }
 .card-url-review input { width: 100%; box-sizing: border-box; padding: 8px; border: 1px solid currentColor; border-radius: 6px; background: transparent; color: inherit; font: inherit; }
+.card-url-confirm { display: flex; align-items: flex-start; gap: 6px; margin: 0 0 12px; font-size: 11px; }

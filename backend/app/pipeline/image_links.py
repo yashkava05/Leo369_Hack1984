@@ -1,7 +1,7 @@
 """Visible screenshot links: local extraction and display, never automatic fetching or search."""
 
 import re
-from urllib.parse import parse_qsl, urlsplit
+from urllib.parse import parse_qsl, unquote, urlsplit
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -15,6 +15,7 @@ class VisibleLink(BaseModel):
     label: str = Field(max_length=160)
     url: str = Field(max_length=2048)
     truncated: bool = False
+    needs_review: bool = False
 
 
 class ScreenshotIntent(Intent):
@@ -33,6 +34,12 @@ _PRIVATE_QUERY_KEYS = {
     "secret",
     "signature",
     "sig",
+    "code",
+    "id_token",
+    "refresh_token",
+    "auth_token",
+    "session",
+    "sessionid",
 }
 _HOST = re.compile(r"(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z][a-z0-9-]{1,62}", re.I)
 
@@ -59,8 +66,14 @@ def visible_url(value: str) -> str | None:
             (".localhost", ".local", ".internal", ".lan")
         ):
             return None
-        if any(key.lower() in _PRIVATE_QUERY_KEYS for key, _ in parse_qsl(parts.query)):
-            return None
+        for parameters in (parts.query, parts.fragment):
+            decoded = unquote(parameters).split("?", 1)[-1]
+            for key, _ in parse_qsl(decoded, keep_blank_values=True):
+                key = key.lower().replace("-", "_")
+                if key in _PRIVATE_QUERY_KEYS or re.search(
+                    r"(?:^|_)(?:token|password|secret|session|signature|credential)(?:$|_)", key
+                ):
+                    return None
     except ValueError:
         return None
     return url
@@ -73,7 +86,7 @@ def link_cards(links: list[VisibleLink]) -> list[Card]:
         label = " ".join(link.label.split()) or "Visible link"
         incomplete = link.truncated or "…" in link.url or "..." in link.url
         url = None if incomplete else visible_url(link.url)
-        if url:
+        if url and not link.needs_review:
             if url in seen:
                 continue
             seen.add(url)
@@ -98,16 +111,16 @@ def link_cards(links: list[VisibleLink]) -> list[Card]:
                 Card(
                     id=card_id("link", f"unreadable:{index}"),
                     kind="link",
-                    title=f"{label} — {'incomplete' if incomplete else 'unavailable'}",
+                    title=f"{label} — {'incomplete' if incomplete else 'needs review'}",
                     source="on-device",
                     subtitle=link.url
-                    if incomplete or re.search(r"[|<>\\^`{}]", link.url)
+                    if incomplete or link.needs_review or re.search(r"[|<>\\^`{}]", link.url)
                     else None,
                     score=0,
                     snippet=(
                         "The URL is cut off. Upload an expanded view showing the full link."
                         if incomplete
-                        else "This link could not be validated as a public website URL."
+                        else "Check the URL against the image before opening it."
                     ),
                     actions=[],
                 )

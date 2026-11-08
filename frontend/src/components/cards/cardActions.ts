@@ -17,6 +17,26 @@ export function safeHttpUrl(url: string | null | undefined): string | null {
   }
 }
 
+/** Screenshot URL review follows the same public-URL restrictions as local extraction. */
+export function safeImageLinkUrl(value: string): string | null {
+  if (!value || /[|<>\\^`{}…]|\.\.\.|\s/.test(value)) return null
+  const url = safeHttpUrl(value.includes('://') ? value : `https://${value}`)
+  if (!url) return null
+  const parts = new URL(url)
+  const host = parts.hostname
+  if (parts.username || parts.password || !/^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z][a-z0-9-]{1,62}$/i.test(host) || /\.(localhost|local|internal|lan)$/i.test(host)) return null
+  const forbidden = new Set(['token', 'access_token', 'auth', 'api_key', 'apikey', 'password', 'secret', 'signature', 'sig', 'code', 'id_token', 'refresh_token', 'auth_token', 'session', 'sessionid'])
+  for (const raw of [parts.search.slice(1), parts.hash.slice(1)]) {
+    let decoded: string
+    try { decoded = decodeURIComponent(raw).split('?').at(-1)! } catch { return null }
+    for (const key of new URLSearchParams(decoded).keys()) {
+      const normalized = key.toLowerCase().replaceAll('-', '_')
+      if (forbidden.has(normalized) || /(?:^|_)(?:token|password|secret|session|signature|credential)(?:$|_)/.test(normalized)) return null
+    }
+  }
+  return url
+}
+
 /** Citation actions reuse the existing contract, but render as source links rather than CTAs. */
 export const isCitationAction = (action: CardAction): boolean => action.type === 'open_url' && action.label.startsWith('Source: ')
 

@@ -164,3 +164,26 @@ def test_native_ocr_uses_stdin_without_image_files_or_network(monkeypatch):
         subprocess, "run", lambda *_args, **_kwargs: pytest.fail("No Swift on Windows")
     )
     assert native_image_links(b"in-memory-pixels") == []
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://folio.example/?id_token=SYNTHETIC",
+        "https://folio.example/?refresh_token=SYNTHETIC",
+        "https://folio.example/#access_token=SYNTHETIC",
+        "https://folio.example/#id_token=SYNTHETIC",
+        "https://folio.example/#/auth?refresh_token=SYNTHETIC",
+        "https://folio.example/#access_token%3DSYNTHETIC",
+    ],
+)
+def test_query_and_fragment_authentication_values_are_not_clickable(url):
+    assert visible_url(url) is None
+
+
+def test_model_only_transcriptions_require_review_even_if_syntactically_valid():
+    card = link_cards([VisibleLink(label="Website", url="folio.example", needs_review=True)])[0]
+    assert card.url is None
+    assert card.subtitle == "folio.example"
+    assert card.actions == []
+    assert card.score == 0
