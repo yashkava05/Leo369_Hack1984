@@ -5,6 +5,109 @@ Local-first memory agent that turns screenshots into actions. Built for HACK1984
 Drop a screenshot; a local vision model (Ollama + Qwen2.5-VL) extracts the intent, PII is
 stripped, a sanitized text query goes to Tavily, and the results render as action cards.
 
+# Latent
+
+**Your screenshots, turned into actions, without your screenshots leaving your laptop.**
+A local-first memory agent built for HACK1984.
+
+Drop a screenshot. A vision model running on your machine (Ollama + Qwen2.5-VL) works out what you
+meant to do and pulls out the public facts; a deterministic scrubber removes anything private; only
+short text queries built from public facts go to Tavily (and Exa); the results bloom as action
+cards (tickets, a map pin, Add to calendar) while a live terminal tags every step LOCAL or NET.
+
+## Demo
+
+[TBD: demo GIF, recorded from a real run; put it at `docs/demo.gif` and embed it here.]
+
+- Backup video (90 s): [TBD: link to the recorded backup video]
+- Demo script, checklist and fallback plan: [`docs/DEMO.md`](docs/DEMO.md)
+
+## Architecture
+
+```mermaid
+flowchart LR
+    S[Screenshot] --> V["Qwen2.5-VL<br/>(local, Ollama)"]
+    V --> P["PII scrubber<br/>(local, Presidio + spaCy)"]
+    P --> Q["Query builder<br/>(local)"]
+    Q --> G{"Egress guard<br/>(6 rules)"}
+    G -->|"short text queries only"| T[Tavily]
+    G -.->|"related, optional"| E[Exa]
+    T --> C["Action cards<br/>(built locally)"]
+    E -.-> C
+    G -->|"every attempt"| A[(Audit log)]
+```
+
+Everything left of the egress guard runs on this machine. The image bytes stay in memory for the
+extraction and are then dropped; they are never logged or sent, and never written to disk unless
+you opt in to library thumbnails (`LATENT_KEEP_THUMBS=1` stores a 256 px JPEG on this machine).
+
+## How privacy is enforced
+
+Privacy in Latent is **enforced and auditable**, not mathematically guaranteed: the rules below are
+code with tests, and every outbound request is recorded so you can check what left.
+
+**One door to the network.** Only `backend/app/egress.py` opens network connections
+(`backend/tests/test_single_egress.py` fails the build if any other module does). Ollama is reached
+only through a loopback-only client. Every internet request passes these rules in order; the first
+failure blocks it:
+
+1. Air-gap: `LATENT_OFFLINE=1` or the **Air-gap mode** switch in the UI blocks everything.
+2. The host must be on the allow-list (`api.tavily.com`, `api.exa.ai`), over https on the default
+   port.
+3. The JSON body must be at most 4096 bytes, so an image cannot fit.
+4. No base64-looking run of 200+ characters in the body.
+5. The PII checker finds nothing in any string of the body (only kept performer and author names
+   are allowed through).
+6. No API key in the body. Keys come from the environment, travel only in the request header, and
+   are redacted from every record, log line and event.
+
+Every attempt, sent or blocked, is recorded with its exact byte count and a payload preview: in the
+**Audit log** drawer, at `GET /api/egress`, and in `backend/egress.log`.
+
+**Scrubber policy** (`backend/app/pipeline/scrub.py`, runs locally on everything the model
+returns):
+
+- Any entity with an email address, phone number, credit card, SSN, IBAN, IP address, US bank
+  number, social handle or account/order/invoice ID is removed, whatever its type.
+- Person names are removed unless the entity is a performer or author (public names you would
+  search for).
+- Runs of 6+ digits are removed outside dates, times and prices.
+- For documents (emails, chats, internal docs) only `topic`, `public_org` and `product` entities
+  are kept; everything else is dropped.
+- The summary is cleaned too, but it is never sent: queries are built only from kept public
+  entities, by templates in `backend/app/pipeline/query.py`.
+
+**Leak eval.** `eval/` holds ten synthetic screenshots full of planted fake personal data and a
+script that runs the local pipeline offline and fails on any leak:
+`LATENT_OFFLINE=1 python eval/run_eval.py`. Latest results (`eval/results.md`):
+[TBD: leaks, intent accuracy, entity recall and latency from a real run on the demo laptop; the
+eval needs Ollama and has not been run yet].
+
+## Setup in 3 commands
+
+Needs Python 3.11+, Node 20.19+ and [Ollama](https://ollama.com/download) 0.7+ (details below).
+
+```bash
+git clone https://github.com/yashkava05/Leo369_Hack1984.git latent && cd latent
+./scripts/setup.sh    # .env, model pull + smoke test, backend venv, spaCy model, frontend deps
+./scripts/dev.sh      # backend on :8000, frontend on http://localhost:5173
+```
+
+Put your `TAVILY_API_KEY` (and optionally `EXA_API_KEY`) in `.env`, open http://localhost:5173 and
+drop `eval/screenshots/concert_ig.png`.
+
+## Track alignment
+
+| Track | How Latent meets it |
+| --- | --- |
+| **Privacy-First** | Vision runs locally; one egress module with six rules; air-gap switch; audit log of every outbound request and its size; leak eval on fake-PII screenshots. |
+| **SURGE (Tavily & Exa)** | Tavily search turns scrubbed public entities into ticket, shop, book and insight cards (calendar and map cards are built on-device); Exa adds related-reading cards for books, charts and documents when a key with credits is set. |
+| **Most Startup-able** | A problem everyone has; free for consumers with an affiliate share on tickets, products and books (one hook, `affiliate.tag_url`, passes through today); a planned enterprise tier with an on-prem model, admin policy and audit-log export. |
+
+## Team
+
+[TBD: names and roles]
+
 ## Prerequisites
 
 - Python 3.11+
@@ -13,6 +116,8 @@ stripped, a sanitized text query goes to Tavily, and the results render as actio
 - About 600 MB of disk for the spaCy `en_core_web_lg` model the local PII scrubber uses (setup installs it)
 
 ## Quick start
+
+Step by step:
 
 ```bash
 git clone https://github.com/yashkava05/Leo369_Hack1984.git latent
@@ -96,6 +201,7 @@ All settings live in one repo-root `.env` (copy `.env.example`). The backend rea
 | `LATENT_WATCH_DIR` | empty (off) | backend, see [Auto-ingest](#auto-ingest-from-the-screenshot-folder) |
 | `LATENT_DB_PATH` | `~/.latent/latent.db` | backend (intent library) |
 | `LATENT_KEEP_THUMBS` | `0` | backend (intent library) |
+| `DEMO_FALLBACK` | `0` | backend, see [`docs/DEMO.md`](docs/DEMO.md#fallback-plan) |
 | `VITE_API_URL` | empty (same origin, via the Vite `/api` proxy) | frontend |
 | `VITE_MOCK` | `0` | frontend |
 
