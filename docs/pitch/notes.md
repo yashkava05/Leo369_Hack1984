@@ -12,7 +12,7 @@ All numbers trace to the repo:
 - 10 eval screenshots: `eval/screenshots/` and `eval/expected.json`.
 - Intent accuracy / leaks / latency: `eval/results.md` — **placeholders until the eval is run**
   (needs Ollama; see PR notes).
-- Affiliate hook: planned, open PR #35 (`backend/app/affiliate.py` not yet merged).
+- Affiliate hook: shipped — `backend/app/affiliate.py` `tag_url` is wired into `backend/app/pipeline/cards.py` (3 call sites), through which every commercial URL routes; it returns the URL unchanged until a partner tag is set.
 
 ---
 
@@ -93,17 +93,19 @@ Flip the air-gap toggle and search is blocked, in the audit log.
 
 **On slide**
 - Privacy is the product — and the moat.
-- **B2C — affiliate share:** cards link to tickets, shopping and books; a planned
-  `affiliate.tag_url` hook tags those links for a referral share. (Planned, open PR #35.)
+- **B2C — affiliate share:** cards link to tickets, shopping and books; every commercial URL
+  already routes through the `affiliate.tag_url` hook in `cards.py` — the single point where a
+  partner tag is appended for a referral share. (Ships wired in; returns the URL unchanged until a
+  tag is set.)
 - **B2B — enterprise tier:** on-prem / fully local model, policy controls over what may leave,
   audit-log export for compliance.
 - Same engine, two doors.
 
 **Speaker notes** (49 words)
 Two revenue paths on one engine. For consumers it's free: the action cards link to tickets,
-shopping and books, and a planned affiliate hook — in a PR now — takes a referral share. For
-enterprise, the thing that blocks cloud assistants is our pitch: on-prem model, policy controls and
-audit-log export they can show auditors.
+shopping and books, and every commercial link already routes through our affiliate hook that takes a
+referral share. For enterprise, the thing that blocks cloud assistants is our pitch: on-prem model,
+policy controls and audit-log export they can show auditors.
 
 ---
 
@@ -116,14 +118,14 @@ audit-log export they can show auditors.
 - **SURGE (Tavily & Exa):** sanitized text queries drive Tavily; Exa through the same door
   (stretch).
 - **Most Startup-able:** B2C affiliate + B2B on-prem tier on one engine.
-- What's next: WebGL bloom dashboard (#13), Exa + affiliate hook, publish eval numbers.
+- What's next: WebGL bloom dashboard (#13), Exa search through the same door, publish eval numbers.
 - Team: [Team names].
 
 **Speaker notes** (52 words)
 One build hits three tracks. Privacy-First: a single egress door with six enforced rules and a
 visible audit log. SURGE: sanitized queries drive Tavily, with Exa through the same door. Most
-Startup-able: consumer affiliate plus an enterprise on-prem tier. Next is the bloom dashboard, Exa,
-and published eval numbers. Back the agent that keeps your pixels home.
+Startup-able: consumer affiliate plus an enterprise on-prem tier. Next is the bloom dashboard, Exa
+search, and published eval numbers. Back the agent that keeps your pixels home.
 
 ---
 

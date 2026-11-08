@@ -293,8 +293,8 @@
     <div class="two" style="margin-top:20px;">
       <div class="card">
         <h3>B2C &mdash; affiliate share</h3>
-        <p style="color:var(--ink);font-size:20px;">Action cards link to tickets, shopping and books. A planned <code>affiliate.tag_url</code> hook tags those outbound links for a referral share. Free to the user; revenue on intent we already surfaced.</p>
-        <p class="note" style="margin-top:10px;">Planned, not shipped &mdash; the hook is in open PR&nbsp;#35.</p>
+        <p style="color:var(--ink);font-size:20px;">Action cards link to tickets, shopping and books. Every commercial URL already routes through the <code>affiliate.tag_url</code> hook in <code>cards.py</code> &mdash; the single point where a partner tag is appended for a referral share. Free to the user; revenue on intent we already surfaced.</p>
+        <p class="note" style="margin-top:10px;">The hook ships wired into every card; it returns the URL unchanged until a partner tag is set.</p>
       </div>
       <div class="card">
         <h3>B2B &mdash; enterprise tier</h3>
@@ -327,7 +327,7 @@
         <h2>What's next</h2>
         <ul style="font-size:20px;">
           <li>WebGL bloom dashboard (#13)</li>
-          <li>Exa search + affiliate hook (PRs in flight)</li>
+          <li>Exa search through the same door</li>
           <li>Run the eval, publish the numbers</li>
         </ul>
         <h2 style="margin-top:14px;">Team</h2>
