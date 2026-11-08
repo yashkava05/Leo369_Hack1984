@@ -337,7 +337,16 @@ def local_client() -> httpx.AsyncClient:
 async def aclose() -> None:
     """Close both shared clients (FastAPI lifespan shutdown)."""
     global _internet, _local
-    for client in (_internet, _local):
-        if client is not None:
-            await client.aclose()
-    _internet = _local = None
+    clients = (_internet, _local)
+    try:
+        for client in clients:
+            if client is None:
+                continue
+            try:
+                await client.aclose()
+            except RuntimeError:
+                # The client was bound to an event loop that has since closed (e.g. a test's
+                # loop); its sockets died with that loop, so there is nothing left to close.
+                pass
+    finally:
+        _internet = _local = None
