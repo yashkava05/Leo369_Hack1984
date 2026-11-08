@@ -298,6 +298,7 @@ async def test_pii_in_top_url_never_reaches_exa(monkeypatch):
         "https://example.test/call/617-555-0142",
         "https://example.test/call?n=617%2D555%2D0142",
         "https://alex:hunter2@example.test/report",
+        "https://example.test/r?e=alex%2525252540example.com",  # still encoded after 5 passes
     ],
 )
 def test_safe_similar_url_rejects_private_data(url):
@@ -523,7 +524,8 @@ async def test_slow_find_similar_does_not_hold_tavily_cards(monkeypatch):
     result = job.result
     assert result.status == "done"
     budget_ms = exa.OPTIONAL_BUDGET_S * 1000
-    assert result.timings_ms["search"] < 30 + budget_ms + 300  # not the 1.2 s findSimilar
+    # Bounded by the budget (< 1 s added, issue #19), not by the 1.2 s findSimilar.
+    assert result.timings_ms["search"] < budget_ms + 450
     assert "cancelled api.exa.ai/findSimilar" in server.log
     assert "end api.exa.ai/findSimilar" not in server.log
     assert any(c.kind != "related" for c in result.cards)  # Tavily cards kept

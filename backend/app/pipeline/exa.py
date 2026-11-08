@@ -110,14 +110,17 @@ def tavily_context(queries: list[SearchQuery], results: dict[str, TavilyResponse
     return top, seen
 
 
-def _fully_decoded(text: str) -> str:
-    """Undo percent/plus encoding, repeatedly, so `%2540` cannot hide an `@`."""
+def _fully_decoded(text: str) -> str | None:
+    """Undo percent/plus encoding, repeatedly, so `%2540` cannot hide an `@`.
+
+    None if the text is still changing after 5 passes (fail closed).
+    """
     for _ in range(5):
         decoded = unquote_plus(text)
         if decoded == text:
-            break
+            return text
         text = decoded
-    return text
+    return None
 
 
 def safe_similar_url(url: str, allow_terms: Set[str] = frozenset()) -> str | None:
@@ -133,7 +136,7 @@ def safe_similar_url(url: str, allow_terms: Set[str] = frozenset()) -> str | Non
     if parts.username or parts.password:
         return None
     decoded = _fully_decoded(url)
-    if "@" in decoded:
+    if decoded is None or "@" in decoded:
         return None
     if contains_pii(decoded, allow=set(allow_terms)):
         return None
