@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import concert from '../api/fixtures/concert_flyer.result.json'
 import type { JobResult, StageEvent } from '../types'
 
-const mocks = vi.hoisted(() => ({ start: vi.fn(), setOffline: vi.fn(), action: vi.fn() }))
+const mocks = vi.hoisted(() => ({ start: vi.fn(), reset: vi.fn(), setOffline: vi.fn(), action: vi.fn() }))
 vi.mock('./saved', async () => {
   const { readKept, writeKept } = await import('./kept')
   return {
@@ -15,7 +15,7 @@ vi.mock('./saved', async () => {
     resolvePending: vi.fn(), deleteMemory: vi.fn(),
   }
 })
-vi.mock('../state/useJob', () => ({ start: mocks.start }))
+vi.mock('../state/useJob', () => ({ start: mocks.start, reset: mocks.reset }))
 vi.mock('../api/privacy', () => ({ getOffline: vi.fn().mockResolvedValue(false), setOffline: mocks.setOffline }))
 vi.mock('../components/cards/cardActions', () => ({ runAction: mocks.action }))
 
@@ -158,4 +158,14 @@ describe('conversation turns', () => {
     store.syncJob({ status: 'done', result: degraded, events: [event({ stage: 'search', local: false, status: 'error', message: 'TAVILY_API_KEY not set' })] })
     expect(replies().join(' ')).toContain('TAVILY_API_KEY')
   })
+})
+
+it('Delete All resets the active job and releases the conversation previews', async () => {
+  await store.sendImage(image())
+  await store.clearMemory()
+  expect(mocks.reset).toHaveBeenCalled()
+  expect(store.chatSnapshot().busy).toBe(false)
+  expect(store.chatSnapshot().kept).toEqual([])
+  expect(store.chatSnapshot().messages).toHaveLength(1)
+  expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:only-in-memory')
 })

@@ -1,5 +1,7 @@
 import { useSyncExternalStore } from 'react'
-import { start } from '../state/useJob'
+import { reset as resetJob, start } from '../state/useJob'
+import { MOCK } from '../api/client'
+import { wipeLibrary } from '../api/library'
 import type { JobState } from '../state/useJob'
 import { getOffline, setOffline } from '../api/privacy'
 import { runAction } from '../components/cards/cardActions'
@@ -47,8 +49,10 @@ export async function reviewPending(id: string, restore: boolean): Promise<void>
 export async function clearMemory(): Promise<void> {
   try {
     await deleteMemory()
-    releaseImages()
     active = null
+    resetJob()
+    if (MOCK) await wipeLibrary()
+    releaseImages()
     emit({ kept: [], blockedSaves: [], savedNotice: '', busy: false, messages: [{ id: id(), type: 'agent-text', text: WELCOME }] })
   } catch { say('Could not finish deleting local data. Retry when storage and the backend are available.') }
 }

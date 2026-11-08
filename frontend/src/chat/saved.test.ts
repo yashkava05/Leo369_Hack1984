@@ -132,3 +132,39 @@ it('retains saves created in another tab while delete-all is waiting for the ser
   await deleting
   expect(queue()).toHaveLength(1)
 })
+
+it('a late rejection cannot recreate a queue entry deleted by another tab', async () => {
+  await saved.syncSaved()
+  available = false
+  await saved.keepSaved(item)
+  available = true
+  let rejectImport!: (response: Response) => void
+  const original = fetch
+  vi.stubGlobal('fetch', vi.fn((url: string, init?: RequestInit) => {
+    if (init?.method === 'POST') return new Promise<Response>((resolve) => { rejectImport = resolve })
+    return original(url, init)
+  }))
+  const syncing = saved.syncSaved()
+  await vi.waitFor(() => expect(rejectImport).toBeDefined())
+  // Another tab clears the shared stores and publishes its reset fence.
+  for (const key of [...storage.keys()]) storage.delete(key)
+  epoch = 1
+  storage.set('latent:saved:epoch', '1')
+  rejectImport(Response.json({}, { status: 409 }))
+  const state = await syncing
+  expect(queue()).toEqual([])
+  expect(state.blocked).toEqual([])
+  expect(state.items).toEqual([])
+})
+it('a late legacy hash cannot recreate browser copies removed in another tab', async () => {
+  storage.set('latent:kept', JSON.stringify([item]))
+  let releaseHash!: (hash: ArrayBuffer) => void
+  const digest = vi.spyOn(crypto.subtle, 'digest').mockImplementationOnce(() => new Promise<ArrayBuffer>((resolve) => { releaseHash = resolve }))
+  const syncing = saved.syncSaved()
+  await vi.waitFor(() => expect(releaseHash).toBeDefined())
+  storage.delete('latent:kept'); epoch = 1; storage.set('latent:saved:epoch', '1')
+  releaseHash(new Uint8Array(32).buffer)
+  await syncing
+  digest.mockRestore()
+  expect(queue()).toEqual([]); expect(calls).toEqual([])
+})

@@ -74,8 +74,11 @@ async function sync(): Promise<SavedView> {
   const legacySource = localStorage.getItem(KEPT_KEY)
   for (const item of parseKept(JSON.parse(legacySource ?? '[]'))) {
     const id = await legacyId(item)
-    check()
-    if (!localStorage.getItem(QUEUE + id)) writePending({ id, epoch: null, item: { ...item, id } })
+    await locked(() => {
+      check()
+      if (localStorage.getItem(KEPT_KEY) !== legacySource) return
+      if (!localStorage.getItem(QUEUE + id)) writePending({ id, epoch: null, item: { ...item, id } })
+    })
   }
   for (const entry of pending()) {
     if (entry.blocked) continue
@@ -86,17 +89,25 @@ async function sync(): Promise<SavedView> {
     })
     check()
     if (response.status === 409) {
-      writePending({ ...entry, blocked: true })
+      await locked(() => {
+        check()
+        if (localStorage.getItem(QUEUE + entry.id) === JSON.stringify(entry)) writePending({ ...entry, blocked: true })
+      })
       continue
     }
     if (!response.ok) throw new Error('Save not acknowledged')
     const body = await response.json() as { results: { id: string; status: string }[] }
     if (!body.results.some((r) => r.id === entry.id && ['saved', 'exists', 'tombstoned'].includes(r.status))) throw new Error('Save not acknowledged')
-    check()
-    localStorage.removeItem(QUEUE + entry.id)
+    await locked(() => {
+      check()
+      if (localStorage.getItem(QUEUE + entry.id) === JSON.stringify(entry)) localStorage.removeItem(QUEUE + entry.id)
+    })
   }
   // Only discard the legacy source after every item has been acknowledged or durably quarantined.
-  if (localStorage.getItem(KEPT_KEY) === legacySource) localStorage.removeItem(KEPT_KEY)
+  await locked(() => {
+    check()
+    if (localStorage.getItem(KEPT_KEY) === legacySource) localStorage.removeItem(KEPT_KEY)
+  })
   const latest = await getSaved()
   const cached: Snapshot = { epoch: latest.memory_epoch, items: latest.items.map((item) => ({ id: item.id, label: item.label, intent_type: item.intent_type, savedAt: item.saved_at * 1000, cards: item.cards })) }
   await locked(() => {
@@ -130,14 +141,17 @@ export async function resolvePending(id: string, restore: boolean): Promise<Save
   const generation = localGeneration
   const entry = pending().find((p) => p.id === id && p.blocked)
   if (!entry) return syncSaved()
-  if (restore) {
-    const remote = await getSaved()
+  const remote = restore ? await getSaved() : null
+  await locked(() => {
     if (generation !== localGeneration) throw new Error('Local memory was reset')
-    // Explicit restoration is a new save, not a replay that bypasses a deletion tombstone.
-    const newId = crypto.randomUUID()
-    writePending({ id: newId, epoch: remote.memory_epoch, item: { ...entry.item, id: newId } })
-  }
-  localStorage.removeItem(QUEUE + id)
+    if (localStorage.getItem(QUEUE + id) !== JSON.stringify(entry)) return
+    if (remote) {
+      // Explicit restoration is a new save, not a replay past a deletion tombstone.
+      const newId = crypto.randomUUID()
+      writePending({ id: newId, epoch: remote.memory_epoch, item: { ...entry.item, id: newId } })
+    }
+    localStorage.removeItem(QUEUE + id)
+  })
   return syncSaved()
 }
 export async function deleteMemory(): Promise<void> {
