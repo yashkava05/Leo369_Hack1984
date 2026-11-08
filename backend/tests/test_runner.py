@@ -215,3 +215,36 @@ def test_cleanup_drops_old_finished_jobs():
     )
     jobs.cleanup_finished()
     assert jobs.get_job(old.job_id) is None
+
+
+@pytest.mark.parametrize("stage_fn", ["scrub_intent", "build_queries"])
+async def test_unexpected_stage_failure_still_ends_in_error(monkeypatch, tavily, stage_fn):
+    monkeypatch.setattr(runner, "extract_intent", fake_extract)
+
+    def boom(*args, **kwargs):
+        raise RuntimeError("unexpected")
+
+    monkeypatch.setattr(runner, stage_fn, boom)
+    job = jobs.create_job()
+    await runner.run_job(job.job_id, png_bytes(), "flyer.png")
+
+    assert job.finished
+    assert job.events[-1].stage == "error"
+    assert job.result.status == "error"
+    assert job.result.error == "internal error (RuntimeError)"
+    assert "extract" in job.result.timings_ms
+    JobResult.model_validate(job.result.model_dump())
+
+
+async def test_card_builder_failure_still_ends_in_error(monkeypatch, tavily):
+    monkeypatch.setattr(runner, "extract_intent", fake_extract)
+
+    def boom(*args, **kwargs):
+        raise RuntimeError("unexpected")
+
+    monkeypatch.setattr(runner.cards_mod, "build_cards", boom)
+    job = jobs.create_job()
+    await runner.run_job(job.job_id, png_bytes(), "flyer.png")
+
+    assert job.finished and job.events[-1].stage == "error"
+    assert job.result.status == "error"

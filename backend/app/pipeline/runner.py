@@ -108,6 +108,23 @@ async def run_job(job_id: str, image_bytes: bytes, filename: str) -> None:
         return
 
     timings: dict[str, int] = {}
+    # Hand the bytes over in a box so the stages can drop the last reference after extract.
+    box = [image_bytes]
+    del image_bytes
+    try:
+        await _run_stages(job, box, timings)
+    except Exception as exc:
+        # Backstop: an unexpected failure in scrub/query/cards must still end the stream with
+        # a terminal event, or the job stays "running" and subscribers wait forever.
+        # Log the type only: exception text can carry entity values.
+        log.error("job %s failed unexpectedly (%s)", job_id, type(exc).__name__)
+        if not job.finished:
+            await _finish_error(job, f"internal error ({type(exc).__name__})", timings)
+
+
+async def _run_stages(job: jobs.JobState, box: list[bytes], timings: dict[str, int]) -> None:
+    job_id = job.job_id
+    image_bytes = box.pop()
 
     # --- ingest (local) -----------------------------------------------------------
     t0 = time.perf_counter()
