@@ -129,13 +129,21 @@ function finishResult(result: JobResult, file: File, searchError?: string): void
 export async function chooseAsk(messageId: string, yes: boolean): Promise<void> {
   const ask = state.messages.find((m) => m.id === messageId)
   if (!ask || ask.type !== 'ask' || ask.choice) return
-  if (ask.kind === 'resume' && state.busy) { say("Give me a second, I'm still on the last one."); return }
+  if (ask.kind === 'resume' && (state.busy || state.toggling)) { say("Give me a second, I'm still on the last one."); return }
   const choice = yes ? ask.primary : 'Not now'
   emit({ messages: state.messages.map((m) => m.id === messageId ? { ...ask, choice } : m) })
   append({ id: id(), type: 'user-text', text: choice })
   if (!yes) { say("No problem. It's here whenever you want it."); return }
   if (ask.kind === 'resume') {
-    if (ask.file && await toggleOffline(false)) await sendImage(ask.file)
+    // Reserve the turn across the network await so another upload cannot displace this File.
+    emit({ busy: true })
+    if (ask.file && await toggleOffline(false)) {
+      emit({ busy: false })
+      await sendImage(ask.file)
+    } else {
+      emit({ busy: false })
+      append({ ...ask, id: id(), choice: undefined })
+    }
     return
   }
   if (ask.kind === 'calendar') {
@@ -144,7 +152,11 @@ export async function chooseAsk(messageId: string, yes: boolean): Promise<void> 
     try {
       if (!card || !action) throw new Error('missing calendar')
       await runAction(action, card)
-    } catch { say("I couldn't create the calendar file. Try the calendar card's download button."); return }
+    } catch {
+      say("I couldn't create the calendar file. Try again or use the calendar card's download button.")
+      append({ ...ask, id: id(), choice: undefined })
+      return
+    }
   }
   const item: KeptItem = { label: keptLabel(ask.result.intent), intent_type: ask.result.intent?.intent_type ?? 'other', savedAt: Date.now(), cards: ask.result.cards }
   try {
@@ -154,6 +166,7 @@ export async function chooseAsk(messageId: string, yes: boolean): Promise<void> 
     say(ask.kind === 'calendar' ? 'Done. Your calendar file is ready.' : 'Saved to Kept for later. Come back to it whenever you like.')
   } catch {
     say(ask.kind === 'calendar' ? "Your calendar file is ready, but I couldn't save it for later. Allow local storage in this browser and try again." : "I couldn't save that here. Allow local storage in this browser and try again.")
+    append({ ...ask, id: id(), kind: 'save', question: 'Try saving this for later?', primary: 'Save', choice: undefined })
   }
 }
 

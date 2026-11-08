@@ -100,6 +100,40 @@ describe('conversation turns', () => {
     await store.chooseAsk(asks()[0].id, true)
     expect(mocks.start).toHaveBeenCalledTimes(1)
     expect(replies().at(-1)).toContain("couldn't change air-gap")
+    expect(asks().at(-1)?.choice).toBeUndefined()
+    expect(asks()).toHaveLength(2)
+  })
+
+  it('reserves the approved screenshot while the air-gap toggle is pending', async () => {
+    const approved = image()
+    await store.sendImage(approved)
+    const offline = result()
+    offline.egress = offline.egress.map((r) => ({ ...r, blocked: true, reason: 'offline mode' }))
+    store.syncJob({ status: 'done', result: offline, events: [] })
+    let finishToggle!: (value: boolean) => void
+    mocks.setOffline.mockReturnValueOnce(new Promise<boolean>((resolve) => { finishToggle = resolve }))
+    const approval = store.chooseAsk(asks()[0].id, true)
+    expect(store.chatSnapshot().busy).toBe(true)
+    await store.sendImage(new File(['other'], 'other.png', { type: 'image/png' }))
+    expect(mocks.start).toHaveBeenCalledTimes(1)
+    finishToggle(false)
+    await approval
+    expect(mocks.start).toHaveBeenNthCalledWith(2, approved)
+  })
+
+  it('offers another save approval if local storage was unavailable', async () => {
+    await store.sendImage(image())
+    store.syncJob({ status: 'done', result: result(), events: [] })
+    vi.stubGlobal('localStorage', { setItem: () => { throw new Error('blocked') } })
+    await store.chooseAsk(asks()[0].id, true)
+    expect(mocks.action).toHaveBeenCalledTimes(1)
+    const retry = asks().at(-1)!
+    expect(retry.kind).toBe('save')
+    expect(retry.choice).toBeUndefined()
+    vi.stubGlobal('localStorage', { setItem: (_k: string, v: string) => storage.set('latent:kept', v) })
+    await store.chooseAsk(retry.id, true)
+    expect(storage.has('latent:kept')).toBe(true)
+    expect(mocks.action).toHaveBeenCalledTimes(1)
   })
 
   it('renders actionable errors for model and API key failures', async () => {

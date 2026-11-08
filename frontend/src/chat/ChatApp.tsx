@@ -168,7 +168,7 @@ export function ChatApp() {
           <p className="chat-composer-hint"><LockKeyhole size={11} aria-hidden="true" /> Your screenshots stay yours. Always.</p>
         </div>
       </div>
-      <ReceiptsDrawer open={drawer} onClose={() => setDrawer(false)} mockRecords={selectedReceipt ?? receipts} />
+      <ReceiptsDrawer open={drawer} onClose={() => setDrawer(false)} mockRecords={receipts} selectedRecords={selectedReceipt} />
       {dragging && <div className="chat-drop-overlay"><ImagePlus size={42} strokeWidth={1.3} aria-hidden="true" /><h2>Drop it here. I'll take a look.</h2><p>Your screenshot stays on this device.</p></div>}
     </div>
   )

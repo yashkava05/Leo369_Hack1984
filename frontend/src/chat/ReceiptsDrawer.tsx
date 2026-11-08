@@ -4,10 +4,11 @@ import { MOCK, getEgress } from '../api/client'
 import type { EgressRecord } from '../types'
 import { queryPreview, receiptTotals } from './receipts'
 
-export function ReceiptsDrawer({ open, onClose, mockRecords }: {
+export function ReceiptsDrawer({ open, onClose, mockRecords, selectedRecords = null }: {
   open: boolean
   onClose: () => void
   mockRecords: EgressRecord[]
+  selectedRecords?: EgressRecord[] | null
 }) {
   const titleId = useId()
   const drawerRef = useRef<HTMLElement>(null)
@@ -47,7 +48,7 @@ export function ReceiptsDrawer({ open, onClose, mockRecords }: {
   }, [open])
 
   useEffect(() => {
-    if (!open || MOCK) return
+    if (!open || MOCK || selectedRecords !== null) return
     let active = true
     let pending = false
     const poll = async () => {
@@ -71,10 +72,10 @@ export function ReceiptsDrawer({ open, onClose, mockRecords }: {
       active = false
       window.clearInterval(interval)
     }
-  }, [open])
+  }, [open, selectedRecords])
 
   if (!open) return null
-  const visibleRecords = MOCK ? mockRecords : records
+  const visibleRecords = selectedRecords ?? (MOCK ? mockRecords : records)
   const { sent, bytes, blocked } = receiptTotals(visibleRecords)
 
   return (
