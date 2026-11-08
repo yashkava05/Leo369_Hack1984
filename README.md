@@ -86,6 +86,8 @@ All settings live in one repo-root `.env` (copy `.env.example`). The backend rea
 | `EXA_API_KEY` | empty | backend |
 | `LATENT_MOCK` | `0` | backend |
 | `LATENT_WATCH_DIR` | empty (off) | backend, see [Auto-ingest](#auto-ingest-from-the-screenshot-folder) |
+| `LATENT_DB_PATH` | `~/.latent/latent.db` | backend (intent library) |
+| `LATENT_KEEP_THUMBS` | `0` | backend (intent library) |
 | `VITE_API_URL` | `http://localhost:8000` | frontend |
 | `VITE_MOCK` | `0` | frontend |
 
@@ -107,6 +109,24 @@ LATENT_WATCH_DIR=~/Desktop uvicorn app.main:app --port 8000   # from backend/
   files never start a job.
 - Latent only reads the file. It never moves, edits or deletes anything in the folder, and the
   image bytes stay on this machine exactly as with a dropped screenshot.
+
+## Intent library
+
+Every finished job is saved on this machine in a SQLite database at **`~/.latent/latent.db`**
+(override with `LATENT_DB_PATH`). Nothing is stored remotely. A row holds only the scrubbed
+result: the intent summary, the public entities and the cards, with the egress records removed.
+Screenshot thumbnails (256 px JPEG) are stored only when `LATENT_KEEP_THUMBS=1`. The file is not
+encrypted; it relies on your user account's file permissions.
+
+The **Library** drawer in the UI searches saved intents by performer, product, place or any
+other public entity (SQLite FTS5), filters by type, reopens a result's cards in the dashboard,
+and deletes one entry or everything ("Delete everything" also runs `VACUUM`). The same data is
+under `GET /api/library?q=&type=&limit=50`, `GET /api/library/{id}`, `DELETE /api/library/{id}`
+and `DELETE /api/library`. To inspect it directly:
+
+```bash
+sqlite3 ~/.latent/latent.db 'select intent_type, summary from intents order by created_at desc limit 5;'
+```
 
 ## Checks
 

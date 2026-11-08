@@ -15,6 +15,7 @@ export interface JobState {
   currentStage?: Stage
   result?: JobResult
   error?: string
+  reopened?: boolean // shown from the local library; no live events or egress audit kept
 }
 
 const IDLE: JobState = { status: 'idle', events: [] }
@@ -94,6 +95,12 @@ export function follow(jobId: string): boolean {
   setState({ status: 'running', jobId, events: [] })
   unsubscribeEvents = subscribe(jobId, (event) => onEvent(gen, event))
   return true
+}
+
+/** Show a saved result (from the local library) as if its job had just finished. */
+export function openResult(result: JobResult): void {
+  clear()
+  setState({ status: 'done', jobId: result.job_id, events: [], result, reopened: true })
 }
 
 export function reset(): void {
