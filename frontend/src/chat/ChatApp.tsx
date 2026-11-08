@@ -162,11 +162,11 @@ export function ChatApp() {
         <div className="chat-composer-area">
           {MOCK && <p className="chat-demo-note"><span /> Demo mode · Sample results, no web searches sent</p>}
           <div id="chat-voice-controls" className="chat-voice-panel" hidden={!voiceOpen}>
-            {voiceOpen && <VoiceCapture disabled={chat.busy} onBusyChange={setVoiceBusy} onJob={beginVoiceJob} />}
+            {voiceOpen && <VoiceCapture autoStart disabled={chat.busy} onBusyChange={setVoiceBusy} onJob={beginVoiceJob} onClose={() => setVoiceOpen(false)} />}
           </div>
           <form className="chat-composer" onSubmit={submit} aria-label="Message composer">
             <button type="button" className="chat-attach" aria-label="Attach a screenshot" onClick={() => attach.current?.click()}><Plus size={21} aria-hidden="true" /></button>
-            <button type="button" className={`chat-attach chat-mic${voiceOpen ? ' is-active' : ''}`} aria-label={voiceOpen ? 'Close voice input' : 'Open voice input'} aria-expanded={voiceOpen} aria-controls="chat-voice-controls" title="Speak a thought" onClick={() => setVoiceOpen(!voiceOpen)}><Mic size={18} aria-hidden="true" /></button>
+            <button type="button" className={`chat-attach chat-mic${voiceOpen ? ' is-active' : ''}`} aria-label={voiceOpen ? 'Close voice input' : 'Speak a thought'} aria-expanded={voiceOpen} aria-controls="chat-voice-controls" title={voiceOpen ? 'Close voice input' : 'Speak a thought'} disabled={chat.busy && !voiceOpen} onClick={() => setVoiceOpen(!voiceOpen)}><Mic size={18} aria-hidden="true" /></button>
             <input type="file" ref={attach} accept="image/png,image/jpeg,image/webp" hidden onChange={(event) => { const file = event.currentTarget.files?.[0]; event.currentTarget.value = ''; if (file) { following.current = true; void sendImage(file) } }} />
             <input ref={composer} value={text} onChange={(event) => setText(event.target.value)} aria-label="Message Latent" placeholder="Message Latent, or paste a screenshot" />
             <button type="submit" className="chat-send" aria-label="Send message" disabled={!text.trim()}><ArrowUp size={18} aria-hidden="true" /><span>Send</span></button>

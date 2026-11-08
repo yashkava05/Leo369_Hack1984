@@ -11,18 +11,18 @@ export interface VoiceState { phase: VoicePhase; text: string; elapsed: number; 
 export function voiceRecovery(error: unknown): string {
   const code = error instanceof VoiceError ? error.code : error instanceof Error ? error.name : ''
   const status = error instanceof VoiceError ? error.status : 0
-  if (code === 'NotAllowedError' || code === 'SecurityError') return 'Microphone permission denied. Allow it in browser settings, or type your thought below.'
-  if (code === 'NotFoundError' || code === 'DevicesNotFoundError') return 'No microphone found. Connect one and retry, or type below.'
-  if (code === 'NotSupportedError') return 'Recording is unsupported in this browser. Type your thought below.'
-  if (code === 'voice_model_unavailable') return 'The local speech model is missing. Run scripts/setup_voice.sh, or type below.'
-  if (code === 'no_speech') return 'No speech detected. Retry in a quiet place, or type below.'
-  if (code === 'TimeoutError' || code === 'timeout' || status === 504 || status === 408) return 'Local processing timed out. Try a shorter recording, or type below.'
-  if (status === 413) return 'Recording is too large. Record a shorter thought, or type below.'
-  if (status === 415) return 'Audio format was rejected. Try another browser, or type below.'
-  if (code === 'audio_too_long') return 'Recording exceeds 30 seconds. Retry with a shorter thought.'
-  if (status === 422) return 'The recording or review could not be processed. Edit your text or retry a shorter recording.'
-  if (status === 404) return 'That saved item is unavailable. Select another library item.'
-  return 'Local processing failed. Check the backend, then retry or type below.'
+  if (code === 'NotAllowedError' || code === 'SecurityError') return 'Microphone permission denied — allow it in your browser settings.'
+  if (code === 'NotFoundError' || code === 'DevicesNotFoundError') return 'No microphone found — connect one and try again.'
+  if (code === 'NotSupportedError') return 'Recording is unsupported in this browser.'
+  if (code === 'voice_model_unavailable') return 'The local speech model is missing — run scripts/setup_voice.sh.'
+  if (code === 'no_speech') return 'No speech detected — try again somewhere quieter.'
+  if (code === 'TimeoutError' || code === 'timeout' || status === 504 || status === 408) return 'Local processing timed out — try a shorter thought.'
+  if (status === 413) return 'Recording is too large — try a shorter thought.'
+  if (status === 415) return 'This browser\'s audio format was rejected — try another browser.'
+  if (code === 'audio_too_long') return 'That was over 30 seconds — try a shorter thought.'
+  if (status === 422) return 'That couldn\'t be processed — edit the text or record again.'
+  if (status === 404) return 'That saved item is unavailable — choose another.'
+  return 'Something went wrong on this device — check the backend and try again.'
 }
 
 /** Instance-local controller also makes capture races testable without a DOM or extra dependency. */

@@ -37,20 +37,31 @@ describe('no-device voice demos and accessible review', () => {
     voice.dispose()
     expect(forbidden).not.toHaveBeenCalled()
   })
-  it('always renders typed review, labeled controls and demo scenarios without starting capture', () => {
+  it('opens as a one-tap capture strip with a typed fallback and demo scenarios, without starting capture', () => {
     const html = renderToStaticMarkup(<VoiceCapture onJob={() => {}} />)
-    for (const text of ['Review or type', 'Explore', 'Save locally', 'Find related', 'Retry', 'Cancel', 'LOCAL', 'WEB', 'Voice demo scenario']) expect(html).toContain(text)
-    expect(html).toContain('aria-describedby=')
+    for (const text of ['Tap to speak', 'Start speaking', 'Type instead', 'Close voice input', 'Audio stays on this device', 'Voice demo scenario']) expect(html).toContain(text)
     expect(html).not.toContain('<audio')
     expect(html).not.toContain('blob:')
   })
-  it('disables related until exactly one context is selected and renders a removable scrubbed chip', () => {
-    const props = { text: 'Find more like this', busy: false, items: [], loading: false, libraryError: null, onText: () => {}, onSelect: () => {}, onRemove: () => {}, onLoad: () => {}, onAction: () => {}, onRetry: () => {}, onCancel: () => {} }
-    const none = renderToStaticMarkup(<TranscriptReview {...props} context={null} />)
-    expect(none).toMatch(/<button[^>]*disabled=""[^>]*>Find related/)
-    const chosen = renderToStaticMarkup(<TranscriptReview {...props} context={{ id: 'one', summary: 'Scrubbed public summary' }} />)
+  const review = { text: 'Find AI events in Boston', busy: false, items: [], loading: false, libraryError: null, onText: () => {}, onSelect: () => {}, onRemove: () => {}, onLoad: () => {}, onAction: () => {}, onRerecord: () => {}, onDiscard: () => {} }
+  it('reviews editable text with Search as the default action and Save, re-record and discard beside it', () => {
+    const html = renderToStaticMarkup(<TranscriptReview {...review} context={null} />)
+    for (const text of ['<textarea', 'Find AI events in Boston', '>Search</button>', '>Save for later</button>', 'Record again', 'Discard', 'More like a saved item']) expect(html).toContain(text)
+    expect(html).toContain('aria-describedby=')
+    expect(html).not.toMatch(/<button[^>]*disabled=""[^>]*>(<svg[^]*?<\/svg>)?Search/)
+  })
+  it('never offers an action for empty text', () => {
+    const html = renderToStaticMarkup(<TranscriptReview {...review} text="   " context={null} />)
+    expect(html).toMatch(/<button[^>]*disabled=""[^>]*>(<svg[^]*?<\/svg>)?Search/)
+    expect(html).toMatch(/<button[^>]*disabled=""[^>]*>(<svg[^]*?<\/svg>)?Save for later/)
+  })
+  it('offers Find related only once exactly one saved item is chosen, as a removable scrubbed chip', () => {
+    const none = renderToStaticMarkup(<TranscriptReview {...review} text="Find more like this" context={null} />)
+    expect(none).not.toContain('Find related')
+    const chosen = renderToStaticMarkup(<TranscriptReview {...review} text="Find more like this" context={{ id: 'one', summary: 'Scrubbed public summary' }} />)
     expect(chosen).toContain('Scrubbed public summary')
     expect(chosen).toContain('Remove saved context')
-    expect(chosen).not.toMatch(/<button[^>]*disabled=""[^>]*>Find related/)
+    expect(chosen).toMatch(/>(<svg[^]*?<\/svg>)?Find related<\/button>/)
+    expect(chosen).not.toMatch(/<button[^>]*disabled=""[^>]*>(<svg[^]*?<\/svg>)?Find related/)
   })
 })
