@@ -193,9 +193,23 @@ key itself is never returned or logged.
 Silicon or a GPU it takes a few seconds. With 16 GB+ RAM or a good GPU you can use the 7B model:
 set `LATENT_MODEL=qwen2.5vl:7b` in `.env` and re-run `./scripts/setup.sh`.
 
-**Windows.** `setup.sh` is for macOS and Linux. On Windows, run it inside WSL, or do the steps by
-hand: install Ollama for Windows, `ollama pull qwen2.5vl:3b`, then follow the manual setup above
-(the backend install includes `en_core_web_lg`).
+**Windows.** `setup.sh` and `dev.sh` are for macOS and Linux (or WSL). On Windows, clone the repo
+onto the Windows drive (for example `C:\src\latent`, not `\\wsl.localhost\...`), install Python
+3.11, Node 20.19+ and [Ollama for Windows](https://ollama.com/download/windows), then double-click
+`scripts\start-windows.cmd`. It checks the prerequisites (printing a fix for each missing one),
+creates `.env` if there is none (never touching an existing `.env` or `.env.local`), pulls the model,
+installs `backend\.venv` (including `en_core_web_lg`) and the frontend dependencies when they are
+missing or changed, starts the backend and frontend, waits for `/api/health` and opens the chat.
+Ctrl+C or closing the window stops both servers. From PowerShell:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\start-windows.ps1 -Check   # readiness report only
+scripts\start-windows.cmd -Mock      # replay fixtures: no Ollama, no network
+scripts\start-windows.cmd -AirGap    # start with every outbound request blocked
+scripts\start-windows.cmd -Wsl       # bind to 0.0.0.0 so WSL can reach the app (and Ollama, if started here)
+```
+
+See [`docs/DEMO.md`](docs/DEMO.md#windows-demo-laptop) for the demo-laptop routine.
 
 ## Configuration
 
@@ -320,6 +334,7 @@ backend/tests/          pytest suite
 frontend/src/           Vite + React + TS (api/, components/, types.ts, App.tsx, main.tsx)
 eval/                   screenshots/, expected.json, run_eval.py
 scripts/setup.sh        one-shot local setup
+scripts/start-windows.* Windows: check, set up and start in one step
 ```
 
 ## Pitch deck
