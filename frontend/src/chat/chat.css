@@ -237,6 +237,13 @@ body.chat-mode { margin: 0; padding: 0; background: var(--chat-bg); }
   .chat-app *, .chat-app *::before, .chat-app *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
 
+/* Local saved-item recovery and the explicit full-memory reset. */
+.chat-memory-controls { display: grid; gap: 8px; font-size: 12px; }
+.chat-memory-controls p { color: var(--chat-muted); line-height: 1.5; margin: 0 0 6px; }
+.chat-memory-controls > div { padding: 10px; border: 1px solid var(--chat-line); border-radius: 9px; }
+.chat-memory-controls button { border: 1px solid var(--chat-line); border-radius: 8px; background: var(--chat-surface); padding: 7px 10px; text-align: left; font-size: 12px; }
+.chat-memory-controls > div button { display: block; width: 100%; margin-top: 6px; }
+.chat-memory-controls button:focus-visible { outline: 2px solid var(--chat-me); outline-offset: 2px; }
 .chat-voice-panel { max-width: 820px; margin: 0 auto 8px; }
 .chat-voice-panel .voice-capture { max-height: 38vh; overflow-y: auto; }
 

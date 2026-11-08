@@ -1,18 +1,23 @@
 import { useSyncExternalStore } from 'react'
-import { followVoice, reserveVoiceSlot, start } from '../state/useJob'
+import { followVoice, reserveVoiceSlot, reset as resetJob, start } from '../state/useJob'
+import { MOCK } from '../api/client'
+import { wipeLibrary } from '../api/library'
 import type { VoiceAction } from '../api/voice'
 import type { JobState } from '../state/useJob'
 import { getOffline, setOffline } from '../api/privacy'
 import { runAction } from '../components/cards/cardActions'
 import type { JobResult } from '../types'
 import { askFor, keptLabel, replyFor } from './format'
-import { readKept, writeKept } from './kept'
+import { deleteMemory, initialSaved, keepSaved, resolvePending, syncSaved } from './saved'
+import type { SavedView } from './saved'
 import type { ChatMessage, KeptItem } from './messages'
 
 export const WELCOME = "Hi, I'm Latent. Tap the microphone and tell me what you're looking for. I'll transcribe it on this device, let you review it, then search the live web when you choose Search. You can also attach your own screenshot."
 interface ChatState {
   messages: ChatMessage[]
   kept: KeptItem[]
+  savedNotice: string
+  blockedSaves: SavedView['blocked']
   busy: boolean
   voicePending: boolean
   offline: boolean | null
@@ -20,7 +25,7 @@ interface ChatState {
 }
 let nextId = 0
 const id = () => `chat-${++nextId}`
-let state: ChatState = { messages: [{ id: id(), type: 'agent-text', text: WELCOME }], kept: readKept(), busy: false, voicePending: false, offline: null, toggling: false }
+let state: ChatState = { messages: [{ id: id(), type: 'agent-text', text: WELCOME }], kept: initialSaved(), savedNotice: '', blockedSaves: [], busy: false, voicePending: false, offline: null, toggling: false }
 let active: { turn: string; file?: File; voiceAction?: VoiceAction; startedAt: number } | null = null
 const listeners = new Set<() => void>()
 const imageUrls = new Set<string>()
@@ -33,6 +38,26 @@ export const say = (text: string) => append({ id: id(), type: 'agent-text', text
 export const chatSnapshot = () => state
 const subscribe = (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener) } }
 export const useChat = () => useSyncExternalStore(subscribe, chatSnapshot, chatSnapshot)
+
+const applySaved = (saved: SavedView) => emit({ kept: saved.items, savedNotice: saved.notice, blockedSaves: saved.blocked })
+export async function refreshSaved(): Promise<void> {
+  try { applySaved(await syncSaved()) }
+  catch { emit({ savedNotice: 'Browser storage is unavailable. Existing copies have been retained.' }) }
+}
+export async function reviewPending(id: string, restore: boolean): Promise<void> {
+  try { applySaved(await resolvePending(id, restore)) }
+  catch { emit({ savedNotice: 'Could not update this save. Your browser copy is retained.' }) }
+}
+export async function clearMemory(): Promise<void> {
+  try {
+    await deleteMemory()
+    active = null
+    resetJob()
+    if (MOCK) await wipeLibrary()
+    releaseImages()
+    emit({ kept: [], blockedSaves: [], savedNotice: '', busy: false, voicePending: false, messages: [{ id: id(), type: 'agent-text', text: WELCOME }] })
+  } catch { say('Could not finish deleting local data. Retry when storage and the backend are available.') }
+}
 
 export async function loadOffline(): Promise<void> {
   try { emit({ offline: await getOffline() }) }
@@ -195,10 +220,9 @@ export async function chooseAsk(messageId: string, yes: boolean): Promise<void> 
   }
   const item: KeptItem = { label: keptLabel(ask.result.intent), intent_type: ask.result.intent?.intent_type ?? 'other', savedAt: Date.now(), cards: ask.result.cards }
   try {
-    const kept = [item, ...state.kept]
-    writeKept(kept)
-    emit({ kept })
-    say(ask.kind === 'calendar' ? 'Done. Your calendar file is ready.' : 'Saved to Kept for later. Come back to it whenever you like.')
+    const saved = await keepSaved(item)
+    applySaved(saved)
+    say(saved.notice ? `Your item is held in this browser. ${saved.notice}` : ask.kind === 'calendar' ? 'Done. Your calendar file is ready.' : 'Saved to Kept for later. Come back to it whenever you like.')
   } catch {
     say(ask.kind === 'calendar' ? "Your calendar file is ready, but I couldn't save it for later. Allow local storage in this browser and try again." : "I couldn't save that here. Allow local storage in this browser and try again.")
     append({ ...ask, id: id(), kind: 'save', question: 'Try saving this for later?', primary: 'Save', choice: undefined })

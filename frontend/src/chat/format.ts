@@ -116,6 +116,7 @@ export function askFor(result: JobResult): SuggestedAsk | null {
   }
 }
 
+/** Durable labels come only from scrubbed public entities, never the summary or transcript. */
 export function keptLabel(intent: Intent | null): string {
   return values(intent).join(' ')
 }

@@ -13,7 +13,7 @@ import { liveTeamsDriver } from '../teams/driver'
 import { createDemoTeamsDriver } from '../teams/demo'
 import type { EgressRecord } from '../types'
 import type { ChatMessage } from './messages'
-import { beginVoiceJob, chooseAsk, loadOffline, releaseImages, reopenKept, say, sendImage, sendText, setVoiceBusy, syncJob, toggleOffline, useChat } from './store'
+import { beginVoiceJob, chooseAsk, clearMemory, refreshSaved, reviewPending, loadOffline, releaseImages, reopenKept, say, sendImage, sendText, setVoiceBusy, syncJob, toggleOffline, useChat } from './store'
 import { receiptLabel } from './receipts'
 import { ReceiptsDrawer } from './ReceiptsDrawer'
 import { WorkSteps } from './WorkSteps'
@@ -66,7 +66,19 @@ export function ChatApp() {
     document.body.classList.add('chat-mode')
     return () => document.body.classList.remove('chat-mode')
   }, [])
-  useEffect(() => { void loadOffline() }, [])
+  useEffect(() => {
+    void loadOffline()
+    void refreshSaved()
+    const refresh = () => { void refreshSaved() }
+    window.addEventListener('online', refresh)
+    window.addEventListener('focus', refresh)
+    window.addEventListener('storage', refresh)
+    return () => {
+      window.removeEventListener('online', refresh)
+      window.removeEventListener('focus', refresh)
+      window.removeEventListener('storage', refresh)
+    }
+  }, [])
   useEffect(() => { syncJob({ status: jobStatus, events: jobEvents, result: jobResult, error: jobError }) }, [jobStatus, jobEvents, jobResult, jobError])
   useEffect(() => {
     const onPageHide = (event: PageTransitionEvent) => { if (!event.persisted) releaseImages() }
@@ -153,6 +165,17 @@ export function ChatApp() {
         <div className="chat-sidebar-section chat-kept"><h2><Bookmark size={13} aria-hidden="true" /> Kept for later <span>{chat.kept.length || ''}</span></h2>
           {chat.kept.length ? <ul>{chat.kept.map((item, index) => <li key={`${item.savedAt}-${index}`}><button type="button" onClick={() => { following.current = true; reopenKept(item) }}><span className="chat-kept-icon"><Bookmark size={14} aria-hidden="true" /></span><span>{item.label}<small>{new Date(item.savedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</small></span></button></li>)}</ul>
             : <div className="chat-kept-empty"><Bookmark size={23} strokeWidth={1.3} aria-hidden="true" /><p>Good finds deserve<br />a place to come back to.</p><span>Things you keep will live here.</span></div>}
+        </div>
+        <div className="chat-sidebar-section chat-memory-controls">
+          {chat.savedNotice && <p role="status">{chat.savedNotice}</p>}
+          {chat.blockedSaves.map((entry) => <div key={entry.id}><p>{entry.item.label}</p>
+            <button type="button" onClick={() => { void reviewPending(entry.id, true) }}>Restore as a new save</button>
+            <button type="button" onClick={() => { void reviewPending(entry.id, false) }}>Discard browser copy</button>
+          </div>)}
+          <button type="button" onClick={() => { void refreshSaved() }}>Sync saved items</button>
+          <button type="button" onClick={() => {
+            if (window.confirm('Delete all Latent local data? This removes saved items, library history, the search index, Muse feed items and preferences, and browser Kept copies from Latent. Copies outside the app (backups, other storage) are not affected.')) { setVoiceOpen(false); void clearMemory() }
+          }}>Delete all local data</button>
         </div>
         <div className="chat-sidebar-footer"><ShieldCheck size={17} aria-hidden="true" /><div>A little more private.<span>A lot more useful.</span></div></div>
       </aside>

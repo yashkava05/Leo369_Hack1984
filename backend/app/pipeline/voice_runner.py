@@ -28,7 +28,9 @@ async def _save_local(job: jobs.JobState, timings: dict[str, int]) -> None:
         update={"status": "done", "queries": [], "cards": [], "egress": [], "timings_ms": timings}
     )
     try:
-        saved = await asyncio.to_thread(library.save, completed)
+        saved = await asyncio.to_thread(
+            library.save, completed, expected_generation=job.memory_generation
+        )
     except Exception:
         saved = False
     if not saved:
@@ -208,7 +210,9 @@ async def _mock_voice(job: jobs.JobState, action: VoiceAction, context: JobResul
         update={"status": "done", "queries": queries, "cards": cards, "egress": records}
     )
     await _publish(job, "cards", "ok", "Cards built on this device (mock)", local=True)
-    await asyncio.to_thread(library.save_quietly, job.result)
+    await asyncio.to_thread(
+        library.save_quietly, job.result, expected_generation=job.memory_generation
+    )
     await _publish(
         job,
         "done",

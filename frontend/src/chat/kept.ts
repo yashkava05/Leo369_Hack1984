@@ -24,15 +24,17 @@ function validCard(value: unknown): value is Card {
     && Array.isArray(c.actions) && c.actions.every(validAction)
 }
 
-export function readKept(): KeptItem[] {
-  try {
-    const parsed: unknown = JSON.parse(localStorage.getItem(KEPT_KEY) ?? '[]')
-    if (!Array.isArray(parsed)) return []
-    return parsed.filter((v): v is KeptItem => !!v && typeof v.label === 'string'
+export function parseKept(parsed: unknown): KeptItem[] {
+  if (!Array.isArray(parsed)) return []
+  return parsed.filter((v): v is KeptItem => !!v && typeof v.label === 'string'
       && intents.has(v.intent_type) && typeof v.savedAt === 'number' && Number.isFinite(v.savedAt)
       && Array.isArray(v.cards) && v.cards.every(validCard))
       .sort((a, b) => b.savedAt - a.savedAt)
-  } catch { return [] }
+}
+
+export function readKept(): KeptItem[] {
+  try { return parseKept(JSON.parse(localStorage.getItem(KEPT_KEY) ?? '[]')) }
+  catch { return [] }
 }
 
 /** Persist only public card data. No File, object URL, screenshot, event or receipt is saved. */

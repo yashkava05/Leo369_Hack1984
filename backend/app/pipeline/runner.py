@@ -294,7 +294,9 @@ async def finish_intent_job(
     )
     result: JobResult = job.result
     # Save the scrubbed result (egress stripped) to the local library before announcing done.
-    await asyncio.to_thread(library.save_quietly, result, thumb)
+    await asyncio.to_thread(
+        library.save_quietly, result, thumb, expected_generation=job.memory_generation
+    )
     await _publish(
         job,
         "done",

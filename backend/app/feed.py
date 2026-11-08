@@ -486,9 +486,13 @@ def _rank(candidates: list[_Candidate], suppressed: set[str]) -> list[_Candidate
     return ranked
 
 
-def _replace(candidates: list[_Candidate]) -> None:
+def _replace(candidates: list[_Candidate], *, expected_generation: int) -> None:
     ids = [candidate.detail.id for candidate in candidates]
     with _connect() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        generation = conn.execute("SELECT generation FROM memory_state WHERE id = 1").fetchone()[0]
+        if generation != expected_generation:
+            return
         for index, candidate in enumerate(candidates):
             conn.execute(
                 """
@@ -524,6 +528,7 @@ def _replace(candidates: list[_Candidate]) -> None:
 async def refresh() -> None:
     """Regenerate the finite feed from the current scrubbed local library."""
     async with _refresh_lock:
+        generation = await asyncio.to_thread(library.current_generation)
         if get_settings().latent_mock:
             candidates = _mock_candidates()
         else:
@@ -538,7 +543,7 @@ async def refresh() -> None:
             candidates = [*discoveries, *local]
         suppressed = await asyncio.to_thread(_suppressed)
         ranked = _rank(candidates, suppressed)
-        await asyncio.to_thread(_replace, ranked)
+        await asyncio.to_thread(_replace, ranked, expected_generation=generation)
 
 
 def list_items(limit: int = MAX_FEED_ITEMS) -> FeedResponse:
@@ -587,6 +592,7 @@ def get_item(item_id: str) -> FeedItemDetail | None:
 def feedback(item_id: str, action: FeedFeedbackAction) -> bool:
     """Persist feedback. Negative feedback hides this item; less-like also suppresses topics."""
     with _connect() as conn:
+        conn.execute("BEGIN IMMEDIATE")  # A concurrent reset must not resurrect old preferences.
         row = conn.execute(
             """
             SELECT topic_keys_json, detail_json, feedback_json
@@ -659,8 +665,15 @@ def remove_source(job_id: str) -> None:
                 )
 
 
-def wipe() -> None:
-    """Remove all derived feed items, feedback, and learned suppressions."""
-    with _connect() as conn:
+def wipe(conn: sqlite3.Connection | None = None) -> None:
+    """Remove derived data, optionally inside the caller's atomic memory reset."""
+    if conn is None:
+        with _connect() as own_conn:
+            wipe(own_conn)
+        return
+    # A first-run reset must work before the optional feed schema has been initialized.
+    tables = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
+    if "feed_items" in tables:
         conn.execute("DELETE FROM feed_items")
+    if "feed_suppressions" in tables:
         conn.execute("DELETE FROM feed_suppressions")

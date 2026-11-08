@@ -2,8 +2,20 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import concert from '../api/fixtures/concert_flyer.result.json'
 import type { JobResult, StageEvent } from '../types'
 
-const mocks = vi.hoisted(() => ({ start: vi.fn(), followVoice: vi.fn(() => true), reserveVoiceSlot: vi.fn(() => true), setOffline: vi.fn(), action: vi.fn() }))
-vi.mock('../state/useJob', () => ({ start: mocks.start, followVoice: mocks.followVoice, reserveVoiceSlot: mocks.reserveVoiceSlot }))
+const mocks = vi.hoisted(() => ({ start: vi.fn(), reset: vi.fn(), followVoice: vi.fn(() => true), reserveVoiceSlot: vi.fn(() => true), setOffline: vi.fn(), action: vi.fn() }))
+vi.mock('./saved', async () => {
+  const { readKept, writeKept } = await import('./kept')
+  return {
+    initialSaved: readKept,
+    keepSaved: async (item: import('./messages').KeptItem) => {
+      writeKept([item, ...readKept()])
+      return { items: readKept(), blocked: [], notice: '' }
+    },
+    syncSaved: async () => ({ items: readKept(), blocked: [], notice: '' }),
+    resolvePending: vi.fn(), deleteMemory: vi.fn(),
+  }
+})
+vi.mock('../state/useJob', () => ({ start: mocks.start, reset: mocks.reset, followVoice: mocks.followVoice, reserveVoiceSlot: mocks.reserveVoiceSlot }))
 vi.mock('../api/privacy', () => ({ getOffline: vi.fn().mockResolvedValue(false), setOffline: mocks.setOffline }))
 vi.mock('../components/cards/cardActions', () => ({ runAction: mocks.action }))
 
@@ -148,6 +160,15 @@ describe('conversation turns', () => {
   })
 })
 
+it('Delete All resets the active job and releases the conversation previews', async () => {
+  await store.sendImage(image())
+  await store.clearMemory()
+  expect(mocks.reset).toHaveBeenCalled()
+  expect(store.chatSnapshot().busy).toBe(false)
+  expect(store.chatSnapshot().kept).toEqual([])
+  expect(store.chatSnapshot().messages).toHaveLength(1)
+  expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:only-in-memory')
+})
 
 describe('reviewed voice results in chat', () => {
   it('follows an accepted save with no raw transcript or screenshot prompt', () => {
@@ -235,4 +256,17 @@ it.each(['result', 'stage'])('keeps explicit %s errors when a voice result is em
   store.syncJob({ status: 'done', result: empty, events })
   expect(replies().join(' ')).toContain('TAVILY_API_KEY')
   expect(replies().join(' ')).not.toContain('I need more public details')
+})
+
+
+it('persists the Kept label from public entities without the private intent summary', async () => {
+  const done = result()
+  done.intent!.summary = 'synthetic-private-summary-do-not-persist'
+  done.intent!.public_entities = [{ type: 'topic', value: '  Lumen Festival  ' }]
+  await store.sendImage(image())
+  store.syncJob({ status: 'done', result: done, events: [] })
+  await store.chooseAsk(asks()[0].id, true)
+  const stored = storage.get('latent:kept')!
+  expect(JSON.parse(stored)[0].label).toBe('Lumen Festival')
+  expect(stored).not.toContain('synthetic-private-summary-do-not-persist')
 })

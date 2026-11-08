@@ -263,7 +263,7 @@ def test_analyze_starts_existing_job_stream_without_persisting_request(monkeypat
 async def test_save_failure_is_a_safe_error_not_false_success(monkeypatch, caplog, mode):
     monkeypatch.setattr(voice_runner, "extract_text_intent", interpret)
 
-    def fail_save(*args):
+    def fail_save(*args, **kwargs):
         if mode == "exception":
             raise OSError(RAW)
         return False
