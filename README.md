@@ -277,7 +277,7 @@ scripts/setup.sh        one-shot local setup
 
 ## Pitch deck
 
-- [`docs/pitch.pdf`](docs/pitch.pdf): the 6-slide deck for the submission.
+- [`docs/pitch.pdf`](docs/pitch.pdf): the 7-slide deck for the submission.
 - [`docs/pitch-notes.pdf`](docs/pitch-notes.pdf): the same slides with speaker notes under each one.
 - [`docs/pitch.html`](docs/pitch.html): the source. Open it in any browser to present
   (arrow keys or click to move, `F` fullscreen, `N` speaker notes). Edit the text in the file; no
