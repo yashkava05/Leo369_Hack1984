@@ -5,7 +5,7 @@
   </picture>
 </p>
 
-<h3 align="center">Your screenshots, turned into actions, without your screenshots leaving your laptop.</h3>
+<h3 align="center">Your private, on-device memory: screenshots, voice notes and messages turned into next steps.</h3>
 
 <p align="center">
   A local-first memory agent built for <b>HACK1984</b>.
@@ -25,9 +25,9 @@
 
 ---
 
-You screenshot things you mean to come back to: a concert flyer, a product, a book, a place, a chart,
-an email. PrismLocal turns each one into something you can act on. A vision model **running on your
-own machine** works out what you meant and pulls out the public facts; a deterministic scrubber removes
+You capture things you mean to come back to: a screenshot of a concert flyer or a product, a voice
+note, a typed thought, an Outlook or Teams message. PrismLocal turns each one into something you can act
+on. A model **running on your own machine** works out what you meant and pulls out the public facts; a deterministic scrubber removes
 anything private; only short text queries built from those public facts go to the web. The answer
 arrives in a chat: live work steps tag every stage **On device** or **Internet**, then PrismLocal
 replies with action cards (tickets, a shop link, a map pin, a calendar file it makes only after you say
