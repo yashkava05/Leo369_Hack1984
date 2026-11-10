@@ -242,7 +242,7 @@ for the vision model and about 600 MB for the spaCy model.
 ### Linux and macOS
 
 ```bash
-git clone https://github.com/yashkava05/Leo369_Hack1984.git prismlocal && cd prismlocal
+git clone https://github.com/yashkava05/prismlocal-hack1984.git prismlocal && cd prismlocal
 ./scripts/setup.sh    # .env, Ollama model pull + smoke test, backend/.venv, spaCy model, frontend deps
 ./scripts/dev.sh      # Ollama if needed, backend on :8000, frontend on http://localhost:5173
 ```
